@@ -756,6 +756,25 @@ class Expr(BaseExpr):
         return hash(A) == hash(B);
 
     @staticmethod
+    def __decode__(T):
+        if type(T) is tuple:
+            head, *tail = T
+            
+            return Expr(head, *(Expr.from_tuple(t) for t in tail))
+        else:
+            return T
+    
+    @staticmethod
+    def _encode_(p):
+        if type(p) is Expr:
+            return p.head, tuple(Expr.to_tuple(q) for q in p.tail)
+        else:
+            return p
+
+    def __encode__(expr):
+        return Expr._encode_(expr)
+
+    @staticmethod
     def apply(expr, func, *args, **kwargs):
         if expr.expr:
             expr = func(expr, *args, **kwargs)

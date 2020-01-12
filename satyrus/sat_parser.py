@@ -4,12 +4,37 @@ import ply.yacc as yacc;
 
 precedence = (
 
+    ('left', 'ADD', 'SUB'),
+    ('left', 'MUL', 'DIV'),
+
+    ('left', 'XOR', 'OR'),
+    ('left', 'AND'),
+    ('left', 'NOT'),
+
+    ('left', 'IMP', 'RIMP', 'IFF'),
+
+    ('left', 'EQ', 'NE', 'GE', 'LE', 'GT', 'LT'),
+
+    ('left', 'FORALL', 'EXISTS', 'EXISTS_ONE'),
+
+    ('left', 'LCUR', 'RCUR'),
+    ('left', 'LPAR', 'RPAR'),
+    
+
+    ('left', 'NAME'),
+    ('left', 'STRING', 'NUMBER'),
+
+    ('left', 'DOTS'),
+
+    ('left', 'SHARP'),
+
+    ('left', 'ENDL'),
 )
 
 def p_start(p):
     """ start : code
     """
-    p_start.run(p[0])
+    p_start.run(p[1])
 
 def p_code(p):
     """ code : code stmt
@@ -33,13 +58,13 @@ def p_sys_config(p):
                    | SHARP NAME DOTS STRING
     """
     # Stmt('#', 'name', 'value')
-    p[0] = Stmt('#', p[2], p[4])
+    p[0] = (p[2], p[4])
 
 def p_def_const(p):
     """ def_const : NAME ASSIGN literal
     """
     # Stmt('=', 'name', 'value')
-    p[0] = Stmt('=', p[1], p[3])
+    p[0] = (p[1], p[3])
 
 def p_literal(p):
     """ literal : NUMBER
@@ -57,7 +82,7 @@ def p_def_array(p):
     else: # implicit array
         buffer = []
 
-    p[0] = Stmt('=', p[1], p[2], buffer)
+    p[0] = (p[1], p[2], buffer)
 
 def p_shape(p):
     """ shape : shape index
@@ -122,7 +147,7 @@ def p_def_restr(p):
         loops = p[6]
         expr = p[7]
 
-    p[0] = Stmt(':', type, name, level, loops, expr)
+    p[0] = (type, name, level, loops, expr)
 
 def p_loops(p):
     """ loops : loops loop
@@ -142,6 +167,82 @@ def p_loop(p):
     else:
         p[0] = (p[1], p[3], p[5], None)
 
+def p_quant(p):
+    """ quant : FORALL
+              | EXISTS
+              | EXISTS_ONE
+    """
+    p[0] = p[1]
+
+def p_domain(p):
+    """ domain : LBRA literal DOTS literal DOTS literal RBRA
+               | LBRA literal DOTS literal RBRA
+    """
+    if len(p) == 8:
+        p[0] = (p[2], p[4], p[6])
+    else:
+        p[0] = (p[2], p[4], None)
+
+def p_conditions(p):
+    """ conditions : conditions COMMA condition
+                   | condition
+    """
+    if len(p) == 4:
+        p[0] = [*p[1], p[2]]
+    else:
+        p[0] = [p[1],]
+
+def p_condition(p):
+    """ condition : expr EQ expr
+                  | expr GT expr
+                  | expr LT expr
+                  | expr GE expr
+                  | expr LE expr
+                  | expr NE expr
+    """
+    p[0] = p[1]
+
+def p_condition_expr(p):
+    """ condition : expr
+    """
+    p[0] = p[1]
+
+def p_expr(p):
+    """ expr : literal
+    """
+    p[0] = p[1]
+
+def p_expr1(p):
+    """ expr : NOT expr
+             | ADD expr
+             | SUB expr
+    """
+    p[0] = (p[1], p[2])
+
+def p_expr2(p):
+    """ expr : expr AND expr
+             | expr OR expr
+             | expr XOR expr
+             | expr ADD expr
+             | expr SUB expr
+             | expr MUL expr
+             | expr DIV expr
+             | expr IMP expr
+             | expr RIMP expr
+             | expr IFF expr
+    """
+    p[0] = (p[2], p[1], p[3])
+
+def p_expr_index(p):
+    """ expr : expr LBRA expr RBRA
+    """
+    p[0] = ('[]', p[1], p[3])
+
+def p_expr_par(p):
+    """ expr : LPAR expr RPAR
+    """
+    p[0] = p[2]
+    
 class Parser:
 
     def __init__(self, parser, p_start):
@@ -152,9 +253,12 @@ class Parser:
     def _run(self, code):
         self.code = code
     
-    def parse(source):
+    def parse(self, source):
         self.parser.parse(source)
 
         return self.code
+
+def p_error(p):
+    stderr << "SyntaxError at {} <Parser>".format(p)
         
 parser = Parser(yacc.yacc(), p_start)

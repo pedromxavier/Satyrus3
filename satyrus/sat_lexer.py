@@ -21,8 +21,6 @@ tokens = [
 
     'SHARP',
 
-    'TYPE',
-
     'ENDL',
 
     'COMMA',
@@ -126,7 +124,7 @@ def t_NUMBER(t):
     return t
 
 def t_error(t):
-    return t_error.error(t)
+    stderr << "SyntaxError at {} <Lexer>".format(t)
 
 t_error.error = lambda t: None;
 
@@ -137,4 +135,3 @@ t_ignore_COMMENT = r'%.*'
 t_ignore_MULTICOMMENT = r'\%\{[\s\S]*?\}\%'
 
 lexer = lex.lex()
-lexer.t_error = t_error;

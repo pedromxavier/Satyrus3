@@ -1,5 +1,6 @@
 """ SATyrus Test File
 """
+from sat_core import *;
 
 class Test:
 
@@ -26,17 +27,19 @@ class Test:
 		from sat_compiler import compiler
 
 		source = """
-		# prec : 30;
+# prec : 30;
+%{
+(int) A[0]:
 
-		(int) A[0]:
+@{i=[1:5]}
+${j=[1:3]}
 
-		@{i=[1:5]}
-		${j=[1:3]}
-
-		x[i] -> y[j];
+x[i] -> y[j];}%
 		"""
 
 		code, sco = compiler(source)
+
+		stdout << (source)
 
 		print(code)
 

@@ -111,14 +111,19 @@ def p_literal_seq(p):
 
 def p_def_restr(p):
     """ def_restr : LPAR NAME RPAR NAME RBRA literal RBRA DOTS loops expr
+                  | LPAR NAME RPAR NAME DOTS loops expr
     """
-    type = p[2];
-    name = p[4];
-
-    level = p[6];
-    loops = p[9];
-
-    expr = p[10];
+    type = p[2]
+    name = p[4]
+    
+    if len(p) == 11:
+        level = p[6]
+        loops = p[9]
+        expr = p[10]
+    else:
+        level = 0
+        loops = p[6]
+        expr = p[7]
 
     p[0] = Stmt(':', type, name, level, loops, expr)
 

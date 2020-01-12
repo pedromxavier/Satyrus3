@@ -122,7 +122,7 @@ def t_NAME(t):
     return t
 
 def t_NUMBER(t):
-    r'[-+]?[0-9]*\.?[0-9]+'
+    r'[-+]?[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?'
     t.value = Number(t.value)
     return t
 

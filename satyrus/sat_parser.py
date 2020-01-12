@@ -6,13 +6,10 @@ precedence = (
 
 )
 
-def p_run(p):
+def p_start(p):
+    """ start : code
     """
-        run : code
-    """
-    p_run.run(p[1])
-
-p_run.run = lambda p: None;
+    p_start.run(p[0])
 
 def p_code(p):
     """ code : code stmt
@@ -145,11 +142,19 @@ def p_loop(p):
     else:
         p[0] = (p[1], p[3], p[5], None)
 
-def p_error(p):
-    return p_error.error(p)
+class Parser:
 
-p_error.error = lambda p: None;
+    def __init__(self, parser, p_start):
+        self.parser = parser
+        
+        p_start.run = self._run
 
-parser = yacc.yacc()
-parser.p_run = p_run;
-parser.p_error = p_error;
+    def _run(self, code):
+        self.code = code
+    
+    def parse(source):
+        self.parser.parse(source)
+
+        return self.code
+        
+parser = Parser(yacc.yacc(), p_start)

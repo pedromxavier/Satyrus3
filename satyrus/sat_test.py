@@ -1,17 +1,49 @@
 """ SATyrus Test File
 """
 
-## SATyrus API
-from sat_api import Sat
+class Test:
 
-sco = {
-	'int' : [],
-	'opt' : [],
-	'prec': 20,
-	'eps' : 1E-3,
-	'n0'  : 1,
+	@staticmethod
+	def api():
+		## SATyrus API Test
+		from sat_api import Sat
 
-	'memory' : {},
-}
+		sco = {
+			'int' : [],
+			'opt' : [],
+			'prec': 20,
+			'eps' : 1E-3,
+			'n0'  : 1,
 
-Sat.execute(sco)
+			'memory' : {},
+		}
+
+		print(Sat.execute(sco))
+
+
+	@staticmethod
+	def compiler():
+		from sat_compiler import compiler
+
+		source = """
+		# prec : 30;
+
+		(int) A[0]:
+
+		@{i=[1:5]}
+		${j=[1:3]}
+
+		x[i] -> y[j];
+		"""
+
+		code, sco = compiler(source)
+
+		print(code)
+
+		print(sco)
+
+
+if __name__ == '__main__':
+	Test.api()
+
+	Test.compiler()

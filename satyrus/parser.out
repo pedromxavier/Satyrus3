@@ -1,0 +1,123 @@
+Created by PLY version 3.11 (http://www.dabeaz.com/ply)
+
+Unused terminals:
+
+    ADD
+    AND
+    DIV
+    EQ
+    EXISTS
+    EXISTS_ONE
+    FORALL
+    GE
+    GT
+    IFF
+    IMP
+    LE
+    LT
+    MUL
+    NE
+    NOT
+    OR
+    RIMP
+    SUB
+    TYPE
+    XOR
+
+Grammar
+
+Rule 0     S' -> start
+Rule 1     start -> code
+Rule 2     code -> code stmt
+Rule 3     code -> stmt
+Rule 4     stmt -> sys_config ENDL
+Rule 5     stmt -> def_const ENDL
+Rule 6     stmt -> def_array ENDL
+Rule 7     stmt -> def_restr ENDL
+Rule 8     sys_config -> SHARP NAME DOTS NUMBER
+Rule 9     sys_config -> SHARP NAME DOTS STRING
+Rule 10    def_const -> NAME ASSIGN literal
+Rule 11    literal -> NUMBER
+Rule 12    literal -> NAME
+Rule 13    def_array -> NAME shape ASSIGN array_buffer
+Rule 14    def_array -> NAME shape
+Rule 15    shape -> shape index
+Rule 16    shape -> index
+Rule 17    index -> LBRA literal RBRA
+Rule 18    array_buffer -> LCUR array RCUR
+Rule 19    array -> array COMMA array_item
+Rule 20    array -> array_item
+Rule 21    array_item -> array_index DOTS literal
+Rule 22    array_index -> LPAR literal_seq RPAR
+Rule 23    literal_seq -> literal_seq COMMA literal
+Rule 24    literal_seq -> literal
+Rule 25    def_restr -> LPAR NAME RPAR NAME RBRA literal RBRA DOTS loops expr
+Rule 26    def_restr -> LPAR NAME RPAR NAME DOTS loops expr
+Rule 27    loops -> loops loop
+Rule 28    loops -> loop
+Rule 29    loop -> quant LCUR NAME ASSIGN domain COMMA conditions RCUR
+Rule 30    loop -> quant LCUR NAME ASSIGN domain RCUR
+
+Terminals, with rules where they appear
+
+ADD                  : 
+AND                  : 
+ASSIGN               : 10 13 29 30
+COMMA                : 19 23 29
+DIV                  : 
+DOTS                 : 8 9 21 25 26
+ENDL                 : 4 5 6 7
+EQ                   : 
+EXISTS               : 
+EXISTS_ONE           : 
+FORALL               : 
+GE                   : 
+GT                   : 
+IFF                  : 
+IMP                  : 
+LBRA                 : 17
+LCUR                 : 18 29 30
+LE                   : 
+LPAR                 : 22 25 26
+LT                   : 
+MUL                  : 
+NAME                 : 8 9 10 12 13 14 25 25 26 26 29 30
+NE                   : 
+NOT                  : 
+NUMBER               : 8 11
+OR                   : 
+RBRA                 : 17 25 25
+RCUR                 : 18 29 30
+RIMP                 : 
+RPAR                 : 22 25 26
+SHARP                : 8 9
+STRING               : 9
+SUB                  : 
+TYPE                 : 
+XOR                  : 
+error                : 
+
+Nonterminals, with rules where they appear
+
+array                : 18 19
+array_buffer         : 13
+array_index          : 21
+array_item           : 19 20
+code                 : 1 2
+conditions           : 29
+def_array            : 6
+def_const            : 5
+def_restr            : 7
+domain               : 29 30
+expr                 : 25 26
+index                : 15 16
+literal              : 10 17 21 23 24 25
+literal_seq          : 22 23
+loop                 : 27 28
+loops                : 25 26 27
+quant                : 29 30
+shape                : 13 14 15
+start                : 0
+stmt                 : 2 3
+sys_config           : 4
+

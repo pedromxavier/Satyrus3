@@ -31,6 +31,8 @@ from operator import mul, add
 
 WINDOWS = False; UNIX = True;
 
+from sat_errors import *;
+
 __system__ = ('win' not in sys.platform)
 
 def product(*args):

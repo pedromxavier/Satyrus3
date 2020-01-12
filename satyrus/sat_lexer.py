@@ -1,4 +1,3 @@
-from sat_core import *;
 from sat_types import *;
 
 from ply import lex;

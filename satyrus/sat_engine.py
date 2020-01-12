@@ -1,4 +1,4 @@
-from sat_errors import *;
+from sat_core import *;
 from sat_parser import *;
 
 class Engine(object):

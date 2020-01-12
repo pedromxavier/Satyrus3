@@ -1,5 +1,4 @@
 from sat_core import *;
-from sat_errors import *;
 from sat_base import *;
 
 class Stmt(BaseExpr):
@@ -197,3 +196,6 @@ class Constraint(object):
         self.level = level
         self.loops = loops
         self.expr = expr
+
+class Loop(object):
+    ...

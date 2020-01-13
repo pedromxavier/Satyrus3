@@ -1,3 +1,4 @@
+#/usr/bin/python3.8
 """ SATyrus Test File
 """
 from sat_core import *;
@@ -28,13 +29,15 @@ class Test:
 
 		source = """
 # prec : 30;
-%{
+
+n = 3;
+
 (int) A[0]:
 
 @{i=[1:5]}
 ${j=[1:3]}
 
-x[i] -> y[j];}%
+x[i] -> y[j];
 		"""
 
 		code, sco = compiler(source)
@@ -47,6 +50,5 @@ x[i] -> y[j];}%
 
 
 if __name__ == '__main__':
-	Test.api()
-
+	## Test.api()
 	Test.compiler()

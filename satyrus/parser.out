@@ -27,7 +27,7 @@ Rule 21    array_item -> array_index DOTS literal
 Rule 22    array_index -> LPAR literal_seq RPAR
 Rule 23    literal_seq -> literal_seq COMMA literal
 Rule 24    literal_seq -> literal
-Rule 25    def_restr -> LPAR NAME RPAR NAME RBRA literal RBRA DOTS loops expr
+Rule 25    def_restr -> LPAR NAME RPAR NAME LBRA literal RBRA DOTS loops expr
 Rule 26    def_restr -> LPAR NAME RPAR NAME DOTS loops expr
 Rule 27    loops -> loops loop
 Rule 28    loops -> loop
@@ -81,7 +81,7 @@ GE                   : 41
 GT                   : 39
 IFF                  : 58
 IMP                  : 56
-LBRA                 : 17 34 35 59
+LBRA                 : 17 25 34 35 59
 LCUR                 : 18 29 30
 LE                   : 42
 LPAR                 : 22 25 26 60
@@ -92,7 +92,7 @@ NE                   : 43
 NOT                  : 46
 NUMBER               : 8 11
 OR                   : 50
-RBRA                 : 17 25 25 34 35 59
+RBRA                 : 17 25 34 35 59
 RCUR                 : 18 29 30
 RIMP                 : 57
 RPAR                 : 22 25 26 60
@@ -144,7 +144,7 @@ state 0
     (10) def_const -> . NAME ASSIGN literal
     (13) def_array -> . NAME shape ASSIGN array_buffer
     (14) def_array -> . NAME shape
-    (25) def_restr -> . LPAR NAME RPAR NAME RBRA literal RBRA DOTS loops expr
+    (25) def_restr -> . LPAR NAME RPAR NAME LBRA literal RBRA DOTS loops expr
     (26) def_restr -> . LPAR NAME RPAR NAME DOTS loops expr
 
     SHARP           shift and go to state 8
@@ -178,7 +178,7 @@ state 2
     (10) def_const -> . NAME ASSIGN literal
     (13) def_array -> . NAME shape ASSIGN array_buffer
     (14) def_array -> . NAME shape
-    (25) def_restr -> . LPAR NAME RPAR NAME RBRA literal RBRA DOTS loops expr
+    (25) def_restr -> . LPAR NAME RPAR NAME LBRA literal RBRA DOTS loops expr
     (26) def_restr -> . LPAR NAME RPAR NAME DOTS loops expr
 
     $end            reduce using rule 1 (start -> code .)
@@ -255,7 +255,7 @@ state 9
 
 state 10
 
-    (25) def_restr -> LPAR . NAME RPAR NAME RBRA literal RBRA DOTS loops expr
+    (25) def_restr -> LPAR . NAME RPAR NAME LBRA literal RBRA DOTS loops expr
     (26) def_restr -> LPAR . NAME RPAR NAME DOTS loops expr
 
     NAME            shift and go to state 21
@@ -365,7 +365,7 @@ state 20
 
 state 21
 
-    (25) def_restr -> LPAR NAME . RPAR NAME RBRA literal RBRA DOTS loops expr
+    (25) def_restr -> LPAR NAME . RPAR NAME LBRA literal RBRA DOTS loops expr
     (26) def_restr -> LPAR NAME . RPAR NAME DOTS loops expr
 
     RPAR            shift and go to state 29
@@ -472,7 +472,7 @@ state 28
 
 state 29
 
-    (25) def_restr -> LPAR NAME RPAR . NAME RBRA literal RBRA DOTS loops expr
+    (25) def_restr -> LPAR NAME RPAR . NAME LBRA literal RBRA DOTS loops expr
     (26) def_restr -> LPAR NAME RPAR . NAME DOTS loops expr
 
     NAME            shift and go to state 35
@@ -524,10 +524,10 @@ state 34
 
 state 35
 
-    (25) def_restr -> LPAR NAME RPAR NAME . RBRA literal RBRA DOTS loops expr
+    (25) def_restr -> LPAR NAME RPAR NAME . LBRA literal RBRA DOTS loops expr
     (26) def_restr -> LPAR NAME RPAR NAME . DOTS loops expr
 
-    RBRA            shift and go to state 40
+    LBRA            shift and go to state 40
     DOTS            shift and go to state 41
 
 
@@ -571,7 +571,7 @@ state 39
 
 state 40
 
-    (25) def_restr -> LPAR NAME RPAR NAME RBRA . literal RBRA DOTS loops expr
+    (25) def_restr -> LPAR NAME RPAR NAME LBRA . literal RBRA DOTS loops expr
     (11) literal -> . NUMBER
     (12) literal -> . NAME
 
@@ -647,7 +647,7 @@ state 46
 
 state 47
 
-    (25) def_restr -> LPAR NAME RPAR NAME RBRA literal . RBRA DOTS loops expr
+    (25) def_restr -> LPAR NAME RPAR NAME LBRA literal . RBRA DOTS loops expr
 
     RBRA            shift and go to state 58
 
@@ -775,7 +775,7 @@ state 57
 
 state 58
 
-    (25) def_restr -> LPAR NAME RPAR NAME RBRA literal RBRA . DOTS loops expr
+    (25) def_restr -> LPAR NAME RPAR NAME LBRA literal RBRA . DOTS loops expr
 
     DOTS            shift and go to state 68
 
@@ -998,7 +998,7 @@ state 67
 
 state 68
 
-    (25) def_restr -> LPAR NAME RPAR NAME RBRA literal RBRA DOTS . loops expr
+    (25) def_restr -> LPAR NAME RPAR NAME LBRA literal RBRA DOTS . loops expr
     (27) loops -> . loops loop
     (28) loops -> . loop
     (29) loop -> . quant LCUR NAME ASSIGN domain COMMA conditions RCUR
@@ -1559,7 +1559,7 @@ state 84
 
 state 85
 
-    (25) def_restr -> LPAR NAME RPAR NAME RBRA literal RBRA DOTS loops . expr
+    (25) def_restr -> LPAR NAME RPAR NAME LBRA literal RBRA DOTS loops . expr
     (27) loops -> loops . loop
     (45) expr -> . literal
     (46) expr -> . NOT expr
@@ -2180,7 +2180,7 @@ state 98
 
 state 99
 
-    (25) def_restr -> LPAR NAME RPAR NAME RBRA literal RBRA DOTS loops expr .
+    (25) def_restr -> LPAR NAME RPAR NAME LBRA literal RBRA DOTS loops expr .
     (49) expr -> expr . AND expr
     (50) expr -> expr . OR expr
     (51) expr -> expr . XOR expr
@@ -2193,7 +2193,7 @@ state 99
     (58) expr -> expr . IFF expr
     (59) expr -> expr . LBRA expr RBRA
 
-    ENDL            reduce using rule 25 (def_restr -> LPAR NAME RPAR NAME RBRA literal RBRA DOTS loops expr .)
+    ENDL            reduce using rule 25 (def_restr -> LPAR NAME RPAR NAME LBRA literal RBRA DOTS loops expr .)
     AND             shift and go to state 70
     OR              shift and go to state 71
     XOR             shift and go to state 72

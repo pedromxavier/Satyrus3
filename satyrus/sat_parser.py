@@ -4,6 +4,8 @@ import ply.yacc as yacc;
 
 precedence = (
 
+    ('left', 'LBRA', 'RBRA'),
+
     ('left', 'ADD', 'SUB'),
     ('left', 'MUL', 'DIV'),
 
@@ -21,12 +23,12 @@ precedence = (
     ('left', 'LPAR', 'RPAR'),
     
 
-    ('left', 'NAME'),
-    ('left', 'STRING', 'NUMBER'),
-
     ('left', 'DOTS'),
 
     ('left', 'SHARP'),
+
+    ('left', 'NAME'),
+    ('left', 'STRING', 'NUMBER'),
 
     ('left', 'ENDL'),
 )
@@ -57,13 +59,11 @@ def p_sys_config(p):
     """ sys_config : SHARP NAME DOTS NUMBER
                    | SHARP NAME DOTS STRING
     """
-    # Stmt('#', 'name', 'value')
     p[0] = (p[2], p[4])
 
 def p_def_const(p):
     """ def_const : NAME ASSIGN literal
     """
-    # Stmt('=', 'name', 'value')
     p[0] = (p[1], p[3])
 
 def p_literal(p):
@@ -76,7 +76,6 @@ def p_def_array(p):
     """ def_array : NAME shape ASSIGN array_buffer
                   | NAME shape
     """
-    # Stmt('=', 'name', 'shape', 'buffer')
     if len(p) == 5: # array declared
         buffer = p[4]
     else: # implicit array
@@ -132,7 +131,7 @@ def p_literal_seq(p):
         p[0] = ( p[1],)
 
 def p_def_restr(p):
-    """ def_restr : LPAR NAME RPAR NAME RBRA literal RBRA DOTS loops expr
+    """ def_restr : LPAR NAME RPAR NAME LBRA literal RBRA DOTS loops expr
                   | LPAR NAME RPAR NAME DOTS loops expr
     """
     type = p[2]
@@ -154,7 +153,7 @@ def p_loops(p):
               | loop
     """
     if len(p) == 3:
-        p[0] = [*p[1], p[3]]
+        p[0] = [*p[1], p[2]]
     else:
         p[0] = [ p[1],]
 

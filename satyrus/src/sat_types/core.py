@@ -1,4 +1,10 @@
 from .expr import Expr
+from .tokens import (
+                        T_EQ, T_LE, T_LT, T_GE, T_GT,
+                        T_ADD, T_SUB, T_MUL, T_DIV,
+                        T_IDX,
+                        T_AND, T_OR, T_XOR, T_NOT, T_IMP, T_RIMP, T_IFF
+                    )
 
 class SatType(object):
 

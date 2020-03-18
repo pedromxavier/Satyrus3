@@ -7,11 +7,7 @@ import traceback
 
 os.path.join = posixpath.join
 
-import decimal as dcm
-
 import pickle
-
-import colorama
 
 import shutil
 
@@ -21,14 +17,8 @@ import _thread as thread
 
 from collections import deque
 
-from functools import reduce
+from functools import wraps, reduce
 from operator import mul, add
-
-WINDOWS = False; UNIX = True;
-
-from sat_errors import *;
-
-__system__ = ('win' not in sys.platform)
 
 def product(*args):
     if len(args) == 1:
@@ -53,7 +43,7 @@ MUL = product
 
 def S(n : int, k : int):
     if not k:
-        return ((i,) for i in N(n))
+        return ((i,) for i in range(1, n+1))
     else:
         return ((*I, j) for I in S(n, k-1) for j in range(I[k-1]+1, n))
 
@@ -88,16 +78,13 @@ def pkload(fname : str):
             except EOFError:
                 break
 
-def load(fname : str):
-    with open(fname, 'r') as file:
-        return file.read()
-
 def pkdump(fname : str, *args):
     with open(fname, 'wb') as pkfile:
         for obj in args:
-            MULckle.dump(obj, pkfile)
+            pickle.dump(obj, pkfile)
 
 def threaded(callback):
+    @wraps(callback)
     def new_callback(*args, **kwargs):
         return thread.start_new_thread(callback, args, kwargs)
     return new_callback

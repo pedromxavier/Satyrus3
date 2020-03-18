@@ -1,129 +1,132 @@
-from satypes import *;
+"""
+"""
+from ply import lex
 
-from sly import Lexer;
+from sat_types import Number, Var
+from sat_core.stream import stdout, stderr
 
-class SatLexer(Lexer):
-    ## regex tokens
-    regex = _
+def regex(pattern):
+    def decor(callback):
+        callback.__doc__ = pattern
+        return callback
+    return decor
 
-    # Set of token names.   This is always required
-    tokens = {
-        NAME, NUMBER,
+# Set of token names.   This is always required
+tokens = {
+    'NAME', 'NUMBER',
 
-        FORALL, EXISTS, EXISTS_ONE,
+    'FORALL', 'EXISTS', 'EXISTS_ONE',
 
-        NOT, AND, OR, XOR,
+    'NOT', 'AND', 'OR', 'XOR',
 
-        IMP, RIMP, IFF,
+    'IMP', 'RIMP', 'IFF',
 
-        SHARP,
+    'SHARP',
 
-        ENDL,
+    'ENDL',
 
-        COMMA,
+    'COMMA',
 
-        ASSIGN,
+    'ASSIGN',
 
-        EQ, # equal
-        GT, # greater than
-        LT, # less than
+    'EQ', # equal
+    'GT', # greater than
+    'LT', # less than
 
-        GE, # greater or equal
-        LE, # less or equal
+    'GE', # greater or equal
+    'LE', # less or equal
 
-        NE, # not equal
+    'NE', # not equal
 
-        MUL, DIV, ADD, SUB,
+    'MUL', 'DIV', 'ADD', 'SUB',
 
-        DOTS,
+    'DOTS',
 
-        LBRA, RBRA, LPAR, RPAR, LCUR, RCUR,
+    'LBRA', 'RBRA', 'LPAR', 'RPAR', 'LCUR', 'RCUR',
 
-        STRING,
-        }
+    'STRING',
+    }
 
-    # String containing ignored characters between tokens
-    ignore = ' \t'
+# Regular expression rules for tokens
+t_DOTS = r'\:'
 
-    # Regular expression rules for tokens
-    DOTS = r'\:'
+t_LBRA = r'\['
+t_RBRA = r'\]'
 
-    LBRA = r'\['
-    RBRA = r'\]'
+t_LPAR = r'\('
+t_RPAR = r'\)'
 
-    LPAR = r'\('
-    RPAR = r'\)'
+t_LCUR = r'\{'
+t_RCUR = r'\}'
 
-    LCUR = r'\{'
-    RCUR = r'\}'
+t_FORALL = r'\@'
+t_EXISTS = r'\$'
+t_EXISTS_ONE = r'\!\$'
 
-    FORALL = r'\@'
-    EXISTS = r'\$'
-    EXISTS_ONE = r'\!\$'
+t_NOT = r'\~'
 
-    NOT = r'\~'
+t_AND = r'\&'
 
-    AND = r'\&'
+t_OR = r'\|'
 
-    OR = r'\|'
+t_XOR = r'\^'
 
-    XOR = r'\^'
+t_IMP = r'\-\>'
 
-    IMP = r'\-\>'
+t_RIMP = r'\<\-'
 
-    RIMP = r'\<\-'
+t_IFF = r'\<\-\>'
 
-    IFF = r'\<\-\>'
+t_COMMA = r'\,'
 
-    COMMA = r'\,'
+t_DIV = r'\/'
 
-    DIV = r'\/'
+t_MUL = r'\*'
 
-    MUL = r'\*'
+t_ADD = r'\+'
 
-    ADD = r'\+'
+t_SUB = r'\-'
 
-    SUB = r'\-'
+t_ENDL = r'\;'
 
-    ENDL = r'\;'
+t_ASSIGN = r'\='
 
-    ASSIGN = r'\='
+t_EQ = r'\=\='
+t_GT = r'\>'
+t_LT = r'\<'
 
-    EQ = r'\=\='
-    GT = r'\>'
-    LT = r'\<'
+t_GE = r'\>\='
+t_LE = r'\<\='
 
-    GE = r'\>\='
-    LE = r'\<\='
+t_NE = r'\!\='
 
-    NE = r'\!\='
+t_SHARP = r'\#'
 
-    SHARP = r'\#'
+@regex(r'\".*\"')
+def t_STRING(t):
+    t.value = str(t.value[1:-1])
+    return t
 
-    @regex(r'\".*\"')
-    def STRING(t):
-        t.value = str(t.value[1:-1])
-        return t
+@regex(r"\n+")
+def t_newline(t):
+    t.lexer.lineno += len(t.value)
 
-    @regex(r"\n+")
-    def NEWLINE(t):
-        t.lexer.lineno += len(t.value)
+@regex(r"[a-zA-Z_][a-zA-Z0-9_']*")
+def t_NAME(t):
+    t.value = Var(t.value)
+    return t
 
-    @regex(r"[a-zA-Z_][a-zA-Z0-9_']*")
-    def NAME(t):
-        t.value = Var(t.value)
-        return t
+@regex(r"[-+]?[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
+def t_NUMBER(t):
+    t.value = Number(t.value)
+    return t
 
-    @regexr(r"[-+]?[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
-    def NUMBER(t):
-        t.value = Number(t.value)
-        return t
+def t_error(t):
+    stderr << f"SyntaxError at {t} <Lexer>"
 
-    def error(t):
-        stderr << f"SyntaxError at {t} <Lexer>"
+# String containing ignored characters between tokens
+t_ignore = r' \t'
 
-    ignore = r' \t'
-    
-    ignore_COMMENT = r'%.*'
+t_ignore_COMMENT = r'%.*'
 
-    ignore_MULTICOMMENT = r'\%\{[\s\S]*?\}\%'
+t_ignore_MULTICOMMENT = r'\%\{[\s\S]*?\}\%'

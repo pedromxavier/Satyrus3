@@ -1,6 +1,31 @@
-from sat_lexer import *;
+from ply import yacc
 
-import ply.yacc as yacc;
+from sat_core.stream import stderr
+from sat_types.error import SatError
+
+class SatParseError(SatError):
+    ...
+
+class SatParser:
+
+    parser = None
+
+    @classmethod
+    def init(cls, parser):
+        cls.parser = parser
+
+    @classmethod
+    def parse(cls, source):
+        if cls.parser is not None:
+            cls.parser.parse(source)
+        else:
+            raise SatParseError("Parser wasn't initialized.")
+
+    @classmethod
+    def run(cls, code):
+        bytecode = [*code]
+
+        return bytecode
 
 precedence = (
 
@@ -36,7 +61,7 @@ precedence = (
 def p_start(p):
     """ start : code
     """
-    p_start.run(p[1])
+    SatParser.run(p[1])
 
 def p_code(p):
     """ code : code stmt
@@ -241,23 +266,8 @@ def p_expr_par(p):
     """ expr : LPAR expr RPAR
     """
     p[0] = p[2]
-    
-class Parser:
-
-    def __init__(self, parser, p_start):
-        self.parser = parser
-        
-        p_start.run = self._run
-
-    def _run(self, code):
-        self.code = code
-    
-    def parse(self, source):
-        self.parser.parse(source)
-
-        return self.code
 
 def p_error(p):
     stderr << "SyntaxError at {} <Parser>".format(p)
         
-parser = Parser(yacc.yacc(), p_start)
+SatParser.init(yacc.yacc())

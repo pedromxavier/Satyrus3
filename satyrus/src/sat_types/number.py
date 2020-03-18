@@ -3,42 +3,46 @@ from .core import SatType
 import decimal
 import re
 
+decimal.context = decimal.getcontext()
+decimal.context.traps[decimal.FloatOperation] = True
+decimal.context.prec = 16
+
 class Number(SatType, decimal.Decimal):
 
     REGEX = re.compile(r'(\.[0-9]*[1-9])(0+)|(\.0*)$')
 
-    def __hash__(a):
-        return hash(str(a))
+    def __hash__(self):
+        return hash(str(self))
 
-    def __eq__(a, b):
+    def __eq__(self, b):
         try:
-            return Number(dcm.Decimal.__eq__(a, b))
+            return Number(dcm.Decimal.__eq__(self, b))
         except:
-            return BaseSatType.__eq__(a, b)
+            return SatType.__eq__(self, b)
 
-    def __le__(a, b):
+    def __le__(self, b):
         try:
-            return Number(dcm.Decimal.__le__(a, b))
+            return Number(dcm.Decimal.__le__(self, b))
         except:
-            return BaseSatType.__le__(a, b)
+            return SatType.__le__(self, b)
 
-    def __lt__(a, b):
+    def __lt__(self, b):
         try:
-            return Number(dcm.Decimal.__lt__(a, b))
+            return Number(dcm.Decimal.__lt__(self, b))
         except:
-            return BaseSatType.__lt__(a, b)
+            return SatType.__lt__(self, b)
 
-    def __ge__(a, b):
+    def __ge__(self, b):
         try:
-            return Number(dcm.Decimal.__ge__(a, b))
+            return Number(dcm.Decimal.__ge__(self, b))
         except:
-            return BaseSatType.__ge__(a, b)
+            return SatType.__ge__(self, b)
 
-    def __gt__(a, b):
+    def __gt__(self, b):
         try:
-            return Number(dcm.Decimal.__gt__(a, b))
+            return Number(dcm.Decimal.__gt__(self, b))
         except:
-            return BaseSatType.__gt__(a, b)
+            return SatType.__gt__(self, b)
 
     def __str__(self):
         return self.REGEX.sub(r'\1', decimal.Decimal.__str__(self))
@@ -46,121 +50,121 @@ class Number(SatType, decimal.Decimal):
     def __repr__(self):
         return f"Number('{self.__str__()}')"
 
-    def __neg__(a):
+    def __neg__(self):
         try:
-            return Number(dcm.Decimal.__neg__(a))
+            return Number(dcm.Decimal.__neg__(self))
         except:
-            return BaseSatType.__neg__(a, b)
+            return SatType.__neg__(self)
 
-    def __pos__(a):
+    def __pos__(self):
         try:
-            return Number(dcm.Decimal.__pos__(a))
+            return Number(dcm.Decimal.__pos__(self))
         except:
-            return BaseSatType.__pos__(a, b)
+            return SatType.__pos__(self)
 
-    def __mul__(a, b):
+    def __mul__(self, b):
         try:
-            return Number(dcm.Decimal.__mul__(a, b))
+            return Number(dcm.Decimal.__mul__(self, b))
         except:
-            return BaseSatType.__mul__(a, b)
+            return SatType.__mul__(self, b)
 
-    def __rmul__(a, b):
+    def __rmul__(self, b):
         try:
-            return Number(dcm.Decimal.__rmul__(a, b))
+            return Number(dcm.Decimal.__rmul__(self, b))
         except:
-            return BaseSatType.__rmul__(a, b)
+            return SatType.__rmul__(self, b)
 
-    def __add__(a, b):
+    def __add__(self, b):
         try:
-            return Number(dcm.Decimal.__add__(a, b))
+            return Number(dcm.Decimal.__add__(self, b))
         except:
-            return BaseSatType.__add__(a, b)
+            return SatType.__add__(self, b)
 
-    def __radd__(a, b):
+    def __radd__(self, b):
         try:
-            return Number(dcm.Decimal.__radd__(a, b))
+            return Number(dcm.Decimal.__radd__(self, b))
         except:
-            return BaseSatType.__radd__(a, b)
+            return SatType.__radd__(self, b)
 
-    def __sub__(a, b):
+    def __sub__(self, b):
         try:
-            return Number(dcm.Decimal.__sub__(a, b))
+            return Number(dcm.Decimal.__sub__(self, b))
         except:
-            return BaseSatType.__sub__(a, b)
+            return SatType.__sub__(self, b)
 
-    def __rsub__(a, b):
+    def __rsub__(self, b):
         try:
-            return Number(dcm.Decimal.__rsub__(a, b))
+            return Number(dcm.Decimal.__rsub__(self, b))
         except:
-            return BaseSatType.__rsub__(a, b)
+            return SatType.__rsub__(self, b)
 
-    def __truediv__(a, b):
+    def __truediv__(self, b):
         try:
-            return Number(dcm.Decimal.__truediv__(a, b))
+            return Number(dcm.Decimal.__truediv__(self, b))
         except:
-            return BaseSatType.__truediv__(a, b)
+            return SatType.__truediv__(self, b)
 
-    def __rtruediv__(a, b):
+    def __rtruediv__(self, b):
         try:
-            return Number(dcm.Decimal.__rtruediv__(a, b))
+            return Number(dcm.Decimal.__rtruediv__(self, b))
         except:
-            return BaseSatType.__rtruediv__(a, b)
+            return SatType.__rtruediv__(self, b)
 
-    def __and__(a, b):
+    def __and__(self, b):
         try:
-            return a * b
+            return self * b
         except:
-            return BaseSatType.__and__(a, b)
+            return SatType.__and__(self, b)
 
-    def __or__(a, b):
+    def __or__(self, b):
         try:
-            return (a + b) - (a * b)
+            return (self + b) - (self * b)
         except:
-            return BaseSatType.__or__(a, b)
+            return SatType.__or__(self, b)
 
-    def __xor__(a, b):
+    def __xor__(self, b):
         try:
-            return (a + b) - (2 * a * b)
+            return (self + b) - (2 * self * b)
         except:
-            return BaseSatType.__xor__(a, b)
+            return SatType.__xor__(self, b)
 
-    def __imp__(a, b):
+    def __imp__(self, b):
         try:
-            return ~(a & ~b)
+            return ~(self & ~b)
         except:
-            return BaseSatType.__imp__(a, b)
+            return SatType.__imp__(self, b)
 
-    def __rimp__(a, b):
+    def __rimp__(self, b):
         try:
-            return ~(~a & b)
+            return ~(~self & b)
         except:
-            return BaseSatType.__rimp__(a, b)
+            return SatType.__rimp__(self, b)
 
-    def __iff__(a, b):
+    def __iff__(self, b):
         try:
-            return (~a & ~b) | (a & b)
+            return (~self & ~b) | (self & b)
         except:
-            return BaseSatType.__iff__(a, b)
+            return SatType.__iff__(self, b)
 
-    def __not__(a):
+    def __not__(self):
         try:
-            return a.__invert__()
+            return self.__invert__()
         except:
-            return BaseSatType.__not__(a)
+            return SatType.__not__(self)
 
-    def __invert__(a):
+    def __invert__(self):
         try:
-            return 1 - a
+            return 1 - self
         except:
-            return BaseSatType.__invert__(a)
+            return SatType.__invert__(self)
 
     @property
-    def int(a):
-        return bool((a - Number(int(a))) == Number.FALSE)
+    def int(self):
+        return bool((self - Number(int(self))) == Number.FALSE)
 
     @property
-    def bool(a):
-        return a == Number.TRUE or a == Number.FALSE
+    def bool(self):
+        return self == Number.TRUE or self == Number.FALSE
 
 Number.TRUE  = Number('1')
 Number.FALSE = Number('0')

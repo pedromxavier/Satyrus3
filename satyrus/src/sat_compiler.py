@@ -5,30 +5,27 @@ is basially a dictionary (JSON-like) with
 the following keys:
 
 {
-	'int' : [...],  # integrity constraints
-	'opt' : [...],  # optimality constraints
-	'prec' : (int),  # decimal precision
-	'eps' : (float), # tiebreak factor
-	'val' : (float),  # base penalty value
-
-	'memory' : {},
+	'int' : (list), 	 # integrity constraints
+	'opt' : (list), 	 # optimality constraints
+	'precision' : (int), # decimal precision
+	'epsilon' : (float), # tiebreak factor
+	'penalty' : (float), # base penalty value
 }
 """
-from sat_parser import parser
+from sat_parser import SatParser
 
 class Compiler:
 
 	DEFAULT_SCO = {
-		'int' : [],  # integrity constraints
-		'opt' : [],  # optimality constraints
-		'prec' : 10,  # decimal precision
-		'eps' : 1E-6, # tiebreak factor
-		'val' : 1, # base penalty value
-
-		'memory' : {},
+		'int' : [],  	  # integrity constraints
+		'opt' : [],  	  # optimality constraints
+		'precision' : 10, # decimal precision
+		'epsilon' : 1E-6, # tiebreak factor
+		'penalty' : 1, 	  # base penalty value
 	}
 	
-	def __init__(self, parser):
+	def __init__(self, lexer=None, parser=None):
+		self.lexer = lexer
 		self.parser = parser
 
 	def __call__(self, source):
@@ -36,7 +33,7 @@ class Compiler:
 
 		return code, Compiler.DEFAULT_SCO
 
-compiler = Compiler(parser)
+compiler = Compiler()
 
 
 		

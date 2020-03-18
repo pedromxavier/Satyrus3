@@ -32,10 +32,10 @@ T_NE = intern('!=');  H_NE = (T_NE, 2);
 T_EQ = intern('==');  H_EQ = (T_EQ, 2);
 
 
-# these are for statements
+## These are for statements
 T_SHARP = intern('#'); H_CONFIG = (T_SHARP, 2);
 
 T_DOTS = intern(':'); H_CONSTRAINT = (T_DOTS, 5);
 
-# assignment
+## Assignment
 T_ASSIGN = intern('='); H_CONST = (T_ASSIGN, 2); H_ARRAY = (T_ASSIGN, 3);

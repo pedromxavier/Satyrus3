@@ -3,7 +3,6 @@ import os
 import re
 
 import posixpath
-
 import traceback
 
 os.path.join = posixpath.join
@@ -162,6 +161,10 @@ class stream:
     ECHO = True
 
     def __init__(self, **kwargs):
+        core.kw.init({
+
+        })
+
         self.echo = True
 
         self.fg  = kwget('fg', kwargs, None)
@@ -169,12 +172,31 @@ class stream:
 
         self.kw = kwget('kw', kwargs, {})
 
+        kw.parse(kwargs)
+
+    @staticmethod
+    def cprint(txt : tuple, fg : str = None, sty : str = None, **kwargs):
+        if fg is None and sty is None:
+            print(*txt, **kwargs)
+
+        elif sty is None:
+            fg = getattr(colorama.Fore, fg)
+            print(f"{fg}", *txt, f"{colorama.Style.RESET_ALL}", **kwargs)
+
+        elif fg is None:
+            sty = getattr(colorama.Style, sty)
+            print(f"{sty}", *txt, f"{colorama.Style.RESET_ALL}", **kwargs)
+
+        else:
+            fg = getattr(colorama.Fore, fg);sty = getattr(colorama.Style, sty)
+            print(f"{fg}{sty}", *txt, f"{colorama.Style.RESET_ALL}", **kwargs)
+
     def __lshift__(self, txt):
         if self.echo and self.ECHO:
             if type(txt) is not tuple:
                 txt = (txt,)
 
-            cprint(txt, self.fg, self.sty, **self.kw)
+            stream.cprint(txt, self.fg, self.sty, **self.kw)
         return self
 
     def __setitem__(self, k, v):
@@ -208,6 +230,17 @@ class stream:
 
 colorama.init()
 
+## default stream configs
+__stdsys__ = { 'fg' : 'BLUE', 'sty' : 'DIM'}
+__stdout__ = { 'fg' : 'CYAN', 'sty' : None }
+__stderr__ = { 'fg' : 'RED' , 'sty' : None }
+
+stdsys = stream(**__stdsys__)
+stdout = stream(**__stdout__)
+stderr = stream(**__stderr__)
+
+colorama.init()
+
 __stdsys__ = { 'fg' : 'YELLOW', 'sty' : 'DIM'    }
 __stdout__ = { 'fg' : 'CYAN'  , 'sty' : None     }
 __stderr__ = { 'fg' : 'RED'   , 'sty' : None     }
@@ -221,9 +254,3 @@ stdalt = stream(**__stdalt__)
 stdgnd = stream(**__stdgnd__)
 
 from sat_tokens import *;
-
-def solve(expr):
-    if hasattr(expr, '__solve__'):
-        return expr.__solve__()
-    else:
-        raise AttributeError(f"Can't solve {type(expr)}.")

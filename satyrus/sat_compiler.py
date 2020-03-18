@@ -33,7 +33,7 @@ class Compiler:
 
 		return code, Compiler.DEFAULT_SCO
 
-compiler = Compiler()
+
 
 
 		

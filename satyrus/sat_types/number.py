@@ -166,5 +166,5 @@ class Number(SatType, decimal.Decimal):
     def bool(self):
         return self == Number.TRUE or self == Number.FALSE
 
-Number.TRUE  = Number('1')
+Number.TRUE = Number('1')
 Number.FALSE = Number('0')

@@ -1,27 +1,16 @@
-"""
-SATyrus Python API
-"""
-from sat_types import Loop
+""" :: SATyrus Python API ::
 
-class Sat:
-    @staticmethod
-    def forall(var, start, stop, step=1, conditions=None):
-        conditions = conditions if conditions is not None else []
-        return Loop('@', var, start, stop, step, conditions) 
+    sco = {
+        'int' : [...],
+        'opt' : [...],
+        ...
+    }
 
-    @staticmethod
-    def exists(var, start, stop, step=1, conditions=None):
-        conditions = conditions if conditions is not None else []
-        return Loop('$', var, start, stop, step, conditions)	
+    sat = Satyrus(sco)
+    sat.expr()
+""" 
 
-    @staticmethod
-    def exists_one(var, start, stop, step=1, conditions=None):
-        conditions = conditions if conditions is not None else []
-        return Loop('$!', var, start, stop, step, conditions)
+class Satyrus:
 
-    @staticmethod
-    def execute(sco):
-        return sco
-
-
-        
+    def __init__(self, sco):
+        self.sco = sco

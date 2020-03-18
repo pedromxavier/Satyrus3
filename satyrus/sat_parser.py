@@ -14,7 +14,8 @@ class SatParser:
     parser = None
 
     @classmethod
-    def init(cls, parser):
+    def init(cls, lexer, parser):
+        cls.lexer = lexer
         cls.parser = parser
 
     @classmethod
@@ -271,6 +272,6 @@ def p_expr_par(p):
     p[0] = p[2]
 
 def p_error(p):
-    stderr << "SyntaxError at {} <Parser>".format(p)
+    stderr << f"SyntaxError at {p} <Parser>"
         
-SatParser.init(yacc.yacc())
+SatParser.init(lexer, yacc.yacc())

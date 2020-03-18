@@ -1,13 +1,51 @@
 from .expr import Expr
-from .tokens import (
-                        T_EQ, T_LE, T_LT, T_GE, T_GT,
-                        T_ADD, T_SUB, T_MUL, T_DIV,
-                        T_IDX,
-                        T_AND, T_OR, T_XOR, T_NOT, T_IMP, T_RIMP, T_IFF
-                    )
+
+## :: Logical ::
+from .symbols.tokens import T_AND, T_OR, T_XOR, T_NOT, T_IMP, T_RIMP, T_IFF
+
+## :: Aritmetical ::
+from .symbols.tokens import T_ADD, T_SUB, T_MUL, T_DIV
+
+## :: Comparison ::
+from .symbols.tokens import T_EQ, T_LE, T_LT, T_GE, T_GT
+
+## :: Indexing ::
+from .symbols.tokens import T_IDX
 
 class SatType(object):
 
+    ## :: Logical ::
+    def __and__(self, b):
+        return Expr(T_AND, self, b)
+
+    def __rand__(self, b):
+        return Expr(T_AND, b, self)
+
+    def __or__(self, b):
+        return Expr(T_OR, self, b)
+
+    def __ror__(self, b):
+        return Expr(T_OR, b, self)
+
+    def __xor__(self, b):
+        return Expr(T_XOR, self, b)
+
+    def __rxor__(self, b):
+        return Expr(T_XOR, b, self)
+
+    def __not__(self):
+        return Expr(T_NOT, self)
+
+    def __iff__(self, b):
+        return Expr(T_IFF, self, b)
+
+    def __imp__(self, b):
+        return Expr(T_IMP, self, b)
+
+    def __rimp__(self, b):
+        return Expr(T_RIMP, self, b)
+
+    ## :: Comparison ::
     def __eq__(self, b):
         return Expr(T_EQ, self, b)
 
@@ -23,6 +61,7 @@ class SatType(object):
     def __gt__(self, b):
         return Expr(T_GT, self, b)
 
+    ## :: Aritmetic ::
     def __neg__(self):
         return Expr(T_SUB, self)
 
@@ -53,79 +92,18 @@ class SatType(object):
     def __rtruediv__(self, b):
         return Expr(T_DIV, b, self)
 
-    # Logic
-    def __and__(self, b):
-        return Expr(T_AND, self, b)
-
-    def __rand__(self, b):
-        return Expr(T_AND, b, self)
-
-    def __or__(self, b):
-        return Expr(T_OR, self, b)
-
-    def __ror__(self, b):
-        return Expr(T_OR, b, self)
-
-    def __xor__(self, b):
-        return Expr(T_XOR, self, b)
-
-    def __rxor__(self, b):
-        return Expr(T_XOR, b, self)
-
-    def __imp__(self, b):
-        return Expr(T_IMP, self, b)
-
-    def __rimp__(self, b):
-        return Expr(T_RIMP, self, b)
-
-    def __iff__(self, b):
-        return Expr(T_IFF, self, b)
-
-    def __not__(self):
-        return Expr(T_NOT, self)
-
+    ## :: Indexing ::
     def __idx__(self, b):
         return Expr(T_IDX, self, b)
 
+    ## :: Alias for NOT '~' ::
     def __invert__(self):
         return self.__not__()
 
     @property
-    def logic(self):
-        return True
+    def copy(self):
+        return self
 
     @property
-    def pseudo_logic(self):
-        return True
-
-    @property
-    def token(self):
-        return None
-
-    @property
-    def arity(self):
-        return 0
-
-    @property
-    def head(self):
-        return (self.token, self.arity)
-
-    @property
-    def expr(self):
-        return False
-
-    @property
-    def height(self):
-        return 1
-
-    @property
-    def width(self):
-        return 1
-
-    @property
-    def vars(self):
-        return set()
-
-    @property
-    def var(self):
-        return False
+    def is_expr(self):
+        return type(self) is Expr

@@ -2,6 +2,9 @@ from ply import yacc
 
 from sat_core.stream import stderr
 from sat_types.error import SatError
+from sat_lexer import SatLexer
+
+lexer = SatLexer()
 
 class SatParseError(SatError):
     ...

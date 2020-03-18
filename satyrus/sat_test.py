@@ -1,7 +1,7 @@
 #/usr/bin/python3.8
 """ SATyrus Test File
 """
-from sat_core import *;
+from satyrus3 import Satyrus
 
 class Test:
 
@@ -25,7 +25,7 @@ class Test:
 
 	@staticmethod
 	def compiler():
-		from sat_compiler import compiler
+		from sat_compiler import Compiler
 
 		source = """
 # prec : 30;
@@ -44,14 +44,7 @@ ${j=[1:n]}
 x[i] -> y[j];
 		"""
 
-		code, sco = compiler(source)
-
-		stdout << (source)
-
-		print(code)
-
-		print(sco)
-
+		return source
 
 if __name__ == '__main__':
 	## Test.api()

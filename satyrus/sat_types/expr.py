@@ -27,12 +27,6 @@ class Expr(SatType, list):
 
         self.format = self._format() if format is None else format
 
-    def __solve__(self):
-        expr = self.copy
-        for func in self.SOLVE_FUNCS:
-            expr = func(expr)
-        return expr
-
     def __str__(self):
         return self.format.format(*self)
 
@@ -70,11 +64,25 @@ class Expr(SatType, list):
         return Expr(self.head, *[p.copy for p in self.tail])
 
     @classmethod
-    def add_rule(cls, head, rule):
+    def add_solve_func(cls, heads, func):
+        @wraps(func)
+        def new_func(expr, *args):
+            if expr.head in heads:
+                return func(expr, *args)
+            else:
+                return expr
+        return new_func
+
+    @classmethod
+    def solve_func(cls, heads):
+        return lambda func : cls.add_solve_func(heads, func)
+
+    @classmethod
+    def add_rule(cls, token, rule):
         @wraps(rule)
         def new_rule(expr):
             return rule(*[p.__solve__() for p in expr.tail])
-        cls.RULES[head] = new_rule
+        cls.RULES[token] = new_rule
 
     @classmethod
     def rule(cls, token):
@@ -102,3 +110,15 @@ class Expr(SatType, list):
             return func(expr, *args, **kwargs)
         else:
             return expr
+
+    @staticmethod
+    def cmp(A, B):
+        return hash(A) == hash(B)
+
+    @staticmethod
+    def decode(T):
+        return NotImplemented
+
+    @staticmethod
+    def encode(expr):
+        return NotImplemented

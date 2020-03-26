@@ -1,5 +1,5 @@
-from sat_types.expr import Expr
-from sat_types.number import Number
+from sat_types import Expr
+from sat_types import Number
 from functools import reduce
 
 ## :: Rule Definition ::

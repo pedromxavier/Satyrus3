@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# Ply Output Files
+parser.out
+parsetab.py
+
 # Distribution / packaging
 .Python
 build/

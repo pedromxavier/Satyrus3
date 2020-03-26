@@ -1,51 +1,68 @@
 #/usr/bin/python3.8
-""" SATyrus Test File
+""" :: SATyrus Test File ::
 """
-from satyrus3 import Satyrus
+from sat_core import load, stderr
+from sat_types import SatError
 
-class Test:
+from functools import wraps
 
-	@staticmethod
-	def api():
-		## SATyrus API Test
-		from sat_api import Sat
+import re
 
-		sco = {
-			'int' : [],
-			'opt' : [],
-			'prec': 20,
-			'eps' : 1E-3,
-			'n0'  : 1,
+class SatTestError(SatError):
+    pass
 
-			'memory' : {},
-		}
+class SatTest:
 
-		print(Sat.execute(sco))
+    source = load('source.sat')
 
+    locked = {'main', 'source', 'get_tests', 'locked'}
 
-	@staticmethod
-	def compiler():
-		from sat_compiler import Compiler
+    @classmethod
+    def get_tests(cls):
+        for name in dir(cls):
+            ## Check if the function is a test function.
+            if (not re.match(r"\_\_.+\_\_", name)) and (name not in cls.locked):
+                yield getattr(cls, name)
+    
+    @classmethod
+    def api(cls, *args, **kwargs):
+        return NotImplemented
 
-		source = """
-# prec : 30;
+    @classmethod
+    def compiler(cls, *args, **kwargs):
+        return NotImplemented
 
-m = 3;
-n = 5;
+    @classmethod
+    def parser(cls, *args, **kwargs):
+        from sat_parser import SatParser
 
-x[m] = {(1) : 1, (m) : -1};
-y[n] = {(1) : 0, (n) : +1};
+        parser = SatParser()
 
-(int) A[0]:
+        parser.parse(cls.source)
 
-@{i=[1:m]}
-${j=[1:n]}
+        if parser.bytecode is None:
+            raise SatTestError('Parser bytecode is <None>')
+        
+        for line in parser.bytecode:
+            print(line)
 
-x[i] -> y[j];
-		"""
+    @classmethod
+    def expr(cls, *args, **kwargs):
+        return NotImplemented
 
-		return source
+    @classmethod
+    def satyrus(cls, *args, **kwargs):
+        return NotImplemented
+
+    @classmethod
+    def main(cls, *args, **kwargs):
+        for callback in cls.get_tests():
+            try:
+                answer = callback(cls, *args, **kwargs)
+                if answer != NotImplemented:
+                    print(answer)
+            except SatTestError:
+                stderr << ':: Test Failed ::'
 
 if __name__ == '__main__':
-	## Test.api()
-	Test.compiler()
+    SatTest.main()

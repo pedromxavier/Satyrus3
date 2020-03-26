@@ -1,0 +1,28 @@
+# prec : 30;
+
+m = 3;
+n = 5;
+
+%{---------------------}
+  * THIS IS SOME MULTI-
+  * LINE COMMENT...
+ {---------------------}%
+
+x[m] = {(1) : 1, (m) : -1};
+y[n] = {(1) : 0, (n) : +1};
+
+% Integrity Constraints
+(int) A[0]:
+
+@{i=[1:m]}
+${j=[1:n]}
+
+x[i] -> y[j];
+
+% Optmality Constraints
+(opt) X[1]:
+
+@{i=[1:m]}
+@{j=[1:n], i != j}
+
+x[i] & y[j];

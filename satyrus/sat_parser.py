@@ -1,277 +1,406 @@
-from ply import yacc
+"""
+"""
+from ply import lex, yacc
 
-from sat_core.stream import stderr
-from sat_types.error import SatError
-from sat_lexer import SatLexer
+from sat_core import stderr
+from sat_types import SatError
+from sat_types import Expr, Number, Var
 
-lexer = SatLexer()
+from sat_types.tokens import T_SHARP, T_ASSING, T_DOTS
 
 class SatParserError(SatError):
-    ...
+    pass
 
-class SatParser:
+class SatLexerError(SatError):
+    pass
 
-    parser = None
+def regex(pattern):
+    def decor(callback):
+        callback.__doc__ = pattern
+        return callback
+    return decor
 
-    @classmethod
-    def init(cls, lexer, parser):
-        cls.lexer = lexer
-        cls.parser = parser
+class SatLexer(object):
+    ## List of token names.
+    tokens = (
+        'NAME', 'NUMBER',
 
-    @classmethod
-    def parse(cls, source):
-        if cls.parser is not None:
-            cls.parser.parse(source)
-        else:
-            raise SatParserError("Parser wasn't initialized.")
+        'FORALL', 'EXISTS', 'EXISTS_ONE',
 
-    @classmethod
-    def run(cls, code):
-        bytecode = [*code]
+        'NOT', 'AND', 'OR', 'XOR',
 
-        return bytecode
+        'IMP', 'RIMP', 'IFF',
 
-precedence = (
+        'SHARP',
 
-    ('left', 'LBRA', 'RBRA'),
+        'ENDL',
 
-    ('left', 'ADD', 'SUB'),
-    ('left', 'MUL', 'DIV'),
+        'COMMA',
 
-    ('left', 'XOR', 'OR'),
-    ('left', 'AND'),
-    ('left', 'NOT'),
+        'ASSIGN',
 
-    ('left', 'IMP', 'RIMP', 'IFF'),
+        'EQ', # equal
+        'GT', # greater than
+        'LT', # less than
 
-    ('left', 'EQ', 'NE', 'GE', 'LE', 'GT', 'LT'),
+        'GE', # greater or equal
+        'LE', # less or equal
 
-    ('left', 'FORALL', 'EXISTS', 'EXISTS_ONE'),
+        'NE', # not equal
 
-    ('left', 'LCUR', 'RCUR'),
-    ('left', 'LPAR', 'RPAR'),
-    
+        'MUL', 'DIV', 'ADD', 'SUB',
 
-    ('left', 'DOTS'),
+        'DOTS',
 
-    ('left', 'SHARP'),
+        'LBRA', 'RBRA', 'LPAR', 'RPAR', 'LCUR', 'RCUR',
 
-    ('left', 'NAME'),
-    ('left', 'STRING', 'NUMBER'),
+        'STRING',
+        )
 
-    ('left', 'ENDL'),
-)
+    # Regular expression rules for tokens
+    t_DOTS = r'\:'
 
-def p_start(p):
-    """ start : code
-    """
-    SatParser.run(p[1])
+    t_LBRA = r'\['
+    t_RBRA = r'\]'
 
-def p_code(p):
-    """ code : code stmt
-             | stmt
-    """
-    if len(p) == 3:
-        p[0] = [*p[1], p[2]]
-    else:
-        p[0] = [ p[1],]
+    t_LPAR = r'\('
+    t_RPAR = r'\)'
 
-def p_stmt(p):
-    """ stmt : sys_config ENDL
-             | def_const ENDL
-             | def_array ENDL
-             | def_restr ENDL
-    """
-    p[0] = p[1]
+    t_LCUR = r'\{'
+    t_RCUR = r'\}'
 
-def p_sys_config(p):
-    """ sys_config : SHARP NAME DOTS NUMBER
-                   | SHARP NAME DOTS STRING
-    """
-    p[0] = (p[2], p[4])
+    t_FORALL = r'\@'
+    t_EXISTS = r'\$'
+    t_EXISTS_ONE = r'\!\$'
 
-def p_def_const(p):
-    """ def_const : NAME ASSIGN literal
-    """
-    p[0] = (p[1], p[3])
+    t_NOT = r'\~'
 
-def p_literal(p):
-    """ literal : NUMBER
-                | NAME
-    """
-    p[0] = p[1]
+    t_AND = r'\&'
 
-def p_def_array(p):
-    """ def_array : NAME shape ASSIGN array_buffer
-                  | NAME shape
-    """
-    if len(p) == 5: # array declared
-        buffer = p[4]
-    else: # implicit array
-        buffer = []
+    t_OR = r'\|'
 
-    p[0] = (p[1], p[2], buffer)
+    t_XOR = r'\^'
 
-def p_shape(p):
-    """ shape : shape index
-              | index
-    """
-    if len(p) == 3:
-        p[0] = (*p[1], p[2])
-    else:
-        p[0] = ( p[1],)
+    t_IMP = r'\-\>'
 
-def p_index(p):
-    """ index : LBRA literal RBRA
-    """
-    p[0] = p[2]
+    t_RIMP = r'\<\-'
 
-def p_array_buffer(p):
-    """ array_buffer : LCUR array RCUR
-    """
-    p[0] = p[2]
+    t_IFF = r'\<\-\>'
 
-def p_array(p):
-    """ array : array COMMA array_item
-              | array_item
-    """
-    if len(p) == 4:
-        p[0] = [*p[1], p[3]]
-    else:
-        p[0] = [ p[1],]
+    t_COMMA = r'\,'
 
-def p_array_item(p):
-    """ array_item : array_index DOTS literal
-    """
-    p[0] = (p[1], p[3])
+    t_DIV = r'\/'
 
-def p_array_index(p):
-    """ array_index : LPAR literal_seq RPAR
-    """
-    p[0] = p[2]
+    t_MUL = r'\*'
 
-def p_literal_seq(p):
-    """ literal_seq : literal_seq COMMA literal
-                    | literal
-    """
-    if len(p) == 4:
-        p[0] = (*p[1], p[3])
-    else:
-        p[0] = ( p[1],)
+    t_ADD = r'\+'
 
-def p_def_restr(p):
-    """ def_restr : LPAR NAME RPAR NAME LBRA literal RBRA DOTS loops expr
-                  | LPAR NAME RPAR NAME DOTS loops expr
-    """
-    type = p[2]
-    name = p[4]
-    
-    if len(p) == 11:
-        level = p[6]
-        loops = p[9]
-        expr = p[10]
-    else:
-        level = 0
-        loops = p[6]
-        expr = p[7]
+    t_SUB = r'\-'
 
-    p[0] = (type, name, level, loops, expr)
+    t_ENDL = r'\;'
 
-def p_loops(p):
-    """ loops : loops loop
-              | loop
-    """
-    if len(p) == 3:
-        p[0] = [*p[1], p[2]]
-    else:
-        p[0] = [ p[1],]
+    t_ASSIGN = r'\='
 
-def p_loop(p):
-    """ loop : quant LCUR NAME ASSIGN domain COMMA conditions RCUR
-             | quant LCUR NAME ASSIGN domain RCUR
-    """
-    if len(p) == 9:
-        p[0] = (p[1], p[3], p[5], p[7])
-    else:
-        p[0] = (p[1], p[3], p[5], None)
+    t_EQ = r'\=\='
+    t_GT = r'\>'
+    t_LT = r'\<'
 
-def p_quant(p):
-    """ quant : FORALL
-              | EXISTS
-              | EXISTS_ONE
-    """
-    p[0] = p[1]
+    t_GE = r'\>\='
+    t_LE = r'\<\='
 
-def p_domain(p):
-    """ domain : LBRA literal DOTS literal DOTS literal RBRA
-               | LBRA literal DOTS literal RBRA
-    """
-    if len(p) == 8:
-        p[0] = (p[2], p[4], p[6])
-    else:
-        p[0] = (p[2], p[4], None)
+    t_NE = r'\!\='
 
-def p_conditions(p):
-    """ conditions : conditions COMMA condition
-                   | condition
-    """
-    if len(p) == 4:
-        p[0] = [*p[1], p[2]]
-    else:
-        p[0] = [p[1],]
+    t_SHARP = r'\#'
 
-def p_condition(p):
-    """ condition : expr EQ expr
-                  | expr GT expr
-                  | expr LT expr
-                  | expr GE expr
-                  | expr LE expr
-                  | expr NE expr
-    """
-    p[0] = p[1]
+    @regex(r'\".*\"')
+    def t_STRING(self, t):
+        t.value = str(t.value[1:-1])
+        return t
 
-def p_condition_expr(p):
-    """ condition : expr
-    """
-    p[0] = p[1]
+    @regex(r"\n+")
+    def t_newline(self, t):
+        self.lexer.lineno += len(t.value)
 
-def p_expr(p):
-    """ expr : literal
-    """
-    p[0] = p[1]
+    @regex(r"[a-zA-Z_][a-zA-Z0-9_']*")
+    def t_NAME(self, t):
+        t.value = Var(t.value)
+        return t
 
-def p_expr1(p):
-    """ expr : NOT expr
-             | ADD expr
-             | SUB expr
-    """
-    p[0] = (p[1], p[2])
+    @regex(r"[-+]?[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
+    def t_NUMBER(self, t):
+        t.value = Number(t.value)
+        return t
 
-def p_expr2(p):
-    """ expr : expr AND expr
-             | expr OR expr
-             | expr XOR expr
-             | expr ADD expr
-             | expr SUB expr
-             | expr MUL expr
-             | expr DIV expr
-             | expr IMP expr
-             | expr RIMP expr
-             | expr IFF expr
-    """
-    p[0] = (p[2], p[1], p[3])
+    def t_error(self, t):
+        stderr << f"SyntaxError at {t} <Lexer>"
 
-def p_expr_index(p):
-    """ expr : expr LBRA expr RBRA
-    """
-    p[0] = ('[]', p[1], p[3])
+    # String containing ignored characters between tokens
+    t_ignore = ' \t'
 
-def p_expr_par(p):
-    """ expr : LPAR expr RPAR
-    """
-    p[0] = p[2]
+    t_ignore_COMMENT = r'%.*'
 
-def p_error(p):
-    stderr << f"SyntaxError at {p} <Parser>"
+    t_ignore_MULTICOMMENT = r'\%\{[\s\S]*?\}\%'
+
+    def __init__(self, **kwargs):
+        self.lexer = lex.lex(object=self, **kwargs)
+
+class SatParser(object):
+
+    tokens = SatLexer.tokens
+
+    precedence = (
+
+        ('left', 'LBRA', 'RBRA'),
+
+        ('left', 'ADD', 'SUB'),
+        ('left', 'MUL', 'DIV'),
+
+        ('left', 'XOR', 'OR'),
+        ('left', 'AND'),
+        ('left', 'NOT'),
+
+        ('left', 'IMP', 'RIMP', 'IFF'),
+
+        ('left', 'EQ', 'NE', 'GE', 'LE', 'GT', 'LT'),
+
+        ('left', 'FORALL', 'EXISTS', 'EXISTS_ONE'),
+
+        ('left', 'LCUR', 'RCUR'),
+        ('left', 'LPAR', 'RPAR'),
         
-SatParser.init(lexer, yacc.yacc())
+        ('left', 'DOTS'),
+
+        ('left', 'SHARP'),
+
+        ('left', 'NAME'),
+        ('left', 'STRING', 'NUMBER'),
+
+        ('left', 'ENDL'),
+    )
+
+    def __init__(self):
+        self.lexer = SatLexer()
+        self.parser = yacc.yacc(module=self)
+
+        self.bytecode = None
+
+    def parse(self, source):
+        if not source:
+            raise SatParserError('Empty source for parsing.')
+        else:
+            self.parser.parse(source)
+
+    def run(self, code):
+        self.bytecode = code
+
+    def p_start(self, p):
+        """ start : code
+        """
+        self.run(p[1])
+
+    def p_code(self, p):
+        """ code : code stmt
+                 | stmt
+        """
+        if len(p) == 3:
+            p[0] = [*p[1], p[2]]
+        else:
+            p[0] = [ p[1],]
+
+    def p_stmt(self, p):
+        """ stmt : sys_config ENDL
+                 | def_const ENDL
+                 | def_array ENDL
+                 | def_restr ENDL
+        """
+        p[0] = p[1]
+
+    def p_sys_config(self, p):
+        """ sys_config : SHARP NAME DOTS NUMBER
+                    | SHARP NAME DOTS STRING
+        """
+        p[0] = (T_SHARP, p[2], p[4])
+
+    def p_def_const(self, p):
+        """ def_const : NAME ASSIGN literal
+        """
+        p[0] = (p[1], p[3])
+
+    def p_literal(self, p):
+        """ literal : NUMBER
+                    | NAME
+        """
+        p[0] = p[1]
+
+    def p_def_array(self, p):
+        """ def_array : NAME shape ASSIGN array_buffer
+                    | NAME shape
+        """
+        if len(p) == 5: # array declared
+            buffer = p[4]
+        else: # implicit array
+            buffer = []
+
+        p[0] = (p[1], p[2], buffer)
+
+    def p_shape(self, p):
+        """ shape : shape index
+                | index
+        """
+        if len(p) == 3:
+            p[0] = (*p[1], p[2])
+        else:
+            p[0] = ( p[1],)
+
+    def p_index(self, p):
+        """ index : LBRA literal RBRA
+        """
+        p[0] = p[2]
+
+    def p_array_buffer(self, p):
+        """ array_buffer : LCUR array RCUR
+        """
+        p[0] = p[2]
+
+    def p_array(self, p):
+        """ array : array COMMA array_item
+                | array_item
+        """
+        if len(p) == 4:
+            p[0] = [*p[1], p[3]]
+        else:
+            p[0] = [ p[1],]
+
+    def p_array_item(self, p):
+        """ array_item : array_index DOTS literal
+        """
+        p[0] = (p[1], p[3])
+
+    def p_array_index(self, p):
+        """ array_index : LPAR literal_seq RPAR
+        """
+        p[0] = p[2]
+
+    def p_literal_seq(self, p):
+        """ literal_seq : literal_seq COMMA literal
+                        | literal
+        """
+        if len(p) == 4:
+            p[0] = (*p[1], p[3])
+        else:
+            p[0] = ( p[1],)
+
+    def p_def_restr(self, p):
+        """ def_restr : LPAR NAME RPAR NAME LBRA literal RBRA DOTS loops expr
+                    | LPAR NAME RPAR NAME DOTS loops expr
+        """
+        type = p[2]
+        name = p[4]
+        
+        if len(p) == 11:
+            level = p[6]
+            loops = p[9]
+            expr = p[10]
+        else:
+            level = 0
+            loops = p[6]
+            expr = p[7]
+
+        p[0] = (type, name, level, loops, expr)
+
+    def p_loops(self, p):
+        """ loops : loops loop
+                | loop
+        """
+        if len(p) == 3:
+            p[0] = [*p[1], p[2]]
+        else:
+            p[0] = [ p[1],]
+
+    def p_loop(self, p):
+        """ loop : quant LCUR NAME ASSIGN domain COMMA conditions RCUR
+                | quant LCUR NAME ASSIGN domain RCUR
+        """
+        if len(p) == 9:
+            p[0] = (p[1], p[3], p[5], p[7])
+        else:
+            p[0] = (p[1], p[3], p[5], None)
+
+    def p_quant(self, p):
+        """ quant : FORALL
+                | EXISTS
+                | EXISTS_ONE
+        """
+        p[0] = p[1]
+
+    def p_domain(self, p):
+        """ domain : LBRA literal DOTS literal DOTS literal RBRA
+                | LBRA literal DOTS literal RBRA
+        """
+        if len(p) == 8:
+            p[0] = (p[2], p[4], p[6])
+        else:
+            p[0] = (p[2], p[4], None)
+
+    def p_conditions(self, p):
+        """ conditions : conditions COMMA condition
+                    | condition
+        """
+        if len(p) == 4:
+            p[0] = [*p[1], p[2]]
+        else:
+            p[0] = [p[1],]
+
+    def p_condition(self, p):
+        """ condition : expr EQ expr
+                    | expr GT expr
+                    | expr LT expr
+                    | expr GE expr
+                    | expr LE expr
+                    | expr NE expr
+        """
+        p[0] = p[1]
+
+    def p_condition_expr(self, p):
+        """ condition : expr
+        """
+        p[0] = p[1]
+
+    def p_expr(self, p):
+        """ expr : literal
+        """
+        p[0] = p[1]
+
+    def p_expr1(self, p):
+        """ expr : NOT expr
+                | ADD expr
+                | SUB expr
+        """
+        p[0] = (p[1], p[2])
+
+    def p_expr2(self, p):
+        """ expr : expr AND expr
+                | expr OR expr
+                | expr XOR expr
+                | expr ADD expr
+                | expr SUB expr
+                | expr MUL expr
+                | expr DIV expr
+                | expr IMP expr
+                | expr RIMP expr
+                | expr IFF expr
+        """
+        p[0] = (p[2], p[1], p[3])
+
+    def p_expr_index(self, p):
+        """ expr : expr LBRA expr RBRA
+        """
+        p[0] = ('[]', p[1], p[3])
+
+    def p_expr_par(self, p):
+        """ expr : LPAR expr RPAR
+        """
+        p[0] = p[2]
+
+    def p_error(self, p):
+        stderr << f"SyntaxError at {p} <Parser>"

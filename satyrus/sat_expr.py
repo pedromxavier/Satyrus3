@@ -268,11 +268,6 @@ def s_rmv_imp(expr):
     '''
     return Expr.TABLE['IMP'][expr.head](*expr.tail)
     
-def par(expr, e):
-    if (e.expr) and (e.head in Expr.NEED_PAR) and (expr.group != e.group):
-        return f"({e})"
-    return f"{e}"
-
 @property
 def group(expr):
     return Expr.GROUPS[expr.head]

@@ -6,7 +6,7 @@ from sat_lexer import SatLexer
 
 lexer = SatLexer()
 
-class SatParseError(SatError):
+class SatParserError(SatError):
     ...
 
 class SatParser:
@@ -23,7 +23,7 @@ class SatParser:
         if cls.parser is not None:
             cls.parser.parse(source)
         else:
-            raise SatParseError("Parser wasn't initialized.")
+            raise SatParserError("Parser wasn't initialized.")
 
     @classmethod
     def run(cls, code):

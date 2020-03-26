@@ -122,3 +122,10 @@ class Expr(SatType, list):
     @staticmethod
     def encode(expr):
         return NotImplemented
+
+    @staticmethod
+    def par(p, q):
+        if (q.expr) and (q.head in Expr.NEED_PAR) and (p.group != q.group):
+            return f"({q})"
+        else:
+            return f"{q}"

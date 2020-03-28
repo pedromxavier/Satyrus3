@@ -5,20 +5,20 @@ from .symbols.tokens import T_DICT
 
 class MetaSatType(type):
 
+    ATTRS = {f"__{name.lower()}__" : T_DICT[name] for name in T_DICT}
+
     @staticmethod
     def null_func(*args):
         raise ValueError
 
     def __init__(cls, name, bases, attrs):
-        for name, token in T_DICT.items():
-            magic_name = f"__{name.lower()}__"
-
-            if magic_name in attrs:
-                callback = attrs[magic_name]
+        for name, token in cls.ATTRS.items():
+            if name in attrs:
+                callback = attrs[name]
             else:
                 callback = cls.null_func
 
-            attrs[magic_name] = cls.sat_magic(token, callback)
+            attrs[name] = cls.sat_magic(token, callback)
 
     @classmethod
     def sat_magic(cls, token, callback):

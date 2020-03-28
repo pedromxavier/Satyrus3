@@ -1,12 +1,13 @@
 """
 """
+## Third-Party
 from ply import lex, yacc
 
-from sat_core import stderr
-from sat_types import SatError
-from sat_types import Expr, Number, Var
-
-from sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
+## Local
+from .sat_core import stderr
+from .sat_types import SatError
+from .sat_types import Expr, Number, Var
+from .sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
 
 class SatParserError(SatError):
     pass

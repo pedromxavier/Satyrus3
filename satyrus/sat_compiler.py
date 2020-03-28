@@ -12,7 +12,7 @@ the following keys:
 	'penalty' : (float), # base penalty value
 }
 """
-from sat_parser import SatParser
+from .sat_parser import SatParser
 
 class Compiler:
 

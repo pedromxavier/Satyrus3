@@ -7,8 +7,8 @@ import re
 from functools import wraps
 
 ## Local
-from sat_core import load, stderr, stdsys
-from sat_types import SatError
+from satyrus.sat_core import load, stderr, stdsys
+from satyrus.sat_types import SatError
 
 class SatTestError(SatError):
     pass
@@ -28,7 +28,7 @@ class SatTest:
 
     @classmethod
     def parser(cls, *args, **kwargs):
-        from sat_parser import SatParser
+        from satyrus.sat_parser import SatParser
 
         parser = SatParser()
 
@@ -43,7 +43,7 @@ class SatTest:
     @classmethod
     def types(cls, *args, **kwargs):
         stdsys << "sat_types :: Number"
-        from sat_types import Number
+        from satyrus.sat_types import Number
 
         x = Number(1.20)
         y = Number(-2.7)

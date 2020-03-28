@@ -1,16 +1,18 @@
-""" Satyrus III 
+#!/usr/env/python
+""" :: Satyrus III ::
+    =================
 """
+## Standard Library
 import argparse
+
+## Local
+from .sat_core import load
 
 class Satyrus:
 
     @classmethod
     def main(cls, *args, **kwargs):
-        ...
-
-        with open(cls.fname, 'r') as file:
-            source = file.read()
-
+        source = load(cls.fname)
         return source
 
     @classmethod

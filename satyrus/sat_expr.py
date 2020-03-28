@@ -1,11 +1,15 @@
-from sat_types import Expr
-from sat_types import Number
+## Standard Library
 from functools import reduce
+
+## Local
+from .sat_types import Expr
+from .sat_types import Number
+
 
 ## :: Rule Definition ::
 
 ## :: Logical ::
-from sat_types.symbols.heads import H_AND, H_OR, H_XOR, H_NOT, H_IFF, H_IMP, H_RIMP
+from .sat_types.symbols.heads import H_AND, H_OR, H_XOR, H_NOT, H_IFF, H_IMP, H_RIMP
 
 @Expr.rule(H_AND)
 def AND(*args):
@@ -36,14 +40,14 @@ def IFF(x, y):
     return x.__iff__(y)
 
 ## :: Indexing ::
-from sat_types.symbols.heads import H_IDX
+from .sat_types.symbols.heads import H_IDX
 
 @Expr.rule(H_IDX)
 def IDX(x, i):
     return x.__idx__(i)
 
 ## :: Aritmetic ::
-from sat_types.symbols.heads import H_ADD, H_SUB, H_MUL, H_DIV, H_POS, H_NEG
+from .sat_types.symbols.heads import H_ADD, H_SUB, H_MUL, H_DIV, H_POS, H_NEG
 
 @Expr.rule(H_ADD)
 def ADD(*args):

@@ -1,16 +1,19 @@
 """ :: SATyrus Python API ::
+    ========================
 
-    sco = {
+    Example:
+
+    >>> sco = {
         'int' : [...],
         'opt' : [...],
         ...
     }
-
-    sat = Satyrus(sco)
-    sat.expr()
+    >>> sat = SatAPI(sco)
+    >>> dump(sat['xpress'], 'sat.xpress')
+    >>> dwave.neal.solve(sat['dwave'])
 """ 
 
-class Satyrus:
+class SatAPI:
 
     def __init__(self, sco):
         self.sco = sco

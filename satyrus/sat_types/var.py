@@ -1,4 +1,4 @@
-from .core import SatType
+from .main import SatType
 
 class Var(SatType, str):
 
@@ -7,12 +7,8 @@ class Var(SatType, str):
     def __new__(cls, name):
         if name not in cls.__ref__:
             obj = str.__new__(cls, name)
-            Var.__init__(obj, name)
             cls.__ref__[name] = obj
         return cls.__ref__[name]
-
-    def __init__(self, name):
-        SatType.__init__(self)
 
     def __hash__(self):
         return str.__hash__(self)

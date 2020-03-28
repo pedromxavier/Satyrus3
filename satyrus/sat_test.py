@@ -1,12 +1,14 @@
-#/usr/bin/python3.8
-""" :: SATyrus Test File ::
+#!/usr/env/python
+""" :: Sat Test ::
+    ==============
 """
-from sat_core import load, stderr
-from sat_types import SatError
-
+## Standard Library
+import re
 from functools import wraps
 
-import re
+## Local
+from sat_core import load, stderr, stdsys
+from sat_types import SatError
 
 class SatTestError(SatError):
     pass
@@ -23,14 +25,6 @@ class SatTest:
             ## Check if the function is a test function.
             if (not re.match(r"\_\_.+\_\_", name)) and (name not in cls.locked):
                 yield getattr(cls, name)
-    
-    @classmethod
-    def api(cls, *args, **kwargs):
-        return NotImplemented
-
-    @classmethod
-    def compiler(cls, *args, **kwargs):
-        return NotImplemented
 
     @classmethod
     def parser(cls, *args, **kwargs):
@@ -41,26 +35,33 @@ class SatTest:
         parser.parse(cls.source)
 
         if parser.bytecode is None:
-            raise SatTestError('Parser bytecode is <None>')
+            raise SatTestError('Parser bytecode is ´None´')
         
         for line in parser.bytecode:
             print(line)
 
     @classmethod
-    def expr(cls, *args, **kwargs):
-        return NotImplemented
+    def types(cls, *args, **kwargs):
+        stdsys << "sat_types :: Number"
+        from sat_types import Number
 
-    @classmethod
-    def satyrus(cls, *args, **kwargs):
-        return NotImplemented
+        x = Number(1.20)
+        y = Number(-2.7)
+        
+        stdsys << ("x =", x)
+        stdsys << ("y =", y)
+
+        stdsys << ("x + y =", x + y)
+        stdsys << ("x - y =", x - y)
+        stdsys << ("x * y =", x * y)
+        stdsys << ("x / y =", x / y)
+        stdsys << ("x & y =", x & y)
 
     @classmethod
     def main(cls, *args, **kwargs):
         for callback in cls.get_tests():
             try:
-                answer = callback(cls, *args, **kwargs)
-                if answer != NotImplemented:
-                    print(answer)
+                callback(cls, *args, **kwargs)
             except SatTestError:
                 stderr << ':: Test Failed ::'
 

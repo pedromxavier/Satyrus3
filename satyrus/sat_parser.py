@@ -6,6 +6,8 @@ from sat_core import stderr
 from sat_types import SatError
 from sat_types import Expr, Number, Var
 
+from sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
+
 class SatParserError(SatError):
     pass
 
@@ -215,14 +217,14 @@ class SatParser(object):
 
     def p_sys_config(self, p):
         """ sys_config : SHARP NAME DOTS NUMBER
-                    | SHARP NAME DOTS STRING
+                       | SHARP NAME DOTS STRING
         """
-        p[0] = (p[2], p[4])
+        p[0] = (SYS_CONFIG, p[2], p[4])
 
     def p_def_constant(self, p):
         """ def_constant : NAME ASSIGN literal
         """
-        p[0] = (p[1], p[3])
+        p[0] = (DEF_CONSTANT, p[1], p[3])
 
     def p_literal(self, p):
         """ literal : NUMBER
@@ -232,14 +234,14 @@ class SatParser(object):
 
     def p_def_array(self, p):
         """ def_array : NAME shape ASSIGN array_buffer
-                    | NAME shape
+                      | NAME shape
         """
         if len(p) == 5: # array declared
             buffer = p[4]
         else: # implicit array
             buffer = []
 
-        p[0] = (p[1], p[2], buffer)
+        p[0] = (DEF_ARRAY, p[1], p[2], buffer)
 
     def p_shape(self, p):
         """ shape : shape index
@@ -292,7 +294,7 @@ class SatParser(object):
         """ def_constraint : LPAR NAME RPAR NAME LBRA literal RBRA DOTS loops expr
                            | LPAR NAME RPAR NAME DOTS loops expr
         """
-        type = p[2]
+        kind = p[2]
         name = p[4]
         
         if len(p) == 11:
@@ -304,7 +306,7 @@ class SatParser(object):
             loops = p[6]
             expr = p[7]
 
-        p[0] = (type, name, level, loops, expr)
+        p[0] = (DEF_CONSTRAINT, kind, name, level, loops, expr)
 
     def p_loops(self, p):
         """ loops : loops loop

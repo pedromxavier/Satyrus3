@@ -36,11 +36,6 @@ T_LE = intern('<=')
 T_NE = intern('!=')
 T_EQ = intern('==')
 
-## Statements
-T_ASSIGN = intern('=')
-T_SHARP = intern('#')
-T_DOTS = intern(':')
-
 T_DICT = {
   'AND' : T_AND, 'RAND' : T_AND,
   'OR' : T_OR, 'ROR' : T_OR,
@@ -62,4 +57,6 @@ T_DICT = {
   'LE' : T_LE,
   'NE' : T_NE,
   'EQ' : T_EQ,
+
+  'IDX' : T_IDX,
 }

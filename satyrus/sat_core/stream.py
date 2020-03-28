@@ -61,7 +61,7 @@ class stream:
 colorama.init()
 
 ## default stream configs
-__stdsys__ = { 'fg' : 'BLUE', 'sty' : 'DIM'}
+__stdsys__ = { 'fg' : 'GREEN', 'sty' : 'DIM'}
 __stdout__ = { 'fg' : 'CYAN', 'sty' : None }
 __stderr__ = { 'fg' : 'RED' , 'sty' : None }
 

@@ -1,6 +1,11 @@
+""" :: Sat Types ::
+    ===============
+"""
+## Standard Library
 from sys import intern
 from functools import wraps
 
+## Local
 from .symbols.tokens import T_DICT
 
 class MetaSatType(type):
@@ -9,7 +14,7 @@ class MetaSatType(type):
 
     @staticmethod
     def null_func(*args):
-        raise ValueError
+        return NotImplemented
 
     def __init__(cls, name, bases, attrs):
         for name, token in cls.ATTRS.items():
@@ -24,13 +29,25 @@ class MetaSatType(type):
     def sat_magic(cls, token, callback):
         @wraps(callback)
         def new_callback(*args):
-            try:
-                return callback(*args)
-            except (TypeError, ValueError):
+            answer = callback(*args)
+            if answer is NotImplemented:
                 return Expr(token, *args)
+            else:
+                return answer
         return new_callback
 
 class SatType(metaclass=MetaSatType):
+    """ :: SatType ::
+        =============
+
+    """
+
+    ## Alias for __not__.
+    def __not__(self):
+        return NotImplemented
+
+    def __invert__(self):
+        return self.__not__()
 
     @property
     def copy(self):
@@ -151,6 +168,8 @@ class Expr(SatType, list):
 
     @staticmethod
     def cmp(A, B):
+        """
+        """
         return hash(A) == hash(B)
 
     @staticmethod

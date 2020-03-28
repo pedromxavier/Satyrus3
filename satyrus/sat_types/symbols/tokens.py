@@ -40,3 +40,26 @@ T_EQ = intern('==')
 T_ASSIGN = intern('=')
 T_SHARP = intern('#')
 T_DOTS = intern(':')
+
+T_DICT = {
+  'AND' : T_AND, 'RAND' : T_AND,
+  'OR' : T_OR, 'ROR' : T_OR,
+  'XOR' : T_XOR, 'RXOR' : T_XOR,
+  'NOT' : T_NOT,
+
+  'IFF' : T_IFF,
+  'IMP' : T_IMP,
+  'RIMP' : T_RIMP,
+
+  'ADD' : T_ADD, 'RADD' : T_ADD, 'POS' : T_ADD,
+  'SUB' : T_SUB, 'RSUB' : T_SUB, 'NEG' : T_SUB,
+  'MUL' : T_MUL, 'RMUL' : T_MUL,
+  'DIV' : T_DIV, 'RDIV' : T_DIV,
+
+  'GT' : T_GT,
+  'LT' : T_LT,
+  'GE' : T_GE,
+  'LE' : T_LE,
+  'NE' : T_NE,
+  'EQ' : T_EQ,
+}

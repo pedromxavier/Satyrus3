@@ -1,4 +1,4 @@
-from .core import SatType
+from .main import SatType
 
 import decimal
 import re
@@ -157,14 +157,6 @@ class Number(SatType, decimal.Decimal):
             return 1 - self
         except:
             return SatType.__invert__(self)
-
-    @property
-    def int(self):
-        return bool((self - Number(int(self))) == Number.FALSE)
-
-    @property
-    def bool(self):
-        return self == Number.TRUE or self == Number.FALSE
 
 Number.TRUE = Number('1')
 Number.FALSE = Number('0')

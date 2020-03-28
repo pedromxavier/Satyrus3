@@ -6,8 +6,6 @@ from sat_core import stderr
 from sat_types import SatError
 from sat_types import Expr, Number, Var
 
-from sat_types.tokens import T_SHARP, T_ASSING, T_DOTS
-
 class SatParserError(SatError):
     pass
 
@@ -209,9 +207,9 @@ class SatParser(object):
 
     def p_stmt(self, p):
         """ stmt : sys_config ENDL
-                 | def_const ENDL
+                 | def_constant ENDL
                  | def_array ENDL
-                 | def_restr ENDL
+                 | def_constraint ENDL
         """
         p[0] = p[1]
 
@@ -219,10 +217,10 @@ class SatParser(object):
         """ sys_config : SHARP NAME DOTS NUMBER
                     | SHARP NAME DOTS STRING
         """
-        p[0] = (T_SHARP, p[2], p[4])
+        p[0] = (p[2], p[4])
 
-    def p_def_const(self, p):
-        """ def_const : NAME ASSIGN literal
+    def p_def_constant(self, p):
+        """ def_constant : NAME ASSIGN literal
         """
         p[0] = (p[1], p[3])
 
@@ -290,9 +288,9 @@ class SatParser(object):
         else:
             p[0] = ( p[1],)
 
-    def p_def_restr(self, p):
-        """ def_restr : LPAR NAME RPAR NAME LBRA literal RBRA DOTS loops expr
-                    | LPAR NAME RPAR NAME DOTS loops expr
+    def p_def_constraint(self, p):
+        """ def_constraint : LPAR NAME RPAR NAME LBRA literal RBRA DOTS loops expr
+                           | LPAR NAME RPAR NAME DOTS loops expr
         """
         type = p[2]
         name = p[4]

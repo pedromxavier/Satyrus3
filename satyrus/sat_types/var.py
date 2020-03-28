@@ -18,19 +18,3 @@ class Var(SatType, str):
 
     def __idx__(self, i):
         return Var(f"{self}_{i}")
-
-    @property
-    def tail(self):
-        return None
-
-    @property
-    def vars(self):
-        return {self}
-
-    @property
-    def expr(self):
-        return False
-
-    @property
-    def var(self):
-        return True

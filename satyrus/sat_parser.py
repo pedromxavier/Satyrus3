@@ -4,15 +4,19 @@
 from ply import lex, yacc
 
 ## Local
-from .sat_core import stderr
+from .sat_core import stderr, stdout
 from .sat_types import SatError
 from .sat_types import Expr, Number, Var
 from .sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
+from .sat_types.symbols.tokens import T_IDX
 
 class SatParserError(SatError):
     pass
 
 class SatLexerError(SatError):
+    pass
+
+class SatSyntaxError(SatError):
     pass
 
 def regex(pattern):
@@ -118,9 +122,10 @@ class SatLexer(object):
         t.value = str(t.value[1:-1])
         return t
 
-    @regex(r"\n+")
+    @regex(r"\n")
     def t_newline(self, t):
-        self.lexer.lineno += len(t.value)
+        self.lexer.lineno += 1
+        return None
 
     @regex(r"[a-zA-Z_][a-zA-Z0-9_']*")
     def t_NAME(self, t):
@@ -132,15 +137,20 @@ class SatLexer(object):
         t.value = Number(t.value)
         return t
 
-    def t_error(self, t):
-        stderr << f"SyntaxError at {t} <Lexer>"
-
     # String containing ignored characters between tokens
     t_ignore = ' \t'
 
     t_ignore_COMMENT = r'%.*'
 
-    t_ignore_MULTICOMMENT = r'\%\{[\s\S]*?\}\%'
+    @regex(r'\%\{[\s\S]*?\}\%')
+    def t_ignore_MULTICOMMENT(self, t):
+        self.lexer.lineno += str(t.value).count('\n')
+        return None
+
+    def t_error(self, t):
+        stderr << f"Unknow token '{t.value}' at line {t.lineno}"
+
+        raise SatSyntaxError
 
     def __init__(self, **kwargs):
         self.lexer = lex.lex(object=self, **kwargs)
@@ -183,15 +193,22 @@ class SatParser(object):
         self.lexer = SatLexer()
         self.parser = yacc.yacc(module=self)
 
+        self.source = None
         self.bytecode = None
 
-    def parse(self, source):
+    def parse(self, source : str):
         if not source:
             raise SatParserError('Empty source for parsing.')
         else:
-            self.parser.parse(source)
+            try:
+                self.source = source
+                self.parser.parse(self.source)
+            except SatSyntaxError:
+                self.bytecode = None
+            finally:
+                self.source = None
 
-    def run(self, code):
+    def run(self, code : list):
         self.bytecode = code
 
     def p_start(self, p):
@@ -311,7 +328,7 @@ class SatParser(object):
 
     def p_loops(self, p):
         """ loops : loops loop
-                | loop
+                  | loop
         """
         if len(p) == 3:
             p[0] = [*p[1], p[2]]
@@ -320,7 +337,7 @@ class SatParser(object):
 
     def p_loop(self, p):
         """ loop : quant LCUR NAME ASSIGN domain COMMA conditions RCUR
-                | quant LCUR NAME ASSIGN domain RCUR
+                 | quant LCUR NAME ASSIGN domain RCUR
         """
         if len(p) == 9:
             p[0] = (p[1], p[3], p[5], p[7])
@@ -329,14 +346,14 @@ class SatParser(object):
 
     def p_quant(self, p):
         """ quant : FORALL
-                | EXISTS
-                | EXISTS_ONE
+                  | EXISTS
+                  | EXISTS_ONE
         """
         p[0] = p[1]
 
     def p_domain(self, p):
         """ domain : LBRA literal DOTS literal DOTS literal RBRA
-                | LBRA literal DOTS literal RBRA
+                   | LBRA literal DOTS literal RBRA
         """
         if len(p) == 8:
             p[0] = (p[2], p[4], p[6])
@@ -345,7 +362,7 @@ class SatParser(object):
 
     def p_conditions(self, p):
         """ conditions : conditions COMMA condition
-                    | condition
+                       | condition
         """
         if len(p) == 4:
             p[0] = [*p[1], p[2]]
@@ -354,11 +371,11 @@ class SatParser(object):
 
     def p_condition(self, p):
         """ condition : expr EQ expr
-                    | expr GT expr
-                    | expr LT expr
-                    | expr GE expr
-                    | expr LE expr
-                    | expr NE expr
+                      | expr GT expr
+                      | expr LT expr
+                      | expr GE expr
+                      | expr LE expr
+                      | expr NE expr
         """
         p[0] = p[1]
 
@@ -374,34 +391,42 @@ class SatParser(object):
 
     def p_expr1(self, p):
         """ expr : NOT expr
-                | ADD expr
-                | SUB expr
+                 | ADD expr
+                 | SUB expr
         """
         p[0] = (p[1], p[2])
 
     def p_expr2(self, p):
         """ expr : expr AND expr
-                | expr OR expr
-                | expr XOR expr
-                | expr ADD expr
-                | expr SUB expr
-                | expr MUL expr
-                | expr DIV expr
-                | expr IMP expr
-                | expr RIMP expr
-                | expr IFF expr
+                 | expr OR expr
+                 | expr XOR expr
+                 | expr ADD expr
+                 | expr SUB expr
+                 | expr MUL expr
+                 | expr DIV expr
+                 | expr IMP expr
+                 | expr RIMP expr
+                 | expr IFF expr
         """
         p[0] = (p[2], p[1], p[3])
 
     def p_expr_index(self, p):
         """ expr : expr LBRA expr RBRA
         """
-        p[0] = ('[]', p[1], p[3])
+        p[0] = (T_IDX, p[1], p[3])
 
     def p_expr_par(self, p):
         """ expr : LPAR expr RPAR
         """
         p[0] = p[2]
 
-    def p_error(self, p):
-        stderr << f"SyntaxError at {p} <Parser>"
+    def p_error(self, t):
+        source_lines = self.source.split('\n')
+
+        tokpos = t.lexpos - sum(map(len, source_lines[:t.lineno]))
+
+        stderr << f"Syntax Error at line {t.lineno}:"
+        stderr << source_lines[t.lineno-1]
+        stderr << f'{" " * (tokpos)}^'
+
+        raise SatSyntaxError

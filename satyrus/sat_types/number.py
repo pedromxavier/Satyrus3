@@ -12,10 +12,9 @@ from ..sat_core import keep_type
 from .symbols.tokens import T_DICT
 
 @keep_type({f"__{name.lower()}__" for name in T_DICT})
-class Number(SatType, decimal.Decimal, metaclass=MetaNumber):
+class Number(SatType, decimal.Decimal):
 
     context = decimal.getcontext()
-    context.traps[decimal.FloatOperation] = True
     context.prec = 16
 
     regex = re.compile(r'(\.[0-9]*[1-9])(0+)|(\.0*)$')
@@ -55,7 +54,7 @@ class Number(SatType, decimal.Decimal, metaclass=MetaNumber):
         if value is None:
             return cls.context.prec
         else:
-            cls.context.prec
+            cls.context.prec = value
 
 Number.TRUE = Number('1')
 Number.FALSE = Number('0')

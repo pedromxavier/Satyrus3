@@ -56,16 +56,21 @@ def threaded(callback):
         return thread.start_new_thread(callback, args, kwargs)
     return new_callback
 
+def func_type(cls):
+    def decor(callback):
+        @wraps(callback)
+        def new_callback(*args, **kwargs):
+            return cls(callback(*args, **kwargs))
+        return new_callback
+    return decor
+
 def keep_type(callbacks : set):
     def class_decor(cls):
-        attrs = dir(cls)
-        for name in attrs:
-            if name in callbacks:
-                callback = attrs[name]
-                @wraps(callback)
-                def new_callback(*args, **kwargs):
-                    return cls(callback(*args, **kwargs))
-                attrs[name] = new_callback
+        ftype = func_type(cls)
+        for name in callbacks:
+            if hasattr(cls, name):
+                setattr(cls, name, ftype(getattr(cls, name)))
+        return cls
     return class_decor
 
 class Stack:

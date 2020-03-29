@@ -49,7 +49,7 @@ T_DICT = {
   'ADD' : T_ADD, 'RADD' : T_ADD, 'POS' : T_ADD,
   'SUB' : T_SUB, 'RSUB' : T_SUB, 'NEG' : T_SUB,
   'MUL' : T_MUL, 'RMUL' : T_MUL,
-  'DIV' : T_DIV, 'RDIV' : T_DIV,
+  'DIV' : T_DIV, 'RDIV' : T_DIV, 'TRUEDIV' : T_DIV, 'RTRUEDIV' : T_DIV,
 
   'GT' : T_GT,
   'LT' : T_LT,

@@ -28,6 +28,7 @@ class SatTest:
 
     @classmethod
     def parser(cls, *args, **kwargs):
+        stdsys << "sat_parser :: SatParser"
         from satyrus.sat_parser import SatParser
 
         parser = SatParser()
@@ -45,25 +46,25 @@ class SatTest:
         stdsys << "sat_types :: Number"
         from satyrus.sat_types import Number
 
-        x = Number(1.20)
-        y = Number(-2.7)
+        x = Number('1.20')
+        y = Number('-2.7')
         
-        stdsys << ("x =", x)
-        stdsys << ("y =", y)
+        print("x =", x)
+        print("y =", y)
 
-        stdsys << ("x + y =", x + y)
-        stdsys << ("x - y =", x - y)
-        stdsys << ("x * y =", x * y)
-        stdsys << ("x / y =", x / y)
-        stdsys << ("x & y =", x & y)
+        print("x + y =", x + y)
+        print("x - y =", x - y)
+        print("x * y =", x * y)
+        print("x / y =", x / y)
+        print("x & y =", x & y)
 
     @classmethod
     def main(cls, *args, **kwargs):
         for callback in cls.get_tests():
             try:
                 callback(cls, *args, **kwargs)
+                stdsys << ":: Success ::"
             except SatTestError:
-                stderr << ':: Test Failed ::'
-
-if __name__ == '__main__':
-    SatTest.main()
+                stderr << ':: Failure ::'
+            finally:
+                print()

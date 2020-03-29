@@ -11,8 +11,6 @@ import os
 # io.open is needed for projects that support Python 2.7
 # It ensures open() defaults to text mode with universal newlines,
 # and accepts an argument to specify the text encoding
-# Python 3 only projects can skip this import
-from io import open
 
 pwd = os.path.abspath(os.path.dirname(__file__))
 
@@ -46,7 +44,7 @@ kwargs = {
     # For a discussion on single-sourcing the version across setup.py and the
     # project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    "version" : '0.1.0',  # Required
+    "version" : '0.1.1',  # Required
 
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
@@ -122,7 +120,7 @@ kwargs = {
 
     # When your source code is in a subdirectory under the project root, e.g.
     # `src/`, it is necessary to specify the `package_dir` argument.
-    "package_dir" : {'': PWD('src')},  # Optional
+    "package_dir" : {'': PWD('satyrus')},  # Optional
 
     # You can just specify package directories manually here if your project is
     # simple. Or you can use find_packages().
@@ -148,7 +146,7 @@ kwargs = {
     #
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    "install_requires" : ['sly'],  # Optional
+    "install_requires" : ['ply'],  # Optional
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). Users will be able to install these using the "extras"
@@ -160,7 +158,7 @@ kwargs = {
     # projects.
     "extras_require" : {  # Optional
         ## 'dev': ['check-manifest'],
-        ## 'test': ['coverage'],
+        ## 'test': ['satyrus3-test'],
     },
 
     # If there are data files included in your packages that need to be

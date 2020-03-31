@@ -42,12 +42,22 @@ class SatType(metaclass=MetaSatType):
 
     """
 
+    def __init__(self):
+        self.lineno = None
+        self.lexpos = None
+        self.chrpos = None
+
     ## Alias for __not__.
     def __not__(self):
         return NotImplemented
 
     def __invert__(self):
         return self.__not__()
+
+    @classmethod
+    def check_type(cls, obj):
+        if not isinstance(obj, cls):
+            raise TypeError(f'Type fault: object of type {type(obj)} found.')
 
     @property
     def copy(self):
@@ -78,8 +88,8 @@ class Expr(SatType, list):
     SOLVE_FUNCS = []
 
     def __init__(self, head, *tail, format=""):
+        SatType.__init__(self)
         list.__init__(self, [intern(head), *tail])
-
         self.format = self._format() if format is None else format
 
     def __str__(self):

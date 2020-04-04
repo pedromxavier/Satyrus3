@@ -9,22 +9,35 @@ from .error import SatError
 from .var import Var
 
 class SatIndexError(SatError):
+    TITLE = 'Index Error'
     ...
 
 class Array(SatType, dict):
     ''' Sparse Array
     '''
-    def __init__(self, name, shape, buffer):
+    def __init__(self, name, shape, buffer=None):
         SatType.__init__(self)
-        dict.__init__(self, buffer)
+        dict.__init__(self, buffer if buffer is not None else {})
         self.name = name
         self.shape = shape
 
     def __idx__(self, idx):
-        ...
+        if len(idx) == self.dim:
+            return self[idx]
+        elif len(idx) < self.dim:
+            raise NotImplementedError('Array slicing is under the way.')
+        else:
+            raise SatIndexError(f'Too much indices for {self.dim}-dimensional array.', target=idx[self.dim])
 
     def __getitem__(self, idx):
-        ...
+        for i, n in zip(idx, self.shape):
+            if not (1 <= i <= n):
+                raise SatIndexError(f'Index {i} is out of bounds [1, {n}]', target=i)
+        else:
+            try:
+                return self[idx]
+            except KeyError:
+                return self.name.__idx__(idx)
 
     def __str__(self):
         return f"{{{', '.join(f'{i} : {self[i]}' for i in self.get_indexes())}}}"
@@ -34,9 +47,6 @@ class Array(SatType, dict):
 
     def get_indexes(self):
         return it.product(*(range(1, n+1) for n in self.shape))
-
-    def inside(self, idx):
-        return all(1 <= i <= n for i, n in zip(idx, self.shape))
     
     @property
     def dim(self):

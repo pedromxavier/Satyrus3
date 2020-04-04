@@ -43,10 +43,28 @@ class SatType(metaclass=MetaSatType):
     """
 
     def __init__(self):
-        self.lineno = None
-        self.lexpos = None
-        self.chrpos = None
-        self.source = None
+        self.lexinfo = {
+            'lineno' : None,
+            'lexpos' : None,
+            'chrpos' : None,
+            'source' : None,
+        }
+
+    @property
+    def lineno(self):
+        return self.lexinfo['lineno']
+
+    @property
+    def lexpos(self):
+        return self.lexinfo['lexpos']
+
+    @property
+    def chrpos(self):
+        return self.lexinfo['chrpos']
+
+    @property
+    def source(self):
+        return self.lexinfo['source']
 
     ## Alias for __not__.
     def __not__(self):

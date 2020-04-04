@@ -8,7 +8,10 @@ class SatError(Exception):
         self.target = target
 
     def launch(self):
-        stderr << f"Error at line {self.target.lineno}:"
-        stderr << self.target.source.lines[self.target.lineno]
-        stderr << f"{' ' * self.target.chrpos}^"
-        stderr << f"{self.TITLE}: {self.msg}"
+        if self.target is not None:
+            stderr << f"""Error at line {self.target.lineno}:
+            {self.target.source.lines[self.target.lineno]}
+            {' ' * self.target.chrpos}^
+            {self.TITLE}: {self.msg}"""
+        else:
+            raise self

@@ -93,13 +93,3 @@ class Stack:
     def __bool__(self):
         return bool(self.__stack)
 
-class Source(str):
-
-    def __init__(self, s):
-        str.__init__(self, s)
-        self.lines = str.split(self, '\n')
-        self.table = list(it.accumulate([len(line) for line in self.lines]))
-
-    @staticmethod
-    def load(fname : str):
-        return Source(load(fname))

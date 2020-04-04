@@ -156,12 +156,21 @@ class SatLexer(object):
         return None
 
     def t_error(self, t):
-        stderr << f"Unknow token '{t.value}' at line {t.lineno}"
+        stderr << f"Unknown token '{t.value}' at line {t.lineno}"
 
-        raise SatSyntaxError
+        if t:
+            stderr << f"Syntax Error at line {t.lineno}:"
+            stderr << self.source.lines[t.lineno-1]
+            stderr << f'{" " * (self.chrpos(t.lineno, t.lexpos))}^'
+        else:
+            stderr << "Unexpected End Of File."
 
-    def __init__(self, **kwargs):
+    def __init__(self, source, **kwargs):
         self.lexer = lex.lex(object=self, **kwargs)
+        self.source = source
+
+    def chrpos(self, lineno, lexpos):
+        return lexpos - self.source.table[lineno]
 
 class SatParser(object):
 
@@ -197,19 +206,15 @@ class SatParser(object):
         ('left', 'ENDL'),
     )
 
-    def __init__(self):
-        self.lexer = SatLexer()
+    def __init__(self, source : Source):
+        self.source = source
+        
+        self.lexer = SatLexer(self.source)
         self.parser = yacc.yacc(module=self)
 
-        self.source = None
         self.bytecode = None
 
-        ## For counting lines and lexpos
-        self.source_lines = None 
-        self.source_table = None
-
-    def __call__(self, source : str):
-        self.source = Source(source)
+    def __call__(self):
         self.parse(self.source)
         return self.bytecode
 
@@ -227,14 +232,19 @@ class SatParser(object):
     def get_arg(self, p, index : int=None):
         if index is None:
             value = p
-            value.lineno = None
-            value.lexpos = None
-            value.chrpos = None
+            value.lexinfo.update({
+                'lineno' : None,
+                'lexpos' : None,
+                'chrpos' : None,
+                'source' : self.source,
+            })
         else:
-            value = p[index]
-            value.lineno = p.lineno(index)
-            value.lexpos = p.lexpos(index)
-            value.chrpos = self.chrpos(value.lineno, value.chrpos)
+            value.lexinfo.update({
+                'lineno' : None,
+                'lexpos' : None,
+                'chrpos' : None,
+                'source' : self.source,
+            })
         return value
 
     def p_start(self, p):
@@ -468,12 +478,12 @@ class SatParser(object):
         p[0] = p[2]
 
     def p_error(self, t):
-
-        stderr << f"Syntax Error at line {t.lineno}:"
-        stderr << self.source.lines[t.lineno-1]
-        stderr << f'{" " * (self.chrpos(t.lineno, t.lexpos))}^'
-
-        raise SatSyntaxError
+        if t:
+            stderr << f"Syntax Error at line {t.lineno}:"
+            stderr << self.source.lines[t.lineno-1]
+            stderr << f'{" " * (self.chrpos(t.lineno, t.lexpos))}^'
+        else:
+            stderr << "Unexpected End Of File."
 
     def chrpos(self, lineno, lexpos):
         return lexpos - self.source.table[lineno]

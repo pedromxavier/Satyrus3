@@ -12,7 +12,7 @@ import os
 from .sat_parser import SatParser, Stmt
 from .sat_core import stderr, stdout, Source
 from .sat_types import SatError
-from .sat_types import SatType, Number, Var, Array
+from .sat_types import SatType, String, Number, Var, Array
 from .sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
 from .sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, N0
 

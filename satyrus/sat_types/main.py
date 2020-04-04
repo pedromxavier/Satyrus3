@@ -46,6 +46,7 @@ class SatType(metaclass=MetaSatType):
         self.lineno = None
         self.lexpos = None
         self.chrpos = None
+        self.source = None
 
     ## Alias for __not__.
     def __not__(self):

@@ -9,7 +9,7 @@ from ply import lex, yacc
 ## Local
 from .sat_core import stderr, stdout, Source
 from .sat_types import SatError
-from .sat_types import Expr, Number, Var
+from .sat_types import Expr, Number, Var, String
 from .sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
 from .sat_types.symbols.tokens import T_IDX
 
@@ -127,7 +127,7 @@ class SatLexer(object):
 
     @regex(r'\".*\"')
     def t_STRING(self, t):
-        t.value = str(t.value[1:-1])
+        t.value = String(t.value[1:-1])
         return t
 
     @regex(r"\n")

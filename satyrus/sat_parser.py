@@ -7,7 +7,7 @@ import itertools as it
 from ply import lex, yacc
 
 ## Local
-from .sat_core import stderr, stdout
+from .sat_core import stderr, stdout, Source
 from .sat_types import SatError
 from .sat_types import Expr, Number, Var
 from .sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
@@ -29,8 +29,6 @@ def regex(pattern):
     return decor
 
 class Stmt:
-    """
-    """
     def __init__(self, name, *args):
         self.name = name
         self.args = args
@@ -210,42 +208,34 @@ class SatParser(object):
         self.source_lines = None 
         self.source_table = None
 
-    def __call__(self, source):
-        self.parse(source)
+    def __call__(self, source : str):
+        self.source = Source(source)
+        self.parse(self.source)
         return self.bytecode
 
-    def parse(self, source : str):
+    def parse(self, source : Source):
         try:
-            self.source = source
-            self.source_lines = self.source.split('\n')
-            self.source_table = it.accumulate([len(line) for line in self.source_lines])
             self.parser.parse(self.source)
         except SatSyntaxError:
             self.bytecode = None
         finally:
             self.source = None
-            self.source_lines = None 
-            self.source_table = None
 
     def run(self, code : list):
         self.bytecode = code
 
-    def get_arg(self, p, index : int = None):
+    def get_arg(self, p, index : int=None):
         if index is None:
-            return {
-                    'value' : p,
-                    'lineno' : None,
-                    'lexpos' : None,
-                }
+            value = p
+            value.lineno = None
+            value.lexpos = None
+            value.chrpos = None
         else:
             value = p[index]
             value.lineno = p.lineno(index)
-            value.lexpos = p.lineno(index)
-            return {
-                    'value' : p[index],
-                    'lineno' : p.lineno(index),
-                    'lexpos' : p.lexpos(index)
-                }
+            value.lexpos = p.lexpos(index)
+            value.chrpos = self.chrpos(value.lineno, value.chrpos)
+        return value
 
     def p_start(self, p):
         """ start : code
@@ -270,12 +260,26 @@ class SatParser(object):
         p[0] = p[1]
 
     def p_sys_config(self, p):
-        """ sys_config : SHARP NAME DOTS NUMBER
-                       | SHARP NAME DOTS STRING
+        """ sys_config : SHARP NAME DOTS sys_config_args
         """
         name = self.get_arg(p, 2)
-        value = self.get_arg(p, 4)
-        p[0] = Stmt(SYS_CONFIG, name, value)
+        args = self.get_arg(p, 4)
+        p[0] = Stmt(SYS_CONFIG, name, args)
+
+    def p_sys_config_args(self, p):
+        """ sys_config_args : sys_config_args COMMA sys_config_arg
+                            | sys_config_arg
+        """
+        if len(p) == 4:
+            p[0] = [*p[1], p[3]]
+        else:
+            p[0] = [ p[1],]
+
+    def p_sys_config_arg(self, p):
+        """ sys_config_arg : NUMBER
+                           | STRING
+        """
+        p[0] = p[1]
 
     def p_def_constant(self, p):
         """ def_constant : NAME ASSIGN literal
@@ -367,7 +371,7 @@ class SatParser(object):
             loops = self.get_arg(p, 6)
             expr  = self.get_arg(p, 7)
 
-        p[0] = Stmt(DEF_CONSTRAINT, type_, name, level, loops, expr)
+        p[0] = Stmt(DEF_CONSTRAINT, type_, name, loops, expr, level)
 
     def p_loops(self, p):
         """ loops : loops loop
@@ -466,10 +470,10 @@ class SatParser(object):
     def p_error(self, t):
 
         stderr << f"Syntax Error at line {t.lineno}:"
-        stderr << self.source_lines[t.lineno-1]
+        stderr << self.source.lines[t.lineno-1]
         stderr << f'{" " * (self.chrpos(t.lineno, t.lexpos))}^'
 
         raise SatSyntaxError
 
     def chrpos(self, lineno, lexpos):
-        return lexpos - self.source_table[lineno]
+        return lexpos - self.source.table[lineno]

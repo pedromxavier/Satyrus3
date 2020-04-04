@@ -56,5 +56,17 @@ class Number(SatType, decimal.Decimal):
         else:
             cls.context.prec = value
 
+    @property
+    def is_int(self):
+        return (int(self) - self) == 0
+
+    @property
+    def as_int(self):
+        if self.is_int:
+            return int(self)
+        else:
+            raise TypeError('Number was not an integer.')
+
+
 Number.TRUE = Number('1')
 Number.FALSE = Number('0')

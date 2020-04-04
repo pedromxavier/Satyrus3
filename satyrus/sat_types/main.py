@@ -67,6 +67,17 @@ class SatType(metaclass=MetaSatType):
     def is_expr(self):
         return type(self) is Expr
 
+    @property
+    def is_int(self):
+        raise NotImplementedError
+    
+    @property
+    def as_int(self):
+        try:
+            return int(self)
+        except:
+            raise NotImplementedError
+
 class Expr(SatType, list):
     """ :: Expr ::
         ==========

@@ -1,15 +1,21 @@
 import colorama
 
-class stream:
+class stream(object):
 
-    ECHO = True
+    __ref__ = {}
+    __lvl__ = None
 
-    def __init__(self, **kwargs):
-        self.echo = True
-
-        self.kw = kwargs['kw'] if 'kw' in kwargs else {}
-        self.fg = kwargs['fg'] if 'fg' in kwargs else None
-        self.sty = kwargs['sty'] if 'sty' in kwargs else None
+    def __new__(cls, fg, sty, level=0, **kwargs):
+        if (fg, sty, level) not in cls.__ref__:
+            cls.__ref__[(fg, sty, level)] = object.__new__(cls)
+        else:
+            return cls.__ref__[(fg, sty, level)]
+        
+    def __init__(self, fg, sty, level=0, **kwargs):
+        self.fg = fg
+        self.sty = sty
+        self.level = level
+        self.kwargs = kwargs
 
     @staticmethod
     def cprint(txt : tuple, fg : str = None, sty : str = None, **kwargs):
@@ -25,46 +31,26 @@ class stream:
             print(f"{sty}", *txt, f"{colorama.Style.RESET_ALL}", **kwargs)
 
         else:
-            fg = getattr(colorama.Fore, fg);sty = getattr(colorama.Style, sty)
+            fg = getattr(colorama.Fore, fg)
+            sty = getattr(colorama.Style, sty)
             print(f"{fg}{sty}", *txt, f"{colorama.Style.RESET_ALL}", **kwargs)
 
     def __lshift__(self, txt):
-        if self.echo and self.ECHO:
-            if type(txt) is not tuple:
-                txt = (txt,)
-            stream.cprint(txt, self.fg, self.sty, **self.kw)
-        return self
-
-    def __pos__(self):
-        if self.echo and self.ECHO: print()
-
-    def __neg__(self):
-        if self.echo and self.ECHO: print()
-
-    def __invert__(self):
-        if self.echo and self.ECHO: print()
-
-    def echo_off(self):
-        self.echo = False
-
-    def echo_on(self):
-        self.echo = True
+        if self.__lvl__ is None or self.level <= self.__lvl__:
+            txt = (txt,) if type(txt) is not tuple else txt
+            stream.cprint(txt, self.fg, self.sty, **self.kwargs)
+        return None
+    
+    def __getitem__(self, level):
+        return stream(self.fg, self.sty, level, **self.kwargs)
 
     @classmethod
-    def ECHO_OFF(cls):
-        cls.ECHO = False
-
-    @classmethod
-    def ECHO_ON(cls):
-        cls.ECHO = True
+    def set_lvl(cls, level : int):
+        cls.__lvl__ = level
 
 colorama.init()
 
 ## default stream configs
-__stdsys__ = { 'fg' : 'GREEN', 'sty' : 'DIM'}
-__stdout__ = { 'fg' : 'CYAN', 'sty' : None }
-__stderr__ = { 'fg' : 'RED' , 'sty' : None }
-
-stdsys = stream(**__stdsys__)
-stdout = stream(**__stdout__)
-stderr = stream(**__stderr__)
+stdsys = stream('GREEN', 'DIM')
+stdout = stream('CYAN', None)
+stderr = stream('RED', None)

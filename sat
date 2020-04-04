@@ -6,7 +6,7 @@
 import argparse
 
 ## Local
-from satyrus.sat_core import load, stdout, stderr, stdsys
+from satyrus.sat_core import load, stdout, stderr, stdsys, Source
 from satyrus.sat_compiler import SatCompiler
 
 class Satyrus:
@@ -14,7 +14,7 @@ class Satyrus:
     @classmethod
     def main(cls, *args, **kwargs):
         cls.compiler = SatCompiler()
-        cls.source = load(cls.fname)
+        cls.source = Source.load(cls.fname)
         cls.bytecode = cls.compiler(cls.source)
         
         stdsys << ":: Source Code ::"

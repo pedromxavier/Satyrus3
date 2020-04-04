@@ -14,10 +14,9 @@ class SatIndexError(SatError):
 class Array(SatType, dict):
     ''' Sparse Array
     '''
-
     def __init__(self, name, shape, buffer):
         SatType.__init__(self)
-        dict.__init__(self, {idx:val for idx, val in buffer})
+        dict.__init__(self, buffer)
         self.name = name
         self.shape = shape
 
@@ -38,17 +37,7 @@ class Array(SatType, dict):
 
     def inside(self, idx):
         return all(1 <= i <= n for i, n in zip(idx, self.shape))
-
-    def valid(self, idx):
-        ## Normalize
-        if len(idx) > self.dim:
-            error_msg = f'Too much indices for {self.dim}-dimensional array'
-        elif not self.inside(idx):
-            error_msg = f'Indexing {idx} is out of bounds {self.bounds}'
-        elif not all((type(i) is int) for i in idx):
-            error_msg = f'Array indices must be integers.'
-        
-
+    
     @property
     def dim(self):
         return len(self.shape)

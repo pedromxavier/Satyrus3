@@ -1,27 +1,20 @@
+"""
+"""
+## Standard Library
 import sys
 import os
 import re
-
 import posixpath
 import traceback
+import pickle
+import shutil
+import warnings
+import itertools as it
+import _thread as thread
+from collections import deque
+from functools import wraps, reduce
 
 os.path.join = posixpath.join
-
-import pickle
-
-import shutil
-
-import warnings
-
-import _thread as thread
-
-from collections import deque
-
-from functools import wraps, reduce
-from operator import mul, add
-
-def py_error():
-    return traceback.format_exc()
 
 def kwget(key, kwargs : dict, default=None):
     try:
@@ -73,6 +66,16 @@ def keep_type(callbacks : set):
         return cls
     return class_decor
 
+def trackable(cls : type):
+    @wraps(cls)
+    class new_cls(cls):
+        def __init__(self, *args, **kwargs):
+            cls.__init__(self, *args, **kwargs)
+            self.lineno = None
+            self.lexpos = None
+            self.chrpos = None
+    return new_cls
+
 class Stack:
 
     def __init__(self, buffer=None, limit=None):
@@ -90,5 +93,13 @@ class Stack:
     def __bool__(self):
         return bool(self.__stack)
 
-    def __str__(self):
-        return "[{}]".format(", ".join(list(self.__stack)))
+class Source(str):
+
+    def __init__(self, s):
+        str.__init__(self, s)
+        self.lines = str.split(self, '\n')
+        self.table = list(it.accumulate([len(line) for line in self.lines]))
+
+    @staticmethod
+    def load(fname : str):
+        return Source(load(fname))

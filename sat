@@ -6,23 +6,29 @@
 import argparse
 
 ## Local
-from satyrus.sat_core import load, stdout, stderr, stdsys, Source
+from satyrus.sat_core import load, stream, stdout, stderr, stdsys, Source
 from satyrus.sat_compiler import SatCompiler
+from satyrus.sat_parser import SatParser
 
 class Satyrus:
 
     @classmethod
     def main(cls, *args, **kwargs):
-        cls.compiler = SatCompiler()
         cls.source = Source.load(cls.fname)
-        cls.bytecode = cls.compiler(cls.source)
+        stdsys[1] << ":: Source Code ::"
+        cls.print_code(cls.source.lines)
+
+        cls.parser = SatParser(cls.source)
+        stdsys[1] << ":: SATyrus bytecode ::"
+        cls.parser.parse()
+
+        cls.compiler = SatCompiler(cls.source)
+        cls.compiler.compile()
+
         
-        stdsys << ":: Source Code ::"
-        cls.print_code(cls.source.split('\n'))
+        
 
-        print()
-
-        stdsys << ":: SATyrus bytecode ::"
+        
         cls.print_code(cls.bytecode)
         return
 
@@ -30,7 +36,7 @@ class Satyrus:
     def print_code(cls, code : list):
         nlines = len(code)
         for i, line in enumerate(code, 1):
-            stdout << f"{str(i).zfill(len(str(nlines)))} {line}"
+            stdout[1] << f"{str(i).zfill(len(str(nlines)))} {line}"
         
     @classmethod
     def init(cls, fname):

@@ -73,20 +73,22 @@ class SatCompiler:
 		OUT : sys_config_out,
 	}
 
-	def __init__(self, source : Source):
+	def __init__(self, source : Source, parser : SatParser = None):
 		## Initialize parser
 		self.source = source
-		self.parser = SatParser(self.source)
+		self.parser = parser if parser is not None else SatParser(self.source)
+
+		assert self.source is self.parser.source
 
 		## Memory
 		self.memory = Memory()
 
 		## Environment
 		self.env = Memory({
-			'prec' : 16,
-			'dir' : os.path.abspath(os.getcwd()),
-			'n0' : 1,
-			'epsilon' : 1E-05,
+			PREC : 16,
+			DIR : os.path.abspath(os.getcwd()),
+			N0 : 1,
+			EPSILON : 1E-05,
 		})
 
 		## Bytecode
@@ -115,10 +117,10 @@ class SatCompiler:
 			self.run(stmt)
 
 		for error in self.errors:
-			error.launch(error, self.source)
+			error.launch()
 
-		if self.flag:
-			stderr << f":: Compilation terminated ::"
+		if self.errors:
+			stderr[0] << f":: Compilation terminated ::"
 
 	def run(self, stmt):
 		name, args = stmt
@@ -246,9 +248,6 @@ class SatCompiler:
 	def def_constraint(self, type_, name, loops, expr, level):
 		if type_ not in {'int', 'opt'}:
 			yield SatValueError(f'Unknown constraint type {type_}', target=type_)
+			yield StopIteration
 		else:
 			raise NotImplementedError
-
-	@property
-	def flag(self):
-		return bool(self.errors)

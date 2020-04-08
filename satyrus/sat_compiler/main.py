@@ -132,9 +132,7 @@ class SatCompiler:
 			memval = self.memory.memget(value)
 
 			## Copy error tracking information
-			memval.lineno = value.lineno
-			memval.lexpos = value.lexpos
-			memval.chrpos = value.chrpos
+			memval.lexinfo = value.lexinfo
 
 			return memval
 		else:

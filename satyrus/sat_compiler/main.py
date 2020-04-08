@@ -9,28 +9,24 @@ suitable for json serialization.
 import os
 
 ## Local
-from .sat_parser import SatParser, Stmt
-from .sat_core import stderr, stdout, Source
-from .sat_types import SatError
-from .sat_types import SatType, String, Number, Var, Array, NULL
-from .sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
-from .sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, N0
+from ..sat_parser import SatParser
+from ..sat_core import stderr, stdout, Source
+from ..sat_types import SatError
+from ..sat_types import SatType, String, Number, Var, Array, NULL
+from ..sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
+from ..sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, N0
 
 class SatCompilerError(SatError):
 	TITLE = 'Compiler Error'
-	pass
 
 class SatValueError(SatError):
 	TITLE = 'Value Error'
-	pass
 
 class SatTypeError(SatError):
 	TITLE = 'Type Error'
-	pass
 
 class SatReferenceError(SatError):
 	TITLE = 'Reference Error'
-	pass
 
 class Memory(dict):
 	"""
@@ -89,6 +85,8 @@ class SatCompiler:
 		self.env = Memory({
 			'prec' : 16,
 			'dir' : os.path.abspath(os.getcwd()),
+			'n0' : 1,
+			'epsilon' : 1E-05,
 		})
 
 		## Bytecode
@@ -114,7 +112,7 @@ class SatCompiler:
 		self.sco = {}
 		self.errors = []
 		for stmt in bytecode:
-			self.errors.extend(self.run(stmt))
+			self.run(stmt)
 
 		for error in self.errors:
 			error.launch(error, self.source)
@@ -122,8 +120,9 @@ class SatCompiler:
 		if self.flag:
 			stderr << f":: Compilation terminated ::"
 
-	def run(self, stmt : Stmt):
-		yield from self.callbacks[stmt.name](*stmt.args)
+	def run(self, stmt):
+		name, args = stmt
+		yield from self.callbacks[name](*args)
 
 	def eval(self, value):
 		if type(value) is Var:
@@ -149,7 +148,7 @@ class SatCompiler:
 			yield SatValueError(f'´#prec´ expected 1 argument, got {argc}', target=argv[1])
 
 		if type(prec) is Number and prec.is_int and prec > 0:
-			self.env[PREC] = prec
+			self.env.memset(PREC, prec)
 		else:
 			yield SatTypeError(f'Precision must be a positive integer.', target=argv[0])
 
@@ -160,78 +159,95 @@ class SatCompiler:
 			yield SatValueError(f'´#epsilon´ expected 1 argument, got {argc}', target=argv[1])
 
 		if type(epsilon) is Number and epsilon > 0:
-			self.env[EPSILON] = epsilon
+			self.env.memset(EPSILON, epsilon)
 		else:
 			yield SatTypeError(f'Epsilon must be a positive number.', target=argv[0])
 
 	def sys_config_load(self, argc : int, argv : list):
 		for fname in argv:
-			self.load(fname)
+			yield from self.load(fname)
 
 	def load(self, fname : str):
 		...
 
 	def sys_config_n0(self, argc : int, argv : list):
-		...
+		if argc == 1:
+			n0 = argv[0]
+		else:
+			yield SatValueError(f'´#n0´ expected 1 argument, got {argc}.', target=argv[1])
+
+		if type(n0) is Number and n0 > 0:
+			self.env.memset(N0, n0)
+		else:
+			yield SatTypeError(f'n0 must be a positive number.', target=argv[0])
+
 
 	def sys_config_out(self, argc : int, argv : list):
-		...
+		raise NotImplementedError
 
 	def sys_config_dir(self, argc : int, argv : list):
-		...
+		raise NotImplementedError
 
 	def def_constant(self, name : Var, value : SatType):
-		SatType.check_type(value)
-		self.memory.memset(name, value)			
+		try:
+			self.memory.memset(name, value)
+		except SatReferenceError as error:
+			yield error
 
 	def def_array(self, name, shape, buffer):
-		FLAG = False
-
 		shape = tuple(self.eval(n) for n in shape)
+		shape_errors = list(self.def_array_shape(shape))
 
+		if shape_errors:
+			self.memory[name] = NULL
+			yield from shape_errors
+			yield StopIteration
+		
 		array_buffer = {}
 
+		buffer_errors = list(self.def_array_buffer(shape, buffer, array_buffer))
+
+		if buffer_errors:
+			self.memory[name] = Array(name, shape)
+			yield from buffer_errors
+			yield StopIteration
+
+		else:
+			self.memory[name] = Array(name, shape, array_buffer)
+
+	def def_array_shape(self, shape):
 		for n in shape:
 			if not n.is_int:
 				yield SatTypeError(f'Array dimensions must be integers.', target=n)
-				FLAG = True
 			if not n > 0:
 				yield SatValueError(f'Array dimensions must be positive numbers.', target=n)
-				FLAG = True
-			
-		if FLAG:
-			self.memory[name] = NULL
-			return
-
+	
+	def def_array_buffer(self, shape, buffer, array_buffer):
 		for idx, val in buffer:
 			idx = tuple(self.eval(i) for i in idx)
 
 			if len(idx) > len(shape):
 				yield SatValueError(f'Too much indices for {len(shape)}-dimensional array', target=idx[len(shape)])
-				FLAG = True
+				
 			for i, n in zip(idx, shape):
 				if not i.is_int:
 					yield SatTypeError(f'Array indices must be integers.', target=i)
-					FLAG = True
+					
 				if not 1 <= i <= n:
 					yield SatValueError(f'Indexing ´{i}´ is out of bounds [1, {n}]', target=i)
-					FLAG = True
 
 			val = self.eval(val)
 
 			if type(val) is not Number:
 				yield SatValueError(f'Array elements must be numbers.', target=val)
-				FLAG = True
 			else:
-				array_buffer[idx] = val            
-
-		if FLAG:
-			self.memory[name] = NULL
-		else:
-			self.memory[name] = Array(name, shape, array_buffer)
+				array_buffer[idx] = val
 
 	def def_constraint(self, type_, name, loops, expr, level):
-		...
+		if type_ not in {'int', 'opt'}:
+			yield SatValueError(f'Unknown constraint type {type_}', target=type_)
+		else:
+			raise NotImplementedError
 
 	@property
 	def flag(self):

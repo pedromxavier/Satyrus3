@@ -12,6 +12,10 @@ from satyrus.sat_parser import SatParser
 
 class Satyrus:
 
+    bytecode = []
+
+    sco = {}
+
     @classmethod
     def main(cls, *args, **kwargs):
         cls.source = Source.load(cls.fname)
@@ -19,17 +23,15 @@ class Satyrus:
         cls.print_code(cls.source.lines)
 
         cls.parser = SatParser(cls.source)
+        cls.bytecode = cls.parser.parse()
         stdsys[1] << ":: SATyrus bytecode ::"
-        cls.parser.parse()
+        cls.print_code(cls.bytecode)
 
         cls.compiler = SatCompiler(cls.source)
-        cls.compiler.compile()
+        cls.sco = cls.compiler.compile()
+        stdsys[1] << ":: SATyrus Compiled Object ::"
+        stdout << cls.sco
 
-        
-        
-
-        
-        cls.print_code(cls.bytecode)
         return
 
     @classmethod

@@ -209,17 +209,13 @@ class SatParser(object):
 
         self.bytecode = None
 
-    def __call__(self):
-        self.parse(self.source)
-        return self.bytecode
-
-    def parse(self, source : Source):
+    def parse(self):
         try:
             self.parser.parse(self.source)
         except SatSyntaxError:
             self.bytecode = None
         finally:
-            self.source = None
+            return self.bytecode
 
     def run(self, code : list):
         self.bytecode = code

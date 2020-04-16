@@ -15,3 +15,25 @@ class SatError(Exception):
             {self.TITLE}: {self.msg}"""
         else:
             raise self
+
+##
+class SatCompilerError(SatError):
+	TITLE = 'Compiler Error'
+
+class SatValueError(SatError):
+	TITLE = 'Value Error'
+
+class SatTypeError(SatError):
+	TITLE = 'Type Error'
+
+class SatReferenceError(SatError):
+	TITLE = 'Reference Error'
+
+class SatParserError(SatError):
+    TITLE = 'Parser Error'
+
+class SatLexerError(SatError):
+    TITLE = 'Lexer Error'
+
+class SatSyntaxError(SatError):
+    TITLE = 'SyntaxError'

@@ -5,12 +5,8 @@ import itertools as it
 
 ## Local
 from .main import SatType
-from .error import SatError
+from .error import SatIndexError
 from .var import Var
-
-class SatIndexError(SatError):
-    TITLE = 'Index Error'
-    ...
 
 class Array(SatType, dict):
     ''' Sparse Array

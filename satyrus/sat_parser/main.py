@@ -203,11 +203,11 @@ class SatParser(object):
     def parse(self):
         try:
             self.parser.parse(self.source)
+            return self.bytecode
         except SatSyntaxError:
             self.bytecode = None
-        finally:
             return self.bytecode
-
+            
     def run(self, code : list):
         self.bytecode = code
 

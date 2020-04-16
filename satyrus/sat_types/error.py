@@ -17,6 +17,9 @@ class SatError(Exception):
             raise self
 
 ##
+class SatIndexError(SatError):
+    TITLE = 'Index Error'
+    
 class SatCompilerError(SatError):
 	TITLE = 'Compiler Error'
 

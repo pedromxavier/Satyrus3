@@ -19,6 +19,9 @@ class Number(SatType, decimal.Decimal):
 
     regex = re.compile(r'(\.[0-9]*[1-9])(0+)|(\.0*)$')
 
+    def __init__(self, value):
+        SatType.__init__(self)
+
     def __hash__(self):
         return hash(str(self))
 

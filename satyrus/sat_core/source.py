@@ -6,8 +6,10 @@ from .main import load
 
 class Source(str):
 
+    def __new__(self, fname : str):
+        return str.__new__(self, load(fname))
+
     def __init__(self, fname : str):
-        str.__init__(self, load(fname))
         self.fname = fname
         self.lines = str.split(self, '\n')
         self.table = list(it.accumulate([len(line) for line in self.lines]))

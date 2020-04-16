@@ -27,7 +27,7 @@ class Satyrus:
         stdsys[1] << ":: SATyrus bytecode ::"
         cls.print_code(cls.bytecode)
 
-        cls.compiler = SatCompiler(cls.source)
+        cls.compiler = SatCompiler(cls.source, cls.parser)
         cls.sco = cls.compiler.compile()
         stdsys[1] << ":: SATyrus Compiled Object ::"
         stdout << cls.sco

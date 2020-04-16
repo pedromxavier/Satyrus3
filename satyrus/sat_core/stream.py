@@ -8,8 +8,7 @@ class stream(object):
     def __new__(cls, fg, sty, level=0, **kwargs):
         if (fg, sty, level) not in cls.__ref__:
             cls.__ref__[(fg, sty, level)] = object.__new__(cls)
-        else:
-            return cls.__ref__[(fg, sty, level)]
+        return cls.__ref__[(fg, sty, level)]
         
     def __init__(self, fg, sty, level=0, **kwargs):
         self.fg = fg

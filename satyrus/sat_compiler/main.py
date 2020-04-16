@@ -11,7 +11,7 @@ import os
 ## Local
 from ..sat_parser import SatParser
 from ..sat_core import stderr, stdout, Source
-from ..sat_types import SatType, String, Number, Var, Array, NULL
+from ..sat_types import SatType, String, Number, Var, Array
 from ..sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
 from ..sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, N0
 
@@ -71,7 +71,7 @@ class SatCompiler:
 		return self.sco
 
 	def run(self, stmt):
-		name, args = stmt
+		name, *args = stmt
 		yield from self.callbacks[name](self, *args)
 
 	def eval(self, value):

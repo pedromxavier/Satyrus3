@@ -1,10 +1,16 @@
-from ...sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, N0
+## Standard Library
+from sys import intern
 
-from ...sat_types import SatType, String, Number, Var, Array, NULL
+## Local
+from ...sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, N0
+from ...sat_types import SatType, String, Number, Var, Array
 from ...sat_types.error import SatValueError, SatTypeError
 
 def sys_config(compiler, name : str, args : list):
-	yield from sys_config_options[name](compiler, len(args), args)
+    if name in sys_config_options:
+        yield from sys_config_options[name](compiler, len(args), args)
+    else:
+        yield SatValueError(f'Invalid config option ´{name}´.', target=name)
 
 def sys_config_prec(compiler, argc : int, argv : list):
     if argc == 1:

@@ -5,7 +5,7 @@ class Memory(dict):
 	"""
 	"""
 	def __init__(self, defaults=None):
-		dict.__init__(self, defaults)
+		dict.__init__(self, {} if defaults is None else defaults)
 
 	def __str__(self):
 		return "\n".join(f"{key}:\n\t{val}" for key, val in self.items())

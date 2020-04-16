@@ -221,12 +221,7 @@ class SatParser(object):
                 'source' : self.source,
             })
         else:
-            value.lexinfo.update({
-                'lineno' : None,
-                'lexpos' : None,
-                'chrpos' : None,
-                'source' : self.source,
-            })
+            value = p[index]
         return value
 
     def p_start(self, p):

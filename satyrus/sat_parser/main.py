@@ -8,19 +8,10 @@ from ply import lex, yacc
 
 ## Local
 from ..sat_core import stderr, stdout, Source
-from ..sat_types import SatError
+from ..sat_types.error import SatParserError, SatLexerError, SatSyntaxError
 from ..sat_types import Expr, Number, Var, String
 from ..sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
 from ..sat_types.symbols.tokens import T_IDX
-
-class SatParserError(SatError):
-    pass
-
-class SatLexerError(SatError):
-    pass
-
-class SatSyntaxError(SatError):
-    pass
 
 def regex(pattern):
     def decor(callback):

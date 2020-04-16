@@ -81,7 +81,7 @@ class SatCompiler:
 
 			## Copy error tracking information
 			memval.lexinfo = value.lexinfo
-
+			
 			return memval
 		else:
 			return value

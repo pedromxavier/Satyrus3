@@ -31,6 +31,13 @@ class Number(SatType, decimal.Decimal):
     def __repr__(self):
         return f"Number('{self.__str__()}')"
 
+    def __int__(self):
+        INT = decimal.Decimal.__int__(self)
+        if (INT - self) == 0:
+            return INT
+        else:
+            raise TypeError('Number is not an integer.')
+
     def __and__(self, other):
         return self * other
 
@@ -65,10 +72,7 @@ class Number(SatType, decimal.Decimal):
 
     @property
     def as_int(self):
-        if self.is_int:
-            return int(self)
-        else:
-            raise TypeError('Number was not an integer.')
+        return int(self)
 
 
 Number.TRUE = Number('1')

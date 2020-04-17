@@ -19,5 +19,5 @@ class Var(SatType, str):
     def __repr__(self):
         return f"Var('{self}')"
 
-    def __idx__(self, i):
-        return Var(f"{self}_{i}")
+    def __idx__(self, idx : tuple):
+        return Var(f"{self}_{'_'.join(map(str, idx))}")

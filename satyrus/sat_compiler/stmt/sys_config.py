@@ -19,7 +19,7 @@ def sys_config_prec(compiler, argc : int, argv : list):
         yield SatValueError(f'´#prec´ expected 1 argument, got {argc}', target=argv[1])
 
     if type(prec) is Number and prec.is_int and prec > 0:
-        compiler.env.memset(PREC, prec)
+        compiler.env.memset(Var(PREC), prec)
     else:
         yield SatTypeError(f'Precision must be a positive integer.', target=argv[0])
 
@@ -30,7 +30,7 @@ def sys_config_epsilon(compiler, argc : int, argv : list):
         yield SatValueError(f'´#epsilon´ expected 1 argument, got {argc}', target=argv[1])
 
     if type(epsilon) is Number and epsilon > 0:
-        compiler.env.memset(EPSILON, epsilon)
+        compiler.env.memset(Var(EPSILON), epsilon)
     else:
         yield SatTypeError(f'Epsilon must be a positive number.', target=argv[0])
 
@@ -48,7 +48,7 @@ def sys_config_n0(compiler, argc : int, argv : list):
         yield SatValueError(f'´#n0´ expected 1 argument, got {argc}.', target=argv[1])
 
     if type(n0) is Number and n0 > 0:
-        compiler.env.memset(N0, n0)
+        compiler.env.memset(Var(N0), n0)
     else:
         yield SatTypeError(f'n0 must be a positive number.', target=argv[0])
 

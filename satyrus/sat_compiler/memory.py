@@ -12,7 +12,7 @@ class Memory(dict):
 
 	def __getitem__(self, name):
 		try:
-			dict.__getitem__(self, name)
+			return dict.__getitem__(self, name)
 		except KeyError:
 			raise SatReferenceError(f"Undefined variable {name}.", target=name)
 

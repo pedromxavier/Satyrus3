@@ -44,6 +44,14 @@ class Satyrus:
     def init(cls, fname):
         cls.fname = fname
 
+    @classmethod
+    def debug(cls):
+        try:
+            cls.main()
+        except:
+            print(cls.compiler.memory)
+            raise
+
 if __name__ == '__main__':
     Satyrus.init('source.sat')
-    Satyrus.main()
+    Satyrus.debug()

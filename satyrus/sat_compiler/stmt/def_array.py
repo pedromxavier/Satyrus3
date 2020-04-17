@@ -48,4 +48,4 @@ def def_array_buffer(compiler, shape, buffer, array_buffer):
         if type(val) is not Number:
             yield SatValueError(f'Array elements must be numbers.', target=val)
         else:
-            array_buffer[idx] = val
+            array_buffer[tuple(map(int, idx))] = val

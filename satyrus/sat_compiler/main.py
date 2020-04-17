@@ -65,6 +65,8 @@ class SatCompiler:
 			self.errors.extend(self.run(stmt))
 
 		if self.errors:
+			for error in self.errors:
+				error.launch()
 			stderr[0] << f":: Compilation terminated ::"
 			return None
 

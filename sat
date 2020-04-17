@@ -49,8 +49,9 @@ class Satyrus:
         try:
             cls.main()
         except:
-            print(cls.compiler.memory)
             raise
+        finally:
+            stdout << (cls.compiler.memory)
 
 if __name__ == '__main__':
     Satyrus.init('source.sat')

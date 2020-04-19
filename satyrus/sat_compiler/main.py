@@ -85,5 +85,7 @@ class SatCompiler:
 			memval.lexinfo = value.lexinfo
 			
 			return memval
+		elif type(value) is Expr:
+			raise NotImplementedError('Evaluating Expressions is not ready yet.')
 		else:
 			return value

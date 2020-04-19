@@ -269,7 +269,7 @@ class SatParser(object):
         p[0] = p[1]
 
     def p_def_constant(self, p):
-        """ def_constant : NAME ASSIGN literal
+        """ def_constant : NAME ASSIGN expr
         """
         name = self.get_arg(p, 1)
         value = self.get_arg(p, 3)
@@ -305,7 +305,7 @@ class SatParser(object):
             p[0] = ( p[1],)
 
     def p_index(self, p):
-        """ index : LBRA literal RBRA
+        """ index : LBRA expr RBRA
         """
         p[0] = p[2]
 
@@ -324,7 +324,7 @@ class SatParser(object):
             p[0] = [ p[1],]
 
     def p_array_item(self, p):
-        """ array_item : array_index DOTS literal
+        """ array_item : array_index DOTS expr
         """
         p[0] = (p[1], p[3])
 

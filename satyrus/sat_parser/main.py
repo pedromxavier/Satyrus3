@@ -411,7 +411,7 @@ class SatParser(object):
                       | expr LE expr
                       | expr NE expr
         """
-        p[0] = p[1]
+        p[0] = (p[2], p[1], p[3])
 
     def p_condition_expr(self, p):
         """ condition : expr

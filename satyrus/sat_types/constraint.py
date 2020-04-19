@@ -1,14 +1,9 @@
 from .symbols.tokens import T_FORALL, T_EXISTS, T_EXISTS_ONE
 
 
-class ConstraintLoop:
+class Loop:
 
     def __init__(self, type_, var, range_, cond, inner):
-        if type_ in {T_FORALL, T_EXISTS, T_EXISTS_ONE}:
-            self.type = type_
-        else:
-            raise ValueError(f'Invalid loop type ´{type_}´.')
-
         self.var = var
         self.range = range_
         self.cond = cond

@@ -66,15 +66,49 @@ def keep_type(callbacks : set):
         return cls
     return class_decor
 
-def trackable(cls : type):
-    @wraps(cls)
-    class new_cls(cls):
-        def __init__(self, *args, **kwargs):
-            cls.__init__(self, *args, **kwargs)
-            self.lineno = None
-            self.lexpos = None
-            self.chrpos = None
-    return new_cls
+def arange(start, stop=None, step=None):
+    """ arange(stop) -> [0, 1, ..., stop]
+        arange(start, stop) -> [start, start + 1, ..., stop]
+        arange(start, stop, step) -> [start, start + step, ..., stop]
+    """
+    ## Value Checking
+    if step == 0:
+        raise ValueError('Step must be non-zero.')
+
+    ## Defaults
+    if stop is None:
+        stop = start
+        start = 0
+        
+    if step is None:
+        if start > stop:
+            step = -1
+        elif start <= stop:
+            step = 1
+
+    ## A bit more Value Checking
+    if start > stop and step > 0 or start < stop and step < 0:
+        raise ValueError('Infinite range.')
+
+    ## Type Coercing
+    if any(type(s) is float for s in {start, stop, step}):
+        x = float(start)
+        stop = float(stop)
+        step = float(step)
+    else:
+        x = int(start)
+        stop = int(stop)
+        step = int(step)
+
+    ## Iterator Loop
+    if step > 0:
+        while x <= stop:
+            yield x
+            x += step
+    else:
+        while x >= stop:
+            yield x
+            x += step
 
 class Stack:
 

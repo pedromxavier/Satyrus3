@@ -68,7 +68,7 @@ class Number(SatType, decimal.Decimal):
 
     @property
     def is_int(self):
-        return (int(self) - self) == 0
+        return bool((decimal.Decimal.__int__(self) - self) == 0)
 
     @property
     def as_int(self):

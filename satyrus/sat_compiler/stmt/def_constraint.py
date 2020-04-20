@@ -39,6 +39,10 @@ def def_constraint(compiler, type_, name, loops, expr, level):
 	else:
 		yield from def_constraint_loops(compiler, loops, expr)
 
+		constraint = f'template_constraint[{name}]'
+
+		compiler.sco[type_].append(constraint)
+
 def def_constraint_loops(compiler, loops, expr):
 	var_stack = set()
 	for loop in loops:
@@ -59,9 +63,11 @@ def def_constraint_loops(compiler, loops, expr):
 		## Check Values
 		if not start.is_int:
 			yield SatTypeError(f'Loop start must be an integer.', target=start)
+			continue
 
 		if not stop.is_int:
 			yield SatTypeError(f'Loop end must be an integer.', target=stop)
+			continue
 
 		if step is None:
 			if start < stop:
@@ -71,9 +77,11 @@ def def_constraint_loops(compiler, loops, expr):
 
 		elif not step.is_int:
 			yield SatTypeError(f'Loop step must be an integer.', target=step)
+			continue
 
 		if (start < stop and step < 0) or (start > stop and step > 0):
 			yield SatTypeError(f'Inconsistent Loop definition.', target=start)
+			continue
 
 		range_ = arange(int(start), int(stop), int(step))
 

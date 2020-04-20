@@ -11,7 +11,7 @@ import os
 ## Local
 from ..sat_parser import SatParser
 from ..sat_core import stderr, stdout, Source
-from ..sat_types import SatType, String, Number, Var, Array
+from ..sat_types import SatType, String, Number, Var, Array, Expr
 from ..sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
 from ..sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, N0
 
@@ -21,6 +21,11 @@ from .stmt import sys_config, def_constant, def_array, def_constraint
 class SatCompiler:
 	"""
 	"""
+
+	DEFAULT_SCO = {
+		'int' : [],
+		'opt' : []
+	}
 
 	callbacks = {
 		SYS_CONFIG : sys_config,
@@ -58,8 +63,8 @@ class SatCompiler:
 		return self.parser.bytecode
 
 	def compile(self):
-		self.sco = {}
-		self.errors = []
+		self.sco = self.DEFAULT_SCO.copy()
+		self.errors = list()
 
 		for stmt in self.bytecode:
 			self.errors.extend(self.run(stmt))
@@ -69,8 +74,9 @@ class SatCompiler:
 				error.launch()
 			stderr[0] << f":: Compilation terminated ::"
 			return None
-
-		return self.sco
+		else:
+			stdout[0] << f":: Compilation completed::"
+			return self.sco
 
 	def run(self, stmt):
 		name, *args = stmt

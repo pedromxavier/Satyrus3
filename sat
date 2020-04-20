@@ -55,4 +55,4 @@ class Satyrus:
 
 if __name__ == '__main__':
     Satyrus.init('source.sat')
-    Satyrus.debug()
+    Satyrus.main()

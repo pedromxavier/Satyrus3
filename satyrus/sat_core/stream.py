@@ -5,6 +5,11 @@ class stream(object):
     __ref__ = {}
     __lvl__ = None
 
+    KWARGS = {
+        'sep' : ' ',
+        'end' : '\n',
+    }
+
     def __new__(cls, fg, sty, level=0, **kwargs):
         if (fg, sty, level) not in cls.__ref__:
             cls.__ref__[(fg, sty, level)] = object.__new__(cls)
@@ -14,25 +19,24 @@ class stream(object):
         self.fg = fg
         self.sty = sty
         self.level = level
-        self.kwargs = kwargs
+        self.kwargs = self.KWARGS.copy()
+        self.kwargs.update(kwargs)
 
     @staticmethod
+    def cstring(txt : tuple, fg : str = None, sty : str = None, **kwargs):
+        string = kwargs['sep'].join(map(str, txt))
+
+        if not (fg is None and sty is None):
+            fg = "" if fg is None else getattr(colorama.Fore, fg)
+            sty = "" if sty is None else getattr(colorama.Style, sty)
+            string = f"{fg}{sty}{string}{colorama.Style.RESET_ALL}"
+
+        return string
+            
+    @staticmethod
     def cprint(txt : tuple, fg : str = None, sty : str = None, **kwargs):
-        if fg is None and sty is None:
-            print(*txt, **kwargs)
-
-        elif sty is None:
-            fg = getattr(colorama.Fore, fg)
-            print(f"{fg}", *txt, f"{colorama.Style.RESET_ALL}", **kwargs)
-
-        elif fg is None:
-            sty = getattr(colorama.Style, sty)
-            print(f"{sty}", *txt, f"{colorama.Style.RESET_ALL}", **kwargs)
-
-        else:
-            fg = getattr(colorama.Fore, fg)
-            sty = getattr(colorama.Style, sty)
-            print(f"{fg}{sty}", *txt, f"{colorama.Style.RESET_ALL}", **kwargs)
+        string = stream.cstring(txt, fg, sty, **kwargs)
+        print(string, end=kwargs['end'])
 
     def __lshift__(self, txt):
         if self.__lvl__ is None or self.level <= self.__lvl__:

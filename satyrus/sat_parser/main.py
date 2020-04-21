@@ -411,7 +411,7 @@ class SatParser(object):
                       | expr LE expr
                       | expr NE expr
         """
-        p[0] = (p[2], p[1], p[3])
+        p[0] = Expr(p[2], p[1], p[3])
 
     def p_condition_expr(self, p):
         """ condition : expr
@@ -428,7 +428,7 @@ class SatParser(object):
                  | ADD expr
                  | SUB expr
         """
-        p[0] = (p[1], p[2])
+        p[0] = Expr(p[1], p[2])
 
     def p_expr2(self, p):
         """ expr : expr AND expr
@@ -442,12 +442,12 @@ class SatParser(object):
                  | expr RIMP expr
                  | expr IFF expr
         """
-        p[0] = (p[2], p[1], p[3])
+        p[0] = Expr(p[2], p[1], p[3])
 
     def p_expr_index(self, p):
         """ expr : expr LBRA expr RBRA
         """
-        p[0] = (T_IDX, p[1], p[3])
+        p[0] = Expr(T_IDX, p[1], p[3])
 
     def p_expr_par(self, p):
         """ expr : LPAR expr RPAR

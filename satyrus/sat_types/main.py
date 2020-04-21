@@ -76,7 +76,7 @@ class SatType(metaclass=MetaSatType):
     @classmethod
     def check_type(cls, obj):
         if not isinstance(obj, cls):
-            raise TypeError(f'Type fault: object of type {type(obj)} found.')
+            raise TypeError(f'Object of type {type(obj)} found.')
 
     @property
     def copy(self):
@@ -88,6 +88,7 @@ class SatType(metaclass=MetaSatType):
 
     @property
     def is_int(self):
+        print(self)
         raise NotImplementedError
     
     @property
@@ -113,20 +114,30 @@ class Expr(SatType, list):
 
     FORMATS = {}
 
+    FORMAT_FUNCS = {}
+
     NEED_PAR = set()
 
     SOLVE_FUNCS = []
 
-    def __init__(self, head, *tail, format=""):
+    def __init__(self, head, *tail, format=None):
         SatType.__init__(self)
         list.__init__(self, [intern(head), *tail])
         self.format = self._format() if format is None else format
 
     def __str__(self):
-        return self.format.format(*self)
+        if self.head in self.FORMAT_FUNCS:
+            return self.FORMAT_FUNCS[self.head](self)
+        elif self.head in self.FORMATS:
+            return self.FORMATS[self.head].format(*self)
+        else:
+            return self.format.format(*self)
 
     def __repr__(self):
-        return f"Expr({self._format(',')})"
+        return f"Expr({self._format(', ').format(*map(repr, self))})"
+
+    def __solve__(self):
+        raise NotImplementedError('A problem to solve.')
 
     def __hash__(self):
         side = Expr.HASH_SIDE[self.head]
@@ -207,18 +218,24 @@ class Expr(SatType, list):
             return expr
 
     @staticmethod
+    def from_tuple(tup):
+        if type(tup) is tuple:
+            return Expr(tup[0], *(Expr.from_tuple(t) for t in tup[1:]))
+        else:
+            return tup
+
+    @staticmethod
+    def to_tuple(expr):
+        if type(expr) is Expr:
+            return tuple(Expr.to_tuple(p) for p in expr)
+        else:
+            return expr
+
+    @staticmethod
     def cmp(A, B):
         """
         """
         return hash(A) == hash(B)
-
-    @staticmethod
-    def decode(T):
-        return NotImplemented
-
-    @staticmethod
-    def encode(expr):
-        return NotImplemented
 
     @staticmethod
     def par(p, q):

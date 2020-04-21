@@ -93,6 +93,10 @@ Expr.FORMATS.update({
     H_IDX: "{1}[{2}]",
     })
 
+Expr.FORMAT_FUNCS.update({
+
+})
+
 Expr.GROUPS.update({
     H_ADD : 1, H_ADD : 1, H_SUB : 1,
     H_MUL : 2, H_DIV : 2,

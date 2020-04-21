@@ -17,7 +17,7 @@ Two DEF_CONSTRAINT statement bytecodes:
 	Var('X'),
 	[
 		('@', Var('i'), (Number('1'), Var('m'), None), None),
-		('@', Var('j'), (Number('1'), Var('n'), None), [Var('i')])
+		('@', Var('j'), (Number('1'), Var('n'), None), [('!=', Var('i'), Var('j'))])])
 	],
 	('[]', ('<-', ('[]', Var('x'), Var('i')), Var('y')), Var('j')),
 	Number('1')

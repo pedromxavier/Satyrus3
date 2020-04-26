@@ -8,13 +8,15 @@ import random
 from functools import wraps
 
 ## Local
-from satyrus.sat_core import load, stderr, stdsys
+from satyrus.sat_core import load, stream, stderr, stdsys, stdout
 from satyrus.sat_types.error import SatError
 
 class SatTestError(SatError):
     TITLE = 'Test Error'
 
 class SatTest:
+
+    N = 100
 
     source = load('source.sat')
 
@@ -60,6 +62,7 @@ class SatTest:
             _y = [random.random() + 0.1 for _ in range(cls.N)]
             x = [Number(value) for value in _x]  
             y = [Number(value) for value in _y]
+            assert all([type(value) is Number] for value in x + y)
             stdsys[1] << "Object Instatiation OK"
         except:
             stderr[1] << "Object Instatiation FAILED"
@@ -68,24 +71,48 @@ class SatTest:
         ## Arithmetic Operators
         try:
             for i in range(cls.N):
-                assert cls.is_close((x[i] + y[i]), (_x[i] + _y[i]))
-                assert cls.is_close((x[i] - y[i]), (_x[i] - _y[i]))
-                assert cls.is_close((x[i] * y[i]), (_x[i] * _y[i]))
-                assert cls.is_close((x[i] / y[i]), (_x[i] / _y[i]))
+                if not cls.is_close((x[i] + y[i]), (_x[i] + _y[i])):
+                    stderr[2] << "FAILURE IN `+`"
+                    raise AssertionError
+                if not cls.is_close((x[i] - y[i]), (_x[i] - _y[i])):
+                    stderr[2] << "FAILURE IN `-`"
+                    raise AssertionError
+                if not cls.is_close((x[i] * y[i]), (_x[i] * _y[i])):
+                    stderr[2] << "FAILURE IN `*`"
+                    raise AssertionError
+                if not cls.is_close((x[i] / y[i]), (_x[i] / _y[i])):
+                    stderr[2] << "FAILURE IN `/`"
+                    raise AssertionError
             else:
                 stdsys[1] << "Arithmetic Operators OK"
-        except:
+        except Exception as error:
             stderr[1] << "Arithmetic Operators FAILED"
+            stderr[2] << error
             code = 1
         
         ## Logical Operators
         try:
             for i in range(cls.N):
-                assert cls.is_close((~x[i]), (1 - _x[i]))
-                assert cls.is_close((~y[i]), (1 - _y[i]))
-                assert cls.is_close((x[i] & y[i]), (_x[i] * _y[i]))
-                assert cls.is_close((x[i] | y[i]), (_x[i] + _y[i] - _x[i] * _y[i]))
-                assert cls.is_close((x[i] ^ y[i]), (_x[i] + _y[i] - 2 * _x[i] *_y[i]))
+                if not cls.is_close((~x[i]), (1 - _x[i])) or not cls.is_close((~y[i]), (1 - _y[i])):
+                    stderr[2] << "FAILURE IN `~`"
+                    stderr[3] << f"~x = {~x[i]}, 1 - _x[i] = {1 - _x[i]}"
+                    stderr[3] << f"~y = {~y[i]}, 1 - _y[i] = {1 - _y[i]}"
+                    raise AssertionError
+                if not cls.is_close((x[i] & y[i]), (_x[i] * _y[i])):
+                    stderr[2] << "FAILURE IN `&`"
+                    raise AssertionError
+                if not cls.is_close((x[i] | y[i]), (_x[i] + _y[i] - _x[i] * _y[i])):
+                    stderr[2] << "FAILURE IN `|`"
+                    raise AssertionError
+                if not cls.is_close((x[i] ^ y[i]), (_x[i] + _y[i] - 2 * _x[i] *_y[i])):
+                    stderr[2] << "FAILURE IN `^`"
+                    raise AssertionError
+                if not cls.is_close(Number.__imp__(x[i], y[i]), ((1 - _x[i]) + _y[i] - (1 - _x[i]) * _y[i])):
+                    stderr[2] << "FAILURE IN `->`"
+                    raise AssertionError
+                if not cls.is_close(Number.__rimp__(x[i], y[i]), (_x[i] + (1 - _y[i]) - _x[i] * (1 - _y[i]))):
+                    stderr[2] << "FAILURE IN `->`"
+                    raise AssertionError
             else:
                 stdsys[1] << "Logical Operators OK"
         except:
@@ -95,11 +122,16 @@ class SatTest:
         return code
 
     @classmethod
-    def is_close(x, y, tol=1E-8):
+    def inspect(cls, obj):
+        stdout << f"({obj.type}) {obj}"
+
+    @classmethod
+    def is_close(cls, x, y, tol=1E-5):
         return abs(float(x) - float(y)) < tol
 
     @classmethod
     def main(cls, *args, **kwargs):
+        stream.set_level(3)
         for callback in cls.get_tests():
             try:
                 if callback(cls, *args, **kwargs):

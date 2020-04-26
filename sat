@@ -4,13 +4,19 @@
 """
 ## Standard Library
 import argparse
+import os
 
 ## Local
-from satyrus.sat_core import load, stream, stdout, stderr, stdsys, Source
+from satyrus.sat_core import load, log, stdout, stderr, stdsys, stream, Source
 from satyrus.sat_compiler import SatCompiler
 from satyrus.sat_parser import SatParser
+from satyrus.sat_types.error import SatError
 
 class Satyrus:
+
+    HOME = os.getcwd()
+
+    CRITICAL_ERROR = os.path.join(HOME, 'assets', 'critical_error.txt')
 
     bytecode = []
 
@@ -18,21 +24,36 @@ class Satyrus:
 
     @classmethod
     def main(cls, *args, **kwargs):
-        cls.source = Source.load(cls.fname)
-        stdsys[1] << ":: Source Code ::"
-        cls.print_code(cls.source.lines)
+        stream.set_level(0)
+        try:
+            cls.source = Source.load(cls.fname)
+            stdsys[1] << ":: Source Code ::"
+            cls.print_code(cls.source.lines)
 
-        cls.parser = SatParser(cls.source)
-        cls.bytecode = cls.parser.parse()
-        stdsys[1] << ":: SATyrus bytecode ::"
-        cls.print_code(cls.bytecode)
+            cls.parser = SatParser(cls.source)
+            cls.bytecode = cls.parser.parse()
+            stdsys[1] << ":: SATyrus bytecode ::"
+            cls.print_code(cls.bytecode)
 
-        cls.compiler = SatCompiler(cls.source, cls.parser)
-        cls.sco = cls.compiler.compile()
-        stdsys[1] << ":: SATyrus Compiled Object ::"
-        stdout << cls.sco
+            cls.compiler = SatCompiler(cls.source, cls.parser)
+            cls.sco = cls.compiler.compile()
+            stdsys[1] << ":: SATyrus Compiled Object ::"
+            stdout << cls.sco
+        except SatError as sat_error:
+            stderr << sat_error
+        except Exception as error:
+            stdout << load(cls.CRITICAL_ERROR, encoding='utf-8')
+            cls.report()
+            return
+            raise error
+            ## log(error)
+            exit(1)
 
-        return
+    @classmethod
+    def report(cls):
+        stdout << ":: Satyrus Report ::"
+        stdsys << "Compiler Memory:"
+        stdsys << cls.compiler.memory
 
     @classmethod
     def print_code(cls, code : list):

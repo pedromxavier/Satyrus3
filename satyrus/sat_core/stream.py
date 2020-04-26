@@ -48,8 +48,17 @@ class stream(object):
         return stream(self.fg, self.sty, level, **self.kwargs)
 
     @classmethod
-    def set_lvl(cls, level : int):
-        cls.__lvl__ = level
+    def set_level(cls, level : int = None):
+        if level is None:
+            cls.__lvl__ = None
+        elif type(level) is int:
+            if level >= -1:
+                cls.__lvl__ = level
+            else:
+                raise ValueError(f'Invalid debug level {level}.')
+        else:
+            raise TypeError(f'Invalid type for debug level. Must be `int`.')
+            
 
 colorama.init()
 

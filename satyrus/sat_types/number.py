@@ -32,11 +32,10 @@ class Number(SatType, decimal.Decimal):
         return f"Number('{self.__str__()}')"
 
     def __int__(self):
-        INT = decimal.Decimal.__int__(self)
-        if (INT - self) == 0:
-            return INT
-        else:
-            raise TypeError('Number is not an integer.')
+        return decimal.Decimal.__int__(self)
+
+    def __float__(self):
+        return decimal.Decimal.__float__(self)
 
     def __and__(self, other):
         return self * other
@@ -57,7 +56,7 @@ class Number(SatType, decimal.Decimal):
         return (~self & ~other) | (self & other)
 
     def __not__(self):
-        return Number(1) - self
+        return Number('1') - self
 
     @classmethod
     def prec(cls, value : int = None):
@@ -68,12 +67,7 @@ class Number(SatType, decimal.Decimal):
 
     @property
     def is_int(self):
-        return bool((decimal.Decimal.__int__(self) - self) == 0)
-
-    @property
-    def as_int(self):
-        return int(self)
-
+        return (int(self) - self) == 0
 
 Number.TRUE = Number('1')
 Number.FALSE = Number('0')

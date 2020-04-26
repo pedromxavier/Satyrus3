@@ -14,7 +14,12 @@ import _thread as thread
 from collections import deque
 from functools import wraps, reduce
 
-os.path.join = posixpath.join
+def init_system():
+    global os
+    if sys.platform != 'win32':
+        os.path.join = posixpath.join
+    else:
+        os.sep = '\\'
 
 def kwget(key, kwargs : dict, default=None):
     try:
@@ -22,8 +27,8 @@ def kwget(key, kwargs : dict, default=None):
     except KeyError:
         return default
 
-def load(fname : str):
-    with open(fname, 'r') as file:
+def load(fname : str, **kwargs):
+    with open(fname, 'r', **kwargs) as file:
         return file.read()
 
 def dump(fname : str, s : str):
@@ -65,6 +70,12 @@ def keep_type(callbacks : set):
                 setattr(cls, name, ftype(getattr(cls, name)))
         return cls
     return class_decor
+
+def join(glue : str, args : list):
+    return glue.join(map(str, args))
+
+def log(data):
+    raise NotImplementedError('Error Logging is under the way...')
 
 def arange(start, stop=None, step=None):
     """ arange(stop) -> [0, 1, ..., stop]

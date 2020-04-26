@@ -28,7 +28,7 @@ from ...sat_types.error import SatValueError, SatTypeError
 from ...sat_types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL
 from ...sat_types import Number, Constraint, Loop
 
-from ...sat_core import arange
+from lib import arange
 
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 

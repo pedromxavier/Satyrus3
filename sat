@@ -7,7 +7,7 @@ import argparse
 import os
 
 ## Local
-from satyrus.sat_core import load, log, stdout, stderr, stdsys, stream, Source
+from satlib import load, log, stdout, stderr, stdsys, stream, Source
 from satyrus.sat_compiler import SatCompiler
 from satyrus.sat_parser import SatParser
 from satyrus.sat_types.error import SatError
@@ -45,7 +45,6 @@ class Satyrus:
             stdout << load(cls.CRITICAL_ERROR, encoding='utf-8')
             cls.report()
             return
-            raise error
             ## log(error)
             exit(1)
 

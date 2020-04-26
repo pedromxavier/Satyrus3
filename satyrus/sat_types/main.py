@@ -98,7 +98,7 @@ class SatType(metaclass=MetaSatType):
         except:
             raise NotImplementedError
 
-class Expr(SatType, list):
+class Expr(SatType, tuple):
     """ :: Expr ::
         ==========
 
@@ -120,10 +120,11 @@ class Expr(SatType, list):
 
     SOLVE_FUNCS = []
 
-    def __init__(self, head, *tail, format=None):
+    def __new__(cls, head, *tail):
+        return tuple.__new__(cls, (head, *tail))
+
+    def __init__(self, head, *tail):
         SatType.__init__(self)
-        list.__init__(self, [intern(head), *tail])
-        self.format = self._format() if format is None else format
 
     def __str__(self):
         if self.head in self.FORMAT_FUNCS:
@@ -131,30 +132,21 @@ class Expr(SatType, list):
         elif self.head in self.FORMATS:
             return self.FORMATS[self.head].format(*self)
         else:
-            return self.format.format(*self)
+            return self.join(' ').format(*self)
 
     def __repr__(self):
-        return f"Expr({self._format(', ').format(*map(repr, self))})"
+        return f"Expr({self.join(', ').format(*map(repr, self))})"
 
     def __solve__(self):
         raise NotImplementedError('A problem to solve.')
 
     def __hash__(self):
-        side = Expr.HASH_SIDE[self.head]
+        """ This hash function identifies uniquely each expression.
 
-        if side is None:
-            head_hash = hash(self.head)
-            tail_hash = sum(hash(p) for p in self.tail)
-        elif side is True:
-            head_hash = hash(self.head)
-            tail_hash = hash(self.tail)
-        else:
-            head_hash = hash(side)
-            tail_hash = hash(self.tail)
+        """
+        return tuple.__hash__(self)
 
-        return hash((head_hash, tail_hash))
-
-    def _format(self, glue=" "):
+    def join(self, glue=" "):
         return glue.join([f"{{{i}}}" for i in range(len(self))])
 
     @property
@@ -163,11 +155,15 @@ class Expr(SatType, list):
 
     @property
     def tail(self):
-        return tuple(self[1:])
+        return self[1:]
+
+    @classmethod
+    def _copy_(cls, self):
+        return cls(self.head, *[p.copy for p in self.tail])
 
     @property
     def copy(self):
-        return Expr(self.head, *[p.copy for p in self.tail])
+        return type(self)._copy_(self)
 
     @classmethod
     def add_solve_func(cls, heads, func):
@@ -194,52 +190,53 @@ class Expr(SatType, list):
     def rule(cls, token):
         return lambda rule : cls.add_rule(token, rule)
 
-    @staticmethod
-    def apply(expr, func, *args, **kwargs):
-        if expr.is_expr:
+    @classmethod
+    def apply(cls, func, expr, *args, **kwargs):
+        if type(expr) is cls:
             expr = func(expr, *args, **kwargs)
         else:
             return expr
 
-        if expr.is_expr:
-            tail = [Expr.apply(p, func, *args, **kwargs) for p in expr.tail]
-            expr = Expr(expr.head, *tail)
+        if type(expr) is cls:
+            tail = [cls.apply(func, p, *args, **kwargs) for p in expr.tail]
+            expr = cls(expr.head, *tail)
             return expr
         else:
             return expr
 
-    @staticmethod
-    def back_apply(expr, func, *args, **kwargs):
-        if expr.is_expr:
-            tail = [Expr.back_apply(p, func, *args, **kwargs) for p in expr.tail]
-            expr = Expr(expr.head, *tail)
+    @classmethod
+    def back_apply(cls, func, expr, *args, **kwargs):
+        if type(expr) is cls:
+            tail = [cls.back_apply(func, p, *args, **kwargs) for p in expr.tail]
+            expr = cls(expr.head, *tail)
             return func(expr, *args, **kwargs)
         else:
             return expr
 
-    @staticmethod
-    def from_tuple(tup):
+    @classmethod
+    def from_tuple(cls, tup):
         if type(tup) is tuple:
-            return Expr(tup[0], *(Expr.from_tuple(t) for t in tup[1:]))
+            return cls(tup[0], *(cls.from_tuple(t) for t in tup[1:]))
         else:
             return tup
 
-    @staticmethod
-    def to_tuple(expr):
-        if type(expr) is Expr:
-            return tuple(Expr.to_tuple(p) for p in expr)
+    @classmethod
+    def to_tuple(cls, expr):
+        if type(expr) is cls:
+            return tuple(cls.to_tuple(p) for p in expr)
         else:
             return expr
 
-    @staticmethod
-    def cmp(A, B):
+    @classmethod
+    def cmp(cls, p, q):
+        """ cls.cmp(p, q) -> bool
+            Compares both expressions.
         """
-        """
-        return hash(A) == hash(B)
+        return hash(p) == hash(q)
 
-    @staticmethod
-    def par(p, q):
-        if (q.expr) and (q.head in Expr.NEED_PAR) and (p.group != q.group):
+    @classmethod
+    def par(cls, p, q):
+        if (type(q) is cls) and (q.head in cls.NEED_PAR) and (p.group != q.group):
             return f"({q})"
         else:
             return f"{q}"

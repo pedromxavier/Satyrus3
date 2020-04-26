@@ -11,6 +11,10 @@ from .sat_types import Number
 ## :: Logical ::
 from .sat_types.symbols.heads import H_AND, H_OR, H_XOR, H_NOT, H_IFF, H_IMP, H_RIMP
 
+class SatExpr(Expr):
+
+    ...
+
 @Expr.rule(H_AND)
 def AND(*args):
     return reduce(lambda x, y : x.__and__(y), args)

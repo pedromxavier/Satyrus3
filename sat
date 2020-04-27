@@ -7,7 +7,7 @@ import argparse
 import os
 
 ## Local
-from satlib import load, log, stdout, stderr, stdsys, stream, Source
+from satlib import join, load, log, stdout, stderr, stdsys, stream, Source
 from satyrus.sat_compiler import SatCompiler
 from satyrus.sat_parser import SatParser
 from satyrus.sat_types.error import SatError
@@ -30,26 +30,19 @@ class Satyrus:
             stdsys[1] << ":: Source Code ::"
             cls.print_code(cls.source.lines)
 
-            
-
             cls.parser = SatParser(cls.source)
             cls.compiler = SatCompiler(cls.source, cls.parser)
             cls.sco = cls.compiler.compile()
-            stdsys[1] << ":: SATyrus bytecode ::"
-            cls.print_code(cls.compiler.bytecode)
-            stdsys[1] << ":: SATyrus Compiled Object ::"
-            stdout << cls.sco
         except SatError as sat_error:
             stderr << sat_error
-        except Exception as error:
+        except Exception:
             stdout << load(cls.CRITICAL_ERROR, encoding='utf-8')
-            cls.report(error)
-            ## log(error)
+            cls.report(log())
             exit(1)
 
     @classmethod
     def report(cls, error=None):
-        stdout << ":: Satyrus Report ::"
+        stdout << ":: Satyrus Crash Report ::"
         stdout << ""
         stdsys << ":: Compiler Memory ::"
         stdsys << cls.compiler.memory

@@ -118,9 +118,6 @@ class Expr(SatType, tuple):
     def __repr__(self):
         return f"Expr({join(', ', self)})"
 
-    def __solve__(self):
-        raise NotImplementedError('A problem to solve.')
-
     def __hash__(self):
         """ This hash function identifies uniquely each expression.
 
@@ -154,15 +151,14 @@ class Expr(SatType, tuple):
 
     @classmethod
     def apply(cls, func, expr, *args, **kwargs):
-        if type(expr) is cls:
-            expr = func(expr, *args, **kwargs)
-        else:
-            return expr
-
+        """ Forward-applies function `func` to `expr`.
+        """
+        ## Apply function to expr.
+        expr = func(expr, *args, **kwargs)
+        
         if type(expr) is cls:
             tail = [cls.apply(func, p, *args, **kwargs) for p in expr.tail]
-            expr = cls(expr.head, *tail)
-            return expr
+            return cls(expr.head, *tail)
         else:
             return expr
 
@@ -171,9 +167,13 @@ class Expr(SatType, tuple):
         if type(expr) is cls:
             tail = [cls.back_apply(func, p, *args, **kwargs) for p in expr.tail]
             expr = cls(expr.head, *tail)
-            return func(expr, *args, **kwargs)
-        else:
-            return expr
+        
+        ## Apply function to expr.
+        return func(expr, *args, **kwargs)
+
+    @classmethod
+    def solve(cls, expr):
+        return expr
 
     @classmethod
     def from_tuple(cls, tup):

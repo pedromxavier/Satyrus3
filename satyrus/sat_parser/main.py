@@ -211,17 +211,27 @@ class SatParser(object):
     def run(self, code : list):
         self.bytecode = code
 
-    def get_arg(self, p, index : int=None):
+    def get_arg(self, p, index: int=None, track: bool=True):
         if index is None:
             value = p
-            value.lexinfo.update({
-                'lineno' : None,
-                'lexpos' : None,
-                'chrpos' : None,
-                'source' : self.source,
-            })
+            if track:
+                value.lexinfo = {
+                    'lineno' : None,
+                    'lexpos' : None,
+                    'chrpos' : None,
+                    'source' : self.source,
+                }
         else:
             value = p[index]
+            if track:
+                lineno = p.lineno(index)
+                lexpos = p.lexpos(index)
+                value.lexinfo = {
+                    'lineno' : lineno,
+                    'lexpos' : lexpos,
+                    'chrpos' : self.chrpos(lineno, lexpos),
+                    'source' : self.source,
+                }
         return value
 
     def p_start(self, p):
@@ -250,7 +260,7 @@ class SatParser(object):
         """ sys_config : SHARP NAME DOTS sys_config_args
         """
         name = self.get_arg(p, 2)
-        args = self.get_arg(p, 4)
+        args = p[4]
         p[0] = (SYS_CONFIG, name, args)
 
     def p_sys_config_args(self, p):
@@ -258,9 +268,9 @@ class SatParser(object):
                             | sys_config_arg
         """
         if len(p) == 4:
-            p[0] = [*p[1], p[3]]
+            p[0] = [*p[1], self.get_arg(p, 3)]
         else:
-            p[0] = [ p[1],]
+            p[0] = [self.get_arg(p, 1)]
 
     def p_sys_config_arg(self, p):
         """ sys_config_arg : NUMBER
@@ -279,17 +289,17 @@ class SatParser(object):
         """ literal : NUMBER
                     | NAME
         """
-        p[0] = p[1]
+        p[0] = self.get_arg(p, 1)
 
     def p_def_array(self, p):
         """ def_array : NAME shape ASSIGN array_buffer
                       | NAME shape
         """
         name = self.get_arg(p, 1)
-        shape = self.get_arg(p, 2)
+        shape = p[2]
 
         if len(p) == 5: # array declared
-            buffer = self.get_arg(p, 4)
+            buffer = p[4]
         else: # implicit array
             buffer = self.get_arg(None)
         
@@ -300,9 +310,9 @@ class SatParser(object):
                   | index
         """
         if len(p) == 3:
-            p[0] = (*p[1], p[2])
+            p[0] = (*p[1], self.get_arg(p, 2))
         else:
-            p[0] = ( p[1],)
+            p[0] = (self.get_arg(p, 1),)
 
     def p_index(self, p):
         """ index : LBRA expr RBRA
@@ -351,11 +361,11 @@ class SatParser(object):
         
         if len(p) == 11:
             level = self.get_arg(p, 6)
-            loops = self.get_arg(p, 9)
+            loops = self.get_arg(p, 9, track=False)
             expr  = self.get_arg(p, 10)
         else:
             level = self.get_arg(None)
-            loops = self.get_arg(p, 6)
+            loops = self.get_arg(p, 6, track=False)
             expr  = self.get_arg(p, 7)
 
         p[0] = (DEF_CONSTRAINT, type_, name, loops, expr, level)
@@ -374,9 +384,9 @@ class SatParser(object):
                  | quant LCUR NAME ASSIGN domain RCUR
         """
         if len(p) == 9:
-            p[0] = (p[1], p[3], p[5], p[7])
+            p[0] = (p[1], self.get_arg(p, 3), p[5], p[7])
         else:
-            p[0] = (p[1], p[3], p[5], None)
+            p[0] = (p[1], self.get_arg(p, 3), p[5], None)
 
     def p_quant(self, p):
         """ quant : FORALL
@@ -428,7 +438,7 @@ class SatParser(object):
                  | ADD expr
                  | SUB expr
         """
-        p[0] = Expr(p[1], p[2])
+        p[0] = Expr(self.get_arg(p, 1), p[2])
 
     def p_expr2(self, p):
         """ expr : expr AND expr
@@ -457,10 +467,10 @@ class SatParser(object):
     def p_error(self, t):
         if t:
             stderr << f"Syntax Error at line {t.lineno}:"
-            stderr << self.source.lines[t.lineno-1]
+            stderr << self.source.lines[t.lineno]
             stderr << f'{" " * (self.chrpos(t.lineno, t.lexpos))}^'
         else:
             stderr << "Unexpected End Of File."
 
     def chrpos(self, lineno, lexpos):
-        return lexpos - self.source.table[lineno]
+        return (lexpos - self.source.table[lineno - 1] + 1)

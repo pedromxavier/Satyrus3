@@ -73,6 +73,7 @@ class SatCompiler:
 
 		if self.errors:
 			for error in self.errors:
+				stderr << (error.msg)
 				error.launch()
 			stderr[0] << f":: Compilation terminated ::"
 			return None
@@ -101,9 +102,16 @@ class SatCompiler:
 			## Rename variable
 			expr = value
 
-			## Check variable consistency
-			if not expr.var_stack <= self.var_stack:
-				stderr << 'Undeclared Variables!'
-			raise NotImplementedError('Evaluating Expressions is not ready yet.')
+			## Evaluate expression
+			expr = Expr.apply(self.eval_expr, expr)
+			
+			## Return solved expression
+			return Expr.solve(expr)
 		else:
 			return value
+
+	def eval_expr(self, value):
+		if type(value) is Expr:
+			return value
+		else:
+			return self.eval(value)

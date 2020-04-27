@@ -68,8 +68,8 @@ def keep_type(callbacks : set):
 def join(glue : str, args : list):
     return glue.join(map(str, args))
 
-def log(data):
-    raise NotImplementedError('Error Logging is under the way...')
+def log():
+    return traceback.format_exc()
 
 def arange(start, stop=None, step=None):
     """ arange(stop) -> [0, 1, ..., stop]

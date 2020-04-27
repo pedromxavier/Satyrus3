@@ -4,9 +4,8 @@
 import itertools as it
 
 ## Local
-from .main import SatType
+from .main import SatType, Var
 from .error import SatIndexError
-from .var import Var
 
 class Array(SatType, dict):
     ''' Sparse Array

@@ -1,4 +1,6 @@
-"""
+""" :: DEF_CONSTRAINT ::
+	====================
+
 Two DEF_CONSTRAINT statement bytecodes:
 (
 'DEF_CONSTRAINT',
@@ -24,11 +26,11 @@ Two DEF_CONSTRAINT statement bytecodes:
 )
 """
 
+## Local
+from satlib import arange
 from ...sat_types.error import SatValueError, SatTypeError
 from ...sat_types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL
 from ...sat_types import Number, Constraint, Loop
-
-from lib import arange
 
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 

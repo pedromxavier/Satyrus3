@@ -9,8 +9,9 @@ suitable for json serialization.
 import os
 
 ## Local
+from satlib import stdsys, stderr, stdout, Source
+
 from ..sat_parser import SatParser
-from ..sat_core import stderr, stdout, Source
 from ..sat_types import SatType, String, Number, Var, Array, Expr
 from ..sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
 from ..sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, N0
@@ -59,10 +60,11 @@ class SatCompiler:
 		self.errors = None
 
 	@property
-	def bytecode(self):
-		return self.parser.bytecode
+	def var_stack(self):
+		return set(self.memory.keys())
 
 	def compile(self):
+		self.bytecode = self.parser.parse()
 		self.sco = self.DEFAULT_SCO.copy()
 		self.errors = list()
 
@@ -84,14 +86,24 @@ class SatCompiler:
 
 	def eval(self, value):
 		if type(value) is Var:
+			## Rename variable
+			var = value
+
 			## Get value from memory
-			memval = self.memory.memget(value)
+			var_value = self.memory.memget(var)
 
 			## Copy error tracking information
-			memval.lexinfo = value.lexinfo
+			var_value.lexinfo = value.lexinfo
 			
-			return memval
+			return var_value
+
 		elif type(value) is Expr:
+			## Rename variable
+			expr = value
+
+			## Check variable consistency
+			if not expr.var_stack <= self.var_stack:
+				stderr << 'Undeclared Variables!'
 			raise NotImplementedError('Evaluating Expressions is not ready yet.')
 		else:
 			return value

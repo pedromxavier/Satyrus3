@@ -11,15 +11,9 @@ import shutil
 import warnings
 import itertools as it
 import _thread as thread
-from collections import deque
 from functools import wraps, reduce
 
-def init_system():
-    global os
-    if sys.platform != 'win32':
-        os.path.join = posixpath.join
-    else:
-        os.sep = '\\'
+os.path.join = posixpath.join
 
 def kwget(key, kwargs : dict, default=None):
     try:
@@ -120,21 +114,3 @@ def arange(start, stop=None, step=None):
         while x >= stop:
             yield x
             x += step
-
-class Stack:
-
-    def __init__(self, buffer=None, limit=None):
-        self.__stack = deque([] if buffer is None else buffer, limit)
-
-    def add(self, x):
-        return self.__stack.append(x)
-
-    def pop(self):
-        return self.__stack.pop()
-
-    def __iter__(self):
-        return iter(self.__stack)
-
-    def __bool__(self):
-        return bool(self.__stack)
-

@@ -8,7 +8,7 @@ import random
 from functools import wraps
 
 ## Local
-from satyrus.sat_core import load, stream, stderr, stdsys, stdout
+from satlib import load, stream, stderr, stdsys, stdout
 from satyrus.sat_types.error import SatError
 
 class SatTestError(SatError):

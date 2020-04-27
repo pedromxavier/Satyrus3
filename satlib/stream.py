@@ -42,7 +42,7 @@ class stream(object):
         if self.__lvl__ is None or self.level <= self.__lvl__:
             txt = (txt,) if type(txt) is not tuple else txt
             stream.cprint(txt, self.fg, self.sty, **self.kwargs)
-        return None
+        return self
     
     def __getitem__(self, level):
         return stream(self.fg, self.sty, level, **self.kwargs)

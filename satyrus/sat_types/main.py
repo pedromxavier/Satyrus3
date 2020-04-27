@@ -6,6 +6,7 @@ from sys import intern
 from functools import wraps
 
 ## Local
+from satlib import join
 from .symbols.tokens import T_DICT
 
 class MetaSatType(type):
@@ -104,38 +105,18 @@ class Expr(SatType, tuple):
 
         This is one of the core elements of the system. This is used to represent ASTs.
     """
-    HASH_SIDE = {}
-
-    RULES = {}
-
-    TABLE = {}
-
-    GROUPS = {}
-
-    FORMATS = {}
-
-    FORMAT_FUNCS = {}
-
-    NEED_PAR = set()
-
-    SOLVE_FUNCS = []
-
     def __new__(cls, head, *tail):
         return tuple.__new__(cls, (head, *tail))
 
     def __init__(self, head, *tail):
         SatType.__init__(self)
+        self._var_stack = None
 
     def __str__(self):
-        if self.head in self.FORMAT_FUNCS:
-            return self.FORMAT_FUNCS[self.head](self)
-        elif self.head in self.FORMATS:
-            return self.FORMATS[self.head].format(*self)
-        else:
-            return self.join(' ').format(*self)
+        return join(' ', self)
 
     def __repr__(self):
-        return f"Expr({self.join(', ').format(*map(repr, self))})"
+        return f"Expr({join(', ', self)})"
 
     def __solve__(self):
         raise NotImplementedError('A problem to solve.')
@@ -146,9 +127,6 @@ class Expr(SatType, tuple):
         """
         return tuple.__hash__(self)
 
-    def join(self, glue=" "):
-        return glue.join([f"{{{i}}}" for i in range(len(self))])
-
     @property
     def head(self):
         return self[0]
@@ -157,38 +135,22 @@ class Expr(SatType, tuple):
     def tail(self):
         return self[1:]
 
-    @classmethod
-    def _copy_(cls, self):
-        return cls(self.head, *[p.copy for p in self.tail])
-
     @property
     def copy(self):
-        return type(self)._copy_(self)
+        return Expr(self.head, *[p.copy for p in self.tail])
 
-    @classmethod
-    def add_solve_func(cls, heads, func):
-        @wraps(func)
-        def new_func(expr, *args):
-            if expr.head in heads:
-                return func(expr, *args)
-            else:
-                return expr
-        return new_func
-
-    @classmethod
-    def solve_func(cls, heads):
-        return lambda func : cls.add_solve_func(heads, func)
-
-    @classmethod
-    def add_rule(cls, token, rule):
-        @wraps(rule)
-        def new_rule(expr):
-            return rule(*[p.__solve__() for p in expr.tail])
-        cls.RULES[token] = new_rule
-
-    @classmethod
-    def rule(cls, token):
-        return lambda rule : cls.add_rule(token, rule)
+    @property
+    def var_stack(self):
+        if self._var_stack is None:
+            self._var_stack = set()
+            for value in self.tail:
+                if type(value) is Expr:
+                    self._var_stack.update(value.var_stack)
+                elif type(value) is Var:
+                    self._var_stack.add(value)
+            return self._var_stack
+        else:
+            return self._var_stack
 
     @classmethod
     def apply(cls, func, expr, *args, **kwargs):
@@ -234,9 +196,24 @@ class Expr(SatType, tuple):
         """
         return hash(p) == hash(q)
 
-    @classmethod
-    def par(cls, p, q):
-        if (type(q) is cls) and (q.head in cls.NEED_PAR) and (p.group != q.group):
-            return f"({q})"
-        else:
-            return f"{q}"
+class Var(SatType, str):
+
+    __ref__ = {} # works as 'intern'
+
+    def __new__(cls, name : str):
+        if name not in cls.__ref__:
+            obj = str.__new__(cls, name)
+            cls.__ref__[name] = obj
+        return cls.__ref__[name]
+
+    def __init__(self, name : str):
+        SatType.__init__(self)
+
+    def __hash__(self):
+        return str.__hash__(self)
+
+    def __repr__(self):
+        return f"Var('{self}')"
+
+    def __idx__(self, idx : tuple):
+        return Var(f"{self}_{'_'.join(map(str, idx))}")

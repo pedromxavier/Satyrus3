@@ -30,29 +30,32 @@ class Satyrus:
             stdsys[1] << ":: Source Code ::"
             cls.print_code(cls.source.lines)
 
-            cls.parser = SatParser(cls.source)
-            cls.bytecode = cls.parser.parse()
-            stdsys[1] << ":: SATyrus bytecode ::"
-            cls.print_code(cls.bytecode)
+            
 
+            cls.parser = SatParser(cls.source)
             cls.compiler = SatCompiler(cls.source, cls.parser)
             cls.sco = cls.compiler.compile()
+            stdsys[1] << ":: SATyrus bytecode ::"
+            cls.print_code(cls.compiler.bytecode)
             stdsys[1] << ":: SATyrus Compiled Object ::"
             stdout << cls.sco
         except SatError as sat_error:
             stderr << sat_error
         except Exception as error:
             stdout << load(cls.CRITICAL_ERROR, encoding='utf-8')
-            cls.report()
-            return
+            cls.report(error)
             ## log(error)
             exit(1)
 
     @classmethod
-    def report(cls):
+    def report(cls, error=None):
         stdout << ":: Satyrus Report ::"
-        stdsys << "Compiler Memory:"
+        stdout << ""
+        stdsys << ":: Compiler Memory ::"
         stdsys << cls.compiler.memory
+        stdsys << ""
+        stderr << ":: Error ::"
+        stderr << f"{error}"
 
     @classmethod
     def print_code(cls, code : list):

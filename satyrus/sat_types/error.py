@@ -1,4 +1,4 @@
-from ..sat_core import stderr
+from satlib import stderr
 
 class SatError(Exception):
     TITLE = 'Error'

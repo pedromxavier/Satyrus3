@@ -8,7 +8,7 @@ from functools import wraps
 
 ## Local
 from .main import SatType
-from ..sat_core import keep_type
+from satlib import keep_type
 from .symbols.tokens import T_DICT
 
 @keep_type({f"__{name.lower()}__" for name in T_DICT})

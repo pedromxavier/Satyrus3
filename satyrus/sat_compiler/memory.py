@@ -1,14 +1,19 @@
+""" :: Memory ::
+	============
+"""
+
+## Local
 from ..sat_types.error import SatReferenceError
 from ..sat_types import Var
 
 class Memory(dict):
-	"""
+	""" Satyrus Compiler Memory
 	"""
 	def __init__(self, defaults=None):
 		dict.__init__(self, {} if defaults is None else defaults)
 
 	def __str__(self):
-		return "\n".join(f"{key}:\n\t{val}" for key, val in self.items())
+		return "\n".join(f"{key}:\t{val}" for key, val in self.items())
 
 	def __getitem__(self, name):
 		try:

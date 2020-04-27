@@ -7,7 +7,7 @@ import itertools as it
 from ply import lex, yacc
 
 ## Local
-from ..sat_core import stderr, stdout, Source
+from satlib import stderr, stdout, Source
 from ..sat_types.error import SatParserError, SatLexerError, SatSyntaxError
 from ..sat_types import Expr, Number, Var, String
 from ..sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT

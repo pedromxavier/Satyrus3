@@ -5,6 +5,8 @@
 m = 3;
 n = m + 2;
 
+#exit: 0;
+
 x[m] = {(1) : 1, (m) : -1};
 y[n] = {(1) : 0, (n) : +1};
 
@@ -15,8 +17,8 @@ y[n] = {(1) : 0, (n) : +1};
 
 % Integrity Constraints
 (int) A:
-  @{i=[1:m]} % forall i
-  ${j=[1:n]} % exists j
+  @{i=[1:m]} % forall i from 1 to m
+  ${j=[1:n]} % exists j from 1 to n
 
   x[i] -> y[j];
 

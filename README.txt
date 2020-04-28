@@ -13,7 +13,7 @@ Example
     #prec : 33;
     #dir : "C:/Users/Pedro/Desktop";
     #eps : 1E-6;
-    #n0 : 1;
+    #alpha : 1;
 
     #load : "file.sat"; % "file.sj"
 
@@ -67,7 +67,7 @@ JSON Result
 {
     "dir": "C:/Users/Pedro/Desktop",
     "eps": 0.000001,
-    "n0": 1,
+    "alpha": 1,
     "prec": 33,
        
     "int": [

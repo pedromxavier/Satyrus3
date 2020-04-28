@@ -1,2 +1,2 @@
 from .main import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
-from .main import PREC, DIR, LOAD, OUT, EPSILON, N0
+from .main import PREC, DIR, LOAD, OUT, EPSILON, ALPHA, EXIT

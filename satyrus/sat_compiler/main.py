@@ -14,10 +14,18 @@ from satlib import stdsys, stderr, stdout, Source
 from ..sat_parser import SatParser
 from ..sat_types import SatType, String, Number, Var, Array, Expr
 from ..sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
-from ..sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, N0
+from ..sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA
 
 from .memory import Memory
 from .stmt import sys_config, def_constant, def_array, def_constraint
+
+class Exit(Exception):
+	""" 
+	"""
+	
+	def __init__(self, code: int):
+		self.code = code
+		Exception.__init__(self, f'exit code: {code}')
 
 class SatCompiler:
 	"""
@@ -49,7 +57,7 @@ class SatCompiler:
 		self.env = Memory({
 			PREC : 16,
 			DIR : os.path.abspath(os.getcwd()),
-			N0 : 1,
+			ALPHA : 1,
 			EPSILON : 1E-05,
 		})
 	
@@ -58,33 +66,36 @@ class SatCompiler:
 
 		## Errors
 		self.errors = None
-
-	@property
-	def var_stack(self):
-		return set(self.memory.keys())
-
+		
 	def compile(self):
 		self.bytecode = self.parser.parse()
 		self.sco = self.DEFAULT_SCO.copy()
 		self.errors = list()
 
 		for stmt in self.bytecode:
-			self.errors.extend(self.run(stmt))
+			try:
+				self.errors.extend(self.run(stmt))
+			except Exit as error:
+				code = error.code
+				break
 
 		if self.errors:
 			for error in self.errors:
 				error.launch()
 			stderr[0] << f":: Compilation terminated ::"
-			return None
+			return code
 		else:
 			stdout[0] << f":: Compilation completed::"
-			return self.sco
+			return code
 
-	def run(self, stmt):
+	def exit(self, code: int):
+		raise Exit(code)
+
+	def run(self, stmt: tuple):
 		name, *args = stmt
 		yield from self.callbacks[name](self, *args)
 
-	def eval(self, value):
+	def eval(self, value: SatType):
 		if type(value) is Var:
 			## Rename variable
 			var = value
@@ -102,14 +113,20 @@ class SatCompiler:
 			expr = value
 
 			## Evaluate expression
-			expr = Expr.apply(self.eval_expr, expr)
+			expr = self.eval_expr(expr)
 			
 			## Return solved expression
 			return Expr.solve(expr)
 		else:
 			return value
 
-	def eval_expr(self, value):
+	def eval_expr(self, expr: Expr):
+		if type(expr) is Expr:
+			return Expr.apply(self._apply_eval_expr, expr)
+		else:
+			return expr
+
+	def _apply_eval_expr(self, value: SatType):
 		if type(value) is Expr:
 			return value
 		else:

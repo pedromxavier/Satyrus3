@@ -4,6 +4,7 @@
 
 ## Standard Library
 import os
+import sys
 
 ## Local
 from install import installer

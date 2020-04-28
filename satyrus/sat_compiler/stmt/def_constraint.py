@@ -27,7 +27,7 @@ Two DEF_CONSTRAINT statement bytecodes:
 """
 
 ## Local
-from satlib import arange
+from satlib import arange, stack
 from ...sat_types.error import SatValueError, SatTypeError
 from ...sat_types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL
 from ...sat_types import Number, Constraint, Loop
@@ -46,16 +46,18 @@ def def_constraint(compiler, type_, name, loops, expr, level):
 		compiler.sco[type_].append(constraint)
 
 def def_constraint_loops(compiler, loops, expr):
-	var_stack = set()
+	"""
+	"""
+	raise NotImplementedError('Loop definition to be made recursively.')
+
 	for loop in loops:
+		compiler.memory.push()
+
 		loop_type, loop_var, loop_range, loop_conds = loop
 
 		## Check Loop Type
 		if loop_type not in LOOP_TYPES:
 			yield SatTypeError(f'Invalid loop type {loop_type}', target=loop_type)
-
-		## Add Variable to stack
-		var_stack.add(loop_var)
 
 		## Evaluate Loop Parameters
 		start = compiler.eval(loop_range[0])
@@ -65,11 +67,11 @@ def def_constraint_loops(compiler, loops, expr):
 		## Check Values
 		if not start.is_int:
 			yield SatTypeError(f'Loop start must be an integer.', target=start)
-			continue
+			return
 
 		if not stop.is_int:
 			yield SatTypeError(f'Loop end must be an integer.', target=stop)
-			continue
+			return
 
 		if step is None:
 			if start < stop:
@@ -79,13 +81,35 @@ def def_constraint_loops(compiler, loops, expr):
 
 		elif not step.is_int:
 			yield SatTypeError(f'Loop step must be an integer.', target=step)
-			continue
+			return
 
 		if (start < stop and step < 0) or (start > stop and step > 0):
 			yield SatTypeError(f'Inconsistent Loop definition.', target=start)
-			continue
+			return
+
+		## Check Conditions
+		for cond in loop_conds:
+			expr = compiler.eval_expr(cond)
 
 		range_ = arange(int(start), int(stop), int(step))
+
+		for i in (start, stop):
+			compiler.memory.memset(loop_var, i)
+
+
+
+	## Evaluate Expression
+
+	## Clear memory stack
+	for loop in loops:
+		compiler.memory.pop()	
+
+	return range_
+
+def def_constraint_expr(compiler, expr):
+	"""
+	"""
+	...
 
 		
 

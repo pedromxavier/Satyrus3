@@ -3,31 +3,40 @@
 """
 
 ## Local
+from satlib import stack, join
 from ..sat_types.error import SatReferenceError
-from ..sat_types import Var
+from ..sat_types import Var, SatType
 
-class Memory(dict):
+class Memory(list):
 	""" Satyrus Compiler Memory
 	"""
 	def __init__(self, defaults=None):
-		dict.__init__(self, {} if defaults is None else defaults)
+		list.__init__(self, [{} if defaults is None else defaults])
 
 	def __str__(self):
-		return "\n".join(f"{key}:\t{val}" for key, val in self.items())
+		return join(">\n", [join("\n", (f"{key}:\t{val}" for key, val in layer.items())) for layer in self])
 
-	def __getitem__(self, name):
-		try:
-			return dict.__getitem__(self, name)
-		except KeyError:
-			raise SatReferenceError(f"Undefined variable {name}.", target=name)
+	def push(self):
+		list.append(self, {})
 
-	def memset(self, name : Var, value):
-		assert type(name) is Var
-		if type(value) is Var:
-			self[name] = self[value]
+	def pop(self):
+		if len(self) > 1:
+			list.pop(self, -1)
 		else:
-			self[name] = value
+			raise ValueError("Can't remove global scope.")
 
-	def memget(self, name : Var):
+	def memset(self, name: Var, value: SatType):
 		assert type(name) is Var
-		return self[name]
+		assert type(value) is not Var
+		self[-1][name] = value
+
+	def memget(self, name: Var):
+		assert type(name) is Var
+		i = len(self) - 1
+		while i >= 0:
+			try:
+				return self[i][name]
+			except KeyError:
+				i -= 1
+		else:
+			raise SatReferenceError(f"Undefined variable `{name}`.", target=name)

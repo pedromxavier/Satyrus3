@@ -2,7 +2,7 @@
 from sys import intern
 
 ## Local
-from ...sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, N0
+from ...sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA, EXIT
 from ...sat_types import SatType, String, Number, Var, Array
 from ...sat_types.error import SatValueError, SatTypeError
 
@@ -41,16 +41,24 @@ def sys_config_load(compiler, argc : int, argv : list):
 def sat_load(compiler, fname : str):
     ...
 
-def sys_config_n0(compiler, argc : int, argv : list):
+def sys_config_alpha(compiler, argc : int, argv : list):
     if argc == 1:
-        n0 = argv[0]
+        alpha = argv[0]
     else:
-        yield SatValueError(f'´#n0´ expected 1 argument, got {argc}.', target=argv[1])
+        yield SatValueError(f'`#alpha` expected 1 argument, got {argc}.', target=argv[1])
 
-    if type(n0) is Number and n0 > 0:
-        compiler.env.memset(Var(N0), n0)
+    if type(alpha) is Number and alpha > 0:
+        compiler.env.memset(Var(ALPHA), alpha)
     else:
-        yield SatTypeError(f'n0 must be a positive number.', target=argv[0])
+        yield SatTypeError(f'alpha must be a positive number.', target=argv[0])
+
+def sys_config_exit(compiler, argc : int, argv : list):
+    if argc != 1:
+        yield SatValueError(f'`exit` expected 1 argument (exit code), got {argc}', target=argv[1])
+    elif type(argv[0]) is not Number or not argv[0].is_int or argv[0] < 0:
+        yield SatTypeError(f'exit code must be a non-negative integer.')
+    else:
+        compiler.exit(int(argv[0]))
 
 def sys_config_out(compiler, argc : int, argv : list):
     raise NotImplementedError
@@ -59,10 +67,11 @@ def sys_config_dir(compiler, argc : int, argv : list):
     raise NotImplementedError
 
 sys_config_options = {
+    EXIT : sys_config_exit,
     PREC : sys_config_prec,
     DIR : sys_config_dir,
     LOAD : sys_config_load,
     EPSILON : sys_config_epsilon,
-    N0 : sys_config_n0,
+    ALPHA : sys_config_alpha,
     OUT : sys_config_out,
 }

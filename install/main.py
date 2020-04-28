@@ -5,14 +5,20 @@
 import os
 import sys
 import shutil
+import pickle
 from setuptools import setup, find_packages
 
 ## Local
-from satlib import system, load, stderr, stdsys
+from satlib import load, dump, pkload, pkdump, stderr, system, stdsys
 
 class installer:
 
     home = None
+
+    data = {
+        'home' : None,
+        'installed' : False,
+    }
 
     @classmethod
     def install_vscode_extensions(cls):
@@ -31,7 +37,6 @@ class installer:
 
     @classmethod
     def init(cls, dir : str):
-
         # Get the long description from the README file
         cls.long_description = load('README.md', encoding='utf-8')
 

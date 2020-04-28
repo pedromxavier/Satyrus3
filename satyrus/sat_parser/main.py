@@ -364,7 +364,7 @@ class SatParser(object):
             loops = self.get_arg(p, 9, track=False)
             expr  = self.get_arg(p, 10)
         else:
-            level = self.get_arg(None)
+            level = None
             loops = self.get_arg(p, 6, track=False)
             expr  = self.get_arg(p, 7)
 

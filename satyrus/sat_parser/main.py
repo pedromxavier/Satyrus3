@@ -121,7 +121,7 @@ class SatLexer(object):
         self.lexer.lineno += 1
         return None
 
-    @regex(r"[a-zA-Z_][a-zA-Z0-9_']*")
+    @regex(r"[a-zA-Z_][a-zA-Z0-9_]*")
     def t_NAME(self, t):
         t.value = Var(t.value)
         return t

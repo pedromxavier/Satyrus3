@@ -1,7 +1,9 @@
-# prec : 30;
+#prec: 30;
+#epsilon: 1.5E-08;
+#dir: "c:/Users/Pedro";
 
 m = 3;
-n = 5;
+n = m + 2;
 
 x[m] = {(1) : 1, (m) : -1};
 y[n] = {(1) : 0, (n) : +1};
@@ -12,17 +14,15 @@ y[n] = {(1) : 0, (n) : +1};
  {---------------------}%
 
 % Integrity Constraints
-(int) A[0]:
+(int) A:
+  @{i=[1:m]} % forall i
+  ${j=[1:n]} % exists j
 
-@{i=[1:m]}
-${j=[1:n]}
-
-x[i] -> y[j];
+  x[i] -> y[j];
 
 % Optmality Constraints
 (opt) X[1]:
+  @{i=[1:m]}
+  @{j=[1:n], i != j}
 
-@{i=[1:m]}
-@{j=[1:n], i != j}
-
-x[i] <- y[j];
+  x[i] <- y[j];

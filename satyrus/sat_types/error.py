@@ -9,11 +9,10 @@ class SatError(Exception):
 
     def launch(self):
         if self.target is not None:
-            stderr << f"Error at line {self.target.lineno}:"
+            stderr << f"In '{self.target.source.fname}' at line {self.target.lineno}:"
             stderr << f"{self.target.source.lines[self.target.lineno]}"
             stderr << f"{' ' * self.target.chrpos}^"
             stderr << f"{self.TITLE}: {self.msg}"
-            stdout << self.target.lexinfo
         else:
             raise self
 

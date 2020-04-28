@@ -21,7 +21,7 @@ class installer:
     }
 
     @classmethod
-    def install_vscode_extensions(cls):
+    def install_extensions(cls):
         path = os.path.join('install', 'extensions')
         return path
 

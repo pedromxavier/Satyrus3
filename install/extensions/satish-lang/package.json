@@ -1,0 +1,25 @@
+{
+    "name": "satish-lang",
+    "displayName": "Satish Lang",
+    "description": "Syntax highlighting for Satish Lang",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.44.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "satish",
+            "aliases": ["SATish", "Satish", "satish"],
+            "extensions": [".sat"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "satish",
+            "scopeName": "source.sat",
+            "path": "./syntaxes/satish.tmLanguage.json"
+        }]
+    }
+}

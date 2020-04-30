@@ -105,6 +105,9 @@ class Expr(SatType, tuple):
 
         This is one of the core elements of the system. This is used to represent ASTs.
     """
+
+    HASH = {}
+
     def __new__(cls, head, *tail):
         return tuple.__new__(cls, (head, *tail))
 
@@ -120,9 +123,15 @@ class Expr(SatType, tuple):
 
     def __hash__(self):
         """ This hash function identifies uniquely each expression.
-
         """
-        return tuple.__hash__(self)
+        if self.head in self.HASH:
+            return self.HASH[self.head](*self)
+        else:
+            return tuple.__hash__((self.head, *(hash(p) for p in self.tail)))
+
+    @classmethod
+    def solve(cls, expr):
+        return cls.apply((lambda item: cls.RULES[expr.head](expr) if type(expr) is cls else expr), expr)
 
     @property
     def head(self):
@@ -170,10 +179,6 @@ class Expr(SatType, tuple):
         
         ## Apply function to expr.
         return func(expr, *args, **kwargs)
-
-    @classmethod
-    def solve(cls, expr):
-        return expr
 
     @classmethod
     def from_tuple(cls, tup):

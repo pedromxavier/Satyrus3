@@ -25,6 +25,12 @@ class Memory(list):
 		else:
 			raise ValueError("Can't remove global scope.")
 
+	def clear(self):
+		## Clear list
+		del self[:]
+		## Add global scope
+		self.append({})
+
 	def memset(self, name: Var, value: SatType):
 		assert type(name) is Var
 		assert type(value) is not Var

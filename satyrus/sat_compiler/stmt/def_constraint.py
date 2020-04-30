@@ -38,20 +38,21 @@ def def_constraint(compiler, type_, name, loops, expr, level):
 	if type_ not in {'int', 'opt'}:
 		yield SatValueError(f'Unknown constraint type {type_}', target=type_)
 		return
+	elif type_ == 'int' and level is not None:
+			yield SatValueError(f'Integrity constraints have no penalty level.', target=level)
+			return
 	else:
-		yield from def_constraint_loops(compiler, loops, expr)
+		## Add new constraint
+		compiler.sco[type_][name] = {}
+		yield from def_constraint_loops(compiler, name, loops, expr)
 
-		constraint = f'template_constraint[{name}]'
-
-		compiler.sco[type_].append(constraint)
-
-def def_constraint_loops(compiler, loops, expr):
+def def_constraint_loops(compiler, type_, name, loops, expr):
 	"""
 	"""
-	raise NotImplementedError('Loop definition to be made recursively.')
-
-	for loop in loops:
+	if len(loops) >= 1:
 		compiler.memory.push()
+
+		loop, *loops = loops
 
 		loop_type, loop_var, loop_range, loop_conds = loop
 
@@ -93,20 +94,16 @@ def def_constraint_loops(compiler, loops, expr):
 
 		range_ = arange(int(start), int(stop), int(step))
 
-		for i in (start, stop):
-			compiler.memory.memset(loop_var, i)
+		## Go deeper in nested loops
+		yield from def_constraint_loops(compiler, type_, name, loops, expr)
 
+		## Clear memory stack
+		compiler.memory.pop()
+	else:
+		## Evaluate Expression
+		def_constraint_expr(compiler, name, expr)
 
-
-	## Evaluate Expression
-
-	## Clear memory stack
-	for loop in loops:
-		compiler.memory.pop()	
-
-	return range_
-
-def def_constraint_expr(compiler, expr):
+def def_constraint_expr(compiler, name, expr):
 	"""
 	"""
 	...

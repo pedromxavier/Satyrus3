@@ -1,30 +1,30 @@
-#prec: 30;
-#epsilon: 1.5E-08;
-#dir: "c:/Users/Pedro";
+?prec: 32;
+?epsilon: 1.5E-08;
+?dir: "c:/Users/Pedro";
 
 m = 3;
 n = m + 2;
 
-#exit: 0;
+?exit: 0;
 
 x[m] = {(1) : 1, (m) : -1};
 y[n] = {(1) : 0, (n) : +1};
 
-%{---------------------}
+#{---------------------}
   * THIS IS SOME MULTI-
   * LINE COMMENT...
- {---------------------}%
+ {---------------------}#
 
-% Integrity Constraints
+# Integrity Constraints
 (int) A:
-  @{i=[1:m]} % forall i from 1 to m
-  ${j=[1:n]} % exists j from 1 to n
+  @{i=[1:m]} # forall i from 1 to m
+  ${j=[1:n], j > i} # exists j from 1 to n for j greater than i
 
   x[i] -> y[j];
 
-% Optmality Constraints
+# Optmality Constraints
 (opt) X[1]:
-  @{i=[1:m]}
-  @{j=[1:n], i != j}
+  @{i=[1:m]} # forall i from 1 to m
+  @{j=[1:n], i != j} # forall j from 1 to n where i is different from j
 
   x[i] <- y[j];

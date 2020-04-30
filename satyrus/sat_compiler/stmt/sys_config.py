@@ -23,6 +23,7 @@ def sys_config_prec(compiler, name: Var, argc: int, argv: list):
     elif not argv[0].is_int or argv[0] <= 0:
         yield SatValueError(f'Precision must be a positive integer.', target=argv[0])
     else:
+        Number.prec(int(argv[0]))
         compiler.env.memset(Var(PREC), argv[0])
 
 def sys_config_epsilon(compiler, name: Var, argc: int, argv: list):
@@ -77,7 +78,7 @@ def sys_config_dir(compiler, name: Var, argc: int, argv: list):
         else:
             yield SatValueError(f'`dir` expected 1 argument, got {argc}', target=argv[1])
     else:
-        compiler.dir(argv[0])
+        compiler.dir_push(argv[0])
 
 sys_config_options = {
     EXIT : sys_config_exit,

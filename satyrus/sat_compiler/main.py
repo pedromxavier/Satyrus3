@@ -30,8 +30,13 @@ class SatCompiler:
 	"""
 	"""
 	DEFAULT_SCO = {
-		'int' : [],
-		'opt' : []
+
+	}
+	
+	DEFAULT_ENV = {
+		PREC : 16,
+		ALPHA : Number(1.0),
+		EPSILON : Number(1E-05),
 	}
 
 	callbacks = {
@@ -49,12 +54,7 @@ class SatCompiler:
 		self.memory = Memory()
 
 		## Environment
-		self.env = Memory({
-			PREC : 16,
-			DIR : os.path.abspath(os.getcwd()),
-			ALPHA : 1,
-			EPSILON : 1E-05,
-		})
+		self.env = None
 	
 		## Compiled Object
 		self.sco = None
@@ -64,14 +64,20 @@ class SatCompiler:
 		
 	def compile(self, source: Source):
 		try:
-			## Define source
+			## Input
 			self.source = source
 
 			## Parse code into bytecode
 			self.bytecode = self.parser.parse(self.source)
 
-			self.sco = self.DEFAULT_SCO.copy()
-			self.errors = list()
+			## Set default environment variables
+			self.env = Memory(self.DEFAULT_ENV)
+
+			## Set default output
+			self.sco = Memory(self.DEFAULT_SCO)
+
+			## Error collector
+			self.errors = []
 
 			for stmt in self.bytecode:
 				try:
@@ -79,20 +85,15 @@ class SatCompiler:
 				except Exit as error:
 					code = error.code
 					break
-
-			if self.errors:                  
-				for error in self.errors:
-					error.launch()
-				stderr[0] << f":: Compilation terminated ::"
-				return
-			else:
-				stdout[0] << f":: Compilation completed::"
-				return self.sco
-		except:
-			...
+			
+			## Output
+			return self.sco
+		except Exception as error:
+			raise error
 		finally:
 			self.source = None
 			self.bytecode = None
+			self.env = None
 			self.sco = None
 			self.errors = None
 			self.memory.clear()

@@ -8,7 +8,7 @@ import itertools as it
 from satlib import arange, stack
 from ...sat_types.error import SatValueError, SatTypeError
 from ...sat_types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL
-from ...sat_types import Number
+from ...sat_types import Number, Expr
 
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 
@@ -25,14 +25,18 @@ def def_constraint(compiler, type_, name, loops, expr, level):
 		var_stack, indices = def_constraint_loops(compiler, loops)
 
 		## 
-		return
+		compiler.sco[name] = (type_, var_stack, indices)
 
 def def_constraint_loops(compiler, loops: list):
 	""" def_constraint_loops(compiler, loops: list) -> (var_stack: tuple, indices: list)
 
 		Returns a tuple containing the variables from outer to innermost, and a list of indices to be assigned to these variables in each loop. 
 	"""
-	var_stack = []
+	var_stack, indices_stack = def_constraint_loop(compiler, loops)
+
+	indices = list(it.product(*indices_stack))
+
+	return var_stack, indices
 
 def def_constraint_loop(compiler, loops, var_stack=None, indices_stack=None):
 	if len(loops) >= 1:
@@ -80,16 +84,19 @@ def def_constraint_loop(compiler, loops, var_stack=None, indices_stack=None):
 			raise SatTypeError(f'Inconsistent Loop definition.', target=start)
 
 		## Build Indices list
-		indices = [i for i in arange(int(start), int(stop), int(step)) if f(i)]
+		indices = list(arange(int(start), int(stop), int(step)))
 
 		## Check Conditions
+		conds = [Expr.apply(compiler.eval_expr, cond) for cond in loop_conds]
 
 		## Build function from Conditions
-		def f(i):
-			...
+		def f(var, i):
+			for cond in conds:
+				for j in range(len(var)):
+					compiler.memset(var[j], i[j])
 		
 		## Filter Indices list
-		indices = [i for i in indices if f(i)]
+		indices = [(var, i) for (var, i) in indices if f(var, i)]
 
 		if indices_stack is None:
 			indices_stack = (indices,)

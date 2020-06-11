@@ -30,7 +30,7 @@ class SatLexer(object):
 
         'IMP', 'RIMP', 'IFF',
 
-        'SHARP',
+        'CONFIG',
 
         'ENDL',
 
@@ -47,7 +47,7 @@ class SatLexer(object):
 
         'NE', # not equal
 
-        'MUL', 'DIV', 'ADD', 'SUB',
+        'MUL', 'DIV', 'MOD', 'ADD', 'SUB',
 
         'DOTS',
 
@@ -90,6 +90,8 @@ class SatLexer(object):
 
     t_DIV = r'\/'
 
+    t_MOD = r'\%'
+
     t_MUL = r'\*'
 
     t_ADD = r'\+'
@@ -109,7 +111,7 @@ class SatLexer(object):
 
     t_NE = r'\!\='
 
-    t_SHARP = r'\#'
+    t_CONFIG = r'\?'
 
     @regex(r'\".*\"')
     def t_STRING(self, t):
@@ -134,16 +136,15 @@ class SatLexer(object):
     # String containing ignored characters between tokens
     t_ignore = ' \t'
 
-    t_ignore_COMMENT = r'%.*'
+    t_ignore_COMMENT = r'\#.*'
 
-    @regex(r'\%\{[\s\S]*?\}\%')
+    @regex(r'\#\{[\s\S]*?\}\#')
     def t_ignore_MULTICOMMENT(self, t):
         self.lexer.lineno += str(t.value).count('\n')
         return None
 
     def t_error(self, t):
         stderr << f"Unknown token '{t.value}' at line {t.lineno}"
-
         if t:
             stderr << f"Syntax Error at line {t.lineno}:"
             stderr << self.source.lines[t.lineno-1]
@@ -156,7 +157,7 @@ class SatLexer(object):
         self.source = source
 
     def chrpos(self, lineno, lexpos):
-        return lexpos - self.source.table[lineno]
+        return (lexpos - self.source.table[lineno - 1] + 1)
 
 class SatParser(object):
 
@@ -167,7 +168,7 @@ class SatParser(object):
         ('left', 'LBRA', 'RBRA'),
 
         ('left', 'ADD', 'SUB'),
-        ('left', 'MUL', 'DIV'),
+        ('left', 'MUL', 'DIV', 'MOD'),
 
         ('left', 'XOR', 'OR'),
         ('left', 'AND'),
@@ -184,7 +185,7 @@ class SatParser(object):
         
         ('left', 'DOTS'),
 
-        ('left', 'SHARP'),
+        ('left', 'CONFIG'),
 
         ('left', 'NAME'),
         ('left', 'STRING', 'NUMBER'),
@@ -192,21 +193,38 @@ class SatParser(object):
         ('left', 'ENDL'),
     )
 
-    def __init__(self, source : Source):
-        self.source = source
-        
-        self.lexer = SatLexer(self.source)
-        self.parser = yacc.yacc(module=self)
-
+    def __init__(self):
+        ## Input
+        self.source = None
+        ## Output
         self.bytecode = None
 
-    def parse(self):
+        ## Lex & Yacc
+        self.lexer = None
+        self.parser = None
+
+    def parse(self, source: Source):
         try:
+            ## Input
+            self.source = source
+            
+            ## Initialize Lexer
+            self.lexer = SatLexer(self.source)
+
+            ## Initialize Parser
+            self.parser = yacc.yacc(module=self)
+            
+            ## Run Parser
             self.parser.parse(self.source)
+
+            ## Output
             return self.bytecode
-        except SatSyntaxError:
+        except SatSyntaxError as error:
+            error.launch()
+            return None
+        finally:
+            self.source = None
             self.bytecode = None
-            return self.bytecode
             
     def run(self, code : list):
         self.bytecode = code
@@ -257,7 +275,7 @@ class SatParser(object):
         p[0] = p[1]
 
     def p_sys_config(self, p):
-        """ sys_config : SHARP NAME DOTS sys_config_args
+        """ sys_config : CONFIG NAME DOTS sys_config_args
         """
         name = self.get_arg(p, 2)
         args = p[4]
@@ -364,7 +382,7 @@ class SatParser(object):
             loops = self.get_arg(p, 9, track=False)
             expr  = self.get_arg(p, 10)
         else:
-            level = self.get_arg(None)
+            level = None
             loops = self.get_arg(p, 6, track=False)
             expr  = self.get_arg(p, 7)
 
@@ -438,7 +456,7 @@ class SatParser(object):
                  | ADD expr
                  | SUB expr
         """
-        p[0] = Expr(self.get_arg(p, 1), p[2])
+        p[0] = Expr(p[1], p[2])
 
     def p_expr2(self, p):
         """ expr : expr AND expr
@@ -448,6 +466,7 @@ class SatParser(object):
                  | expr SUB expr
                  | expr MUL expr
                  | expr DIV expr
+                 | expr MOD expr
                  | expr IMP expr
                  | expr RIMP expr
                  | expr IFF expr

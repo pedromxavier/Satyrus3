@@ -1,63 +1,63 @@
 """ :: DEF_CONSTRAINT ::
 	====================
-
-Two DEF_CONSTRAINT statement bytecodes:
-(
-'DEF_CONSTRAINT',
-	Var('int'),
-	Var('A'),
-	[
-		('@', Var('i'), (Number('1'), Var('m'), None), None),
-	 	('$', Var('j'), (Number('1'), Var('n'), None), None)
-	],
-	('[]', ('->', ('[]', Var('x'), Var('i')), Var('y')), Var('j')),
-	Number('0')
-)
-(
-'DEF_CONSTRAINT',
-	Var('opt'),
-	Var('X'),
-	[
-		('@', Var('i'), (Number('1'), Var('m'), None), None),
-		('@', Var('j'), (Number('1'), Var('n'), None), [('!=', Var('i'), Var('j'))])])
-	],
-	('[]', ('<-', ('[]', Var('x'), Var('i')), Var('y')), Var('j')),
-	Number('1')
-)
 """
+## Standard Library
+import itertools as it
 
 ## Local
 from satlib import arange, stack
 from ...sat_types.error import SatValueError, SatTypeError
 from ...sat_types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL
-from ...sat_types import Number, Constraint, Loop
+from ...sat_types import Number, Expr
 
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 
 def def_constraint(compiler, type_, name, loops, expr, level):
 	if type_ not in {'int', 'opt'}:
-		yield SatValueError(f'Unknown constraint type {type_}', target=type_)
-		return
+		raise SatValueError(f'Unknown constraint type {type_}', target=type_)
+	elif type_ == 'int' and level is not None:
+		raise SatValueError(f'Integrity constraints have no penalty level.', target=level)
 	else:
-		yield from def_constraint_loops(compiler, loops, expr)
+		## Add new constraint
+		compiler.sco[type_][name] = {}
 
-		constraint = f'template_constraint[{name}]'
+		## Get variables and indices from loops
+		var_stack, indices = def_constraint_loops(compiler, loops)
 
-		compiler.sco[type_].append(constraint)
+		## 
+		compiler.sco[name] = (type_, var_stack, indices)
 
-def def_constraint_loops(compiler, loops, expr):
+def def_constraint_loops(compiler, loops: list):
+	""" def_constraint_loops(compiler, loops: list) -> (var_stack: tuple, indices: list)
+
+		Returns a tuple containing the variables from outer to innermost, and a list of indices to be assigned to these variables in each loop. 
 	"""
-	"""
-	raise NotImplementedError('Loop definition to be made recursively.')
+	var_stack, indices_stack = def_constraint_loop(compiler, loops)
 
-	for loop in loops:
+	indices = list(it.product(*indices_stack))
+
+	return var_stack, indices
+
+def def_constraint_loop(compiler, loops, var_stack=None, indices_stack=None):
+	if len(loops) >= 1:
+		## Push compile memory scope
 		compiler.memory.push()
 
-		loop_type, loop_var, loop_range, loop_conds = loop
+		## Untangle loop
+		(loop, *loops) = loops
+
+		## Get loop attributes
+		(loop_type, loop_var, loop_range, loop_conds) = loop
+
+		## Add Variable to stack
+		if var_stack is None:
+			var_stack = (loop_var,)
+		else:
+			var_stack = (*var_stack, loop_var)
 
 		## Check Loop Type
 		if loop_type not in LOOP_TYPES:
-			yield SatTypeError(f'Invalid loop type {loop_type}', target=loop_type)
+			raise SatTypeError(f'Invalid loop type {loop_type}', target=loop_type)
 
 		## Evaluate Loop Parameters
 		start = compiler.eval(loop_range[0])
@@ -66,12 +66,10 @@ def def_constraint_loops(compiler, loops, expr):
 
 		## Check Values
 		if not start.is_int:
-			yield SatTypeError(f'Loop start must be an integer.', target=start)
-			return
+			raise SatTypeError(f'Loop start must be an integer.', target=start)
 
 		if not stop.is_int:
-			yield SatTypeError(f'Loop end must be an integer.', target=stop)
-			return
+			raise SatTypeError(f'Loop end must be an integer.', target=stop)
 
 		if step is None:
 			if start < stop:
@@ -80,33 +78,41 @@ def def_constraint_loops(compiler, loops, expr):
 				step = Number('-1')
 
 		elif not step.is_int:
-			yield SatTypeError(f'Loop step must be an integer.', target=step)
-			return
-
+			raise SatTypeError(f'Loop step must be an integer.', target=step)
+			
 		if (start < stop and step < 0) or (start > stop and step > 0):
-			yield SatTypeError(f'Inconsistent Loop definition.', target=start)
-			return
+			raise SatTypeError(f'Inconsistent Loop definition.', target=start)
+
+		## Build Indices list
+		indices = list(arange(int(start), int(stop), int(step)))
 
 		## Check Conditions
-		for cond in loop_conds:
-			expr = compiler.eval_expr(cond)
+		conds = [Expr.apply(compiler.eval_expr, cond) for cond in loop_conds]
 
-		range_ = arange(int(start), int(stop), int(step))
+		## Build function from Conditions
+		def f(var, i):
+			for cond in conds:
+				for j in range(len(var)):
+					compiler.memset(var[j], i[j])
+		
+		## Filter Indices list
+		indices = [(var, i) for (var, i) in indices if f(var, i)]
 
-		for i in (start, stop):
-			compiler.memory.memset(loop_var, i)
+		if indices_stack is None:
+			indices_stack = (indices,)
+		else:
+			indices_stack = (*indices_stack, indices)
 
+		## Go deeper in nested loops
+		var_stack, indices_stack = def_constraint_loop(compiler, loops, var_stack, indices_stack)
 
+		## Clear memory stack
+		compiler.memory.pop()
 
-	## Evaluate Expression
+	## Output
+	return var_stack, indices_stack
 
-	## Clear memory stack
-	for loop in loops:
-		compiler.memory.pop()	
-
-	return range_
-
-def def_constraint_expr(compiler, expr):
+def def_constraint_expr(compiler, name, expr):
 	"""
 	"""
 	...

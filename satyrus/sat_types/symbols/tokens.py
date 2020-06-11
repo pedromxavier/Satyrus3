@@ -24,6 +24,7 @@ T_ADD = intern('+')
 T_SUB = intern('-')
 T_MUL = intern('*')
 T_DIV = intern('/')
+T_MOD = intern('%')
 
 ## Indexing
 T_IDX = intern('[]')
@@ -50,6 +51,7 @@ T_DICT = {
   'SUB' : T_SUB, 'RSUB' : T_SUB, 'NEG' : T_SUB,
   'MUL' : T_MUL, 'RMUL' : T_MUL,
   'DIV' : T_DIV, 'RDIV' : T_DIV, 'TRUEDIV' : T_DIV, 'RTRUEDIV' : T_DIV,
+  'MOD' : T_MOD, 'RMOD' : T_MOD,
 
   'GT' : T_GT,
   'LT' : T_LT,

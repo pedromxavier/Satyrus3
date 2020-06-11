@@ -105,6 +105,13 @@ class Expr(SatType, tuple):
 
         This is one of the core elements of the system. This is used to represent ASTs.
     """
+    HASH = {}
+    RULES = {}
+    TABLE = {}
+
+    FORMAT_PATTERNS = {}
+    FORMAT_FUNCS = {}
+
     def __new__(cls, head, *tail):
         return tuple.__new__(cls, (head, *tail))
 
@@ -113,16 +120,33 @@ class Expr(SatType, tuple):
         self._var_stack = None
 
     def __str__(self):
-        return join(' ', self)
+        if self.head in self.FORMAT_PATTERNS:
+            return self.FORMAT_PATTERNS[self.head].format(*self)
+        elif self.head in self.FORMAT_FUNCS:
+            return self.FORMAT_FUNCS[self.head](*self)
+        else:
+            return join(' ', self)
 
     def __repr__(self):
         return f"Expr({join(', ', self)})"
 
     def __hash__(self):
         """ This hash function identifies uniquely each expression.
-
         """
-        return tuple.__hash__(self)
+        if self.head in self.HASH:
+            return self.HASH[self.head](*self)
+        else:
+            return tuple.__hash__((self.head, *(hash(p) for p in self.tail)))
+
+    @classmethod
+    def rule(cls, token: str):
+        def decor(callback):
+            cls.RULES[token] = callback
+        return decor
+
+    @classmethod
+    def solve(cls, expr):
+        return cls.apply((lambda item: cls.RULES[expr.head](expr) if type(expr) is cls else expr), expr)
 
     @property
     def head(self):
@@ -170,10 +194,6 @@ class Expr(SatType, tuple):
         
         ## Apply function to expr.
         return func(expr, *args, **kwargs)
-
-    @classmethod
-    def solve(cls, expr):
-        return expr
 
     @classmethod
     def from_tuple(cls, tup):

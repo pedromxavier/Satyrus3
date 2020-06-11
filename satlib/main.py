@@ -25,20 +25,20 @@ def load(fname : str, **kwargs):
     with open(fname, 'r', **kwargs) as file:
         return file.read()
 
-def dump(fname : str, s : str):
-    with open(fname, 'w') as file:
+def dump(fname : str, s : str, **kwargs):
+    with open(fname, 'w', **kwargs) as file:
         file.write(s)
 
-def pkload(fname : str):
-    with open(fname, 'rb') as pkfile:
+def pkload(fname : str, **kwargs):
+    with open(fname, 'rb', **kwargs) as pkfile:
         while True:
             try:
                 yield pickle.load(pkfile)
             except EOFError:
                 break
 
-def pkdump(fname : str, *args):
-    with open(fname, 'wb') as pkfile:
+def pkdump(fname : str, *args, **kwargs):
+    with open(fname, 'wb', **kwargs) as pkfile:
         for obj in args:
             pickle.dump(obj, pkfile)
 

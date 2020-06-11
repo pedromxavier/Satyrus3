@@ -9,7 +9,7 @@ suitable for json serialization.
 import os
 
 ## Local
-from satlib import stdsys, stderr, stdout, Source
+from satlib import system, stdsys, stderr, stdout, Source
 
 from ..sat_parser import SatParser
 from ..sat_types import SatType, String, Number, Var, Array, Expr
@@ -22,18 +22,21 @@ from .stmt import sys_config, def_constant, def_array, def_constraint
 class Exit(Exception):
 	""" 
 	"""
-	
 	def __init__(self, code: int):
 		self.code = code
-		Exception.__init__(self, f'exit code: {code}')
+		Exception.__init__(self, f'exit code {code}')
 
 class SatCompiler:
 	"""
 	"""
-
 	DEFAULT_SCO = {
-		'int' : [],
-		'opt' : []
+
+	}
+	
+	DEFAULT_ENV = {
+		PREC : 16,
+		ALPHA : Number(1.0),
+		EPSILON : Number(1E-05),
 	}
 
 	callbacks = {
@@ -43,23 +46,15 @@ class SatCompiler:
 		DEF_CONSTRAINT : def_constraint
 	}
 
-	def __init__(self, source : Source, parser : SatParser = None):
+	def __init__(self, parser : SatParser = None):
 		## Initialize parser
-		self.source = source
-		self.parser = parser if parser is not None else SatParser(self.source)
-
-		assert self.source is self.parser.source
+		self.parser = parser if parser is not None else SatParser()
 
 		## Memory
 		self.memory = Memory()
 
 		## Environment
-		self.env = Memory({
-			PREC : 16,
-			DIR : os.path.abspath(os.getcwd()),
-			ALPHA : 1,
-			EPSILON : 1E-05,
-		})
+		self.env = None
 	
 		## Compiled Object
 		self.sco = None
@@ -67,31 +62,49 @@ class SatCompiler:
 		## Errors
 		self.errors = None
 		
-	def compile(self):
-		self.bytecode = self.parser.parse()
-		self.sco = self.DEFAULT_SCO.copy()
-		self.errors = list()
+	def compile(self, source: Source):
+		try:
+			## Input
+			self.source = source
 
-		for stmt in self.bytecode:
-			try:
-				self.errors.extend(self.run(stmt))
-			except Exit as error:
-				code = error.code
-				break
+			## Parse code into bytecode
+			self.bytecode = self.parser.parse(self.source)
 
-		if self.errors:
-			for error in self.errors:
-				error.launch()
-			stderr[0] << f":: Compilation terminated ::"
-			return code
-		else:
-			stdout[0] << f":: Compilation completed::"
-			return code
+			## Set default environment variables
+			self.env = Memory(self.DEFAULT_ENV)
+
+			## Set default output
+			self.sco = Memory(self.DEFAULT_SCO)
+
+			## Error collector
+			self.errors = []
+
+			for stmt in self.bytecode:
+				try:
+					self.errors.extend(self.exec(stmt))
+				except Exit as error:
+					code = error.code
+					break
+			
+			## Output
+			return self.sco
+		except Exception as error:
+			raise error
+		finally:
+			self.source = None
+			self.bytecode = None
+			self.env = None
+			self.sco = None
+			self.errors = None
+			self.memory.clear()
 
 	def exit(self, code: int):
 		raise Exit(code)
 
-	def run(self, stmt: tuple):
+	def dir(self, path: str):
+		system.dir_push(path)
+
+	def exec(self, stmt: tuple):
 		name, *args = stmt
 		yield from self.callbacks[name](self, *args)
 

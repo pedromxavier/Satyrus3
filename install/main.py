@@ -23,12 +23,23 @@ class installer:
 
     @classmethod
     def install_extensions(cls):
+<<<<<<< HEAD
         path = os.path.join('install', 'extensions')
         system.push(path)
 
         shutil.copy()
 
         system.pull()
+=======
+        path = os.path.join(cls.home, 'install', 'extensions')
+        return path
+        
+
+    @classmethod
+    def make_install_file(cls):
+        fname = os.path.join(cls.home, 'install', 'install.dat')
+        pkdump(fname, cls.data)
+>>>>>>> 49b01cf5fca1e86c7e6d5d545062281ba3728568
 
     @classmethod
     def install(cls):
@@ -37,13 +48,13 @@ class installer:
             stdsys << ":: Installation Success ::"
         except Exception as error:
             stderr << ":: Installation Failed ::"
-            raise error
-            
+            raise error  
 
     @classmethod
-    def init(cls, dir : str):
+    def init(cls, dir: str=None):
         # Get the long description from the README file
-        cls.long_description = load('README.md', encoding='utf-8')
+        fname = os.path.join(cls.home, 'README.md')
+        cls.long_description = load(fname, encoding='utf-8')
 
         raise NotImplementedError()
 

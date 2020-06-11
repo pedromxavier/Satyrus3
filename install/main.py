@@ -5,6 +5,7 @@
 import os
 import sys
 import shutil
+import glob
 import pickle
 from setuptools import setup, find_packages
 
@@ -23,7 +24,11 @@ class installer:
     @classmethod
     def install_extensions(cls):
         path = os.path.join('install', 'extensions')
-        return path
+        system.push(path)
+
+        shutil.copy()
+
+        system.pull()
 
     @classmethod
     def install(cls):

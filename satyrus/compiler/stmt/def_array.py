@@ -1,5 +1,5 @@
-from ...sat_types import Array, Number
-from ...sat_types.error import SatTypeError, SatValueError
+from ...types import Array, Number
+from ...types.error import SatTypeError, SatValueError
 
 def def_array(compiler, name, shape, buffer):
     shape = tuple(compiler.eval(n) for n in shape)

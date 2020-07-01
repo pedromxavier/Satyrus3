@@ -2,9 +2,9 @@
 from sys import intern
 
 ## Local
-from ...sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA, EXIT
-from ...sat_types import SatType, String, Number, Var, Array
-from ...sat_types.error import SatValueError, SatTypeError
+from ...types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA, EXIT
+from ...types import SatType, String, Number, Var, Array
+from ...types.error import SatValueError, SatTypeError
 
 def sys_config(compiler, name: Var, args: list):
     if name in sys_config_options:

@@ -1,68 +1,97 @@
+"""
+"""
+## Standard Library
+from collections import namedtuple
+
+## Third-Party
 import colorama
 
-class stream(object):
+class _stream(object):
+    """ stream(level=0, bg=..., fg=..., )
+
+        Examples:
+        >>> stream.set_lvl(0)
+        >>> stream[1] << "Hello."
+        >>> stream[0] << "Hello."
+        Hello.
+        >>> stream << "Hello."
+        Hello.
+    """
+
+    COLORS = {"BLACK", "RED", "GREEN", "YELLOW", "BLUE", "MAGENTA", "CYAN", "WHITE", None}
+    STYLES = {"DIM", "NORMAL", "BRIGHT", None}
+
+    RESET = colorama.Style.RESET_ALL
+
+    Params = namedtuple('params', ['bg', 'fg', 'sty'], defaults=[None, None, None])
 
     __ref__ = {}
     __lvl__ = None
 
-    KWARGS = {
-        'sep' : ' ',
-        'end' : '\n',
-    }
+    def __new__(cls, lvl: int=0, **kwargs: dict):
+        ## Gather parameters
+        params = cls.Params(**kwargs)
 
-    def __new__(cls, fg, sty, level=0, **kwargs):
-        if (fg, sty, level) not in cls.__ref__:
-            cls.__ref__[(fg, sty, level)] = object.__new__(cls)
-        return cls.__ref__[(fg, sty, level)]
-        
-    def __init__(self, fg, sty, level=0, **kwargs):
-        self.fg = fg
-        self.sty = sty
-        self.level = level
-        self.kwargs = self.KWARGS.copy()
-        self.kwargs.update(kwargs)
+        ## Check Background
+        if params.bg not in cls.COLORS:
+            raise ValueError(f'Color {params.bg} not available.\nOptions: {cls.COLORS}')
+        ## Check Foreground
+        if params.fg not in cls.COLORS:
+            raise ValueError(f'Color {params.fg} not available.\nOptions: {cls.COLORS}')
+        ## Check Style
+        if params.sty not in cls.STYLES:
+            raise ValueError(f'Style {params.sty} not available.\nOptions: {cls.STYLES}')
 
-    @staticmethod
-    def cstring(txt : tuple, fg : str = None, sty : str = None, **kwargs):
-        string = kwargs['sep'].join(map(str, txt))
+        if params not in cls.__ref__:
+            cls.__ref__[params] = super().__new__(cls)
+        return cls.__ref__[params]
 
-        if not (fg is None and sty is None):
-            fg = "" if fg is None else getattr(colorama.Fore, fg)
-            sty = "" if sty is None else getattr(colorama.Style, sty)
-            string = f"{fg}{sty}{string}{colorama.Style.RESET_ALL}"
+    def __init__(self, lvl: int=0, **kwargs: dict):
+        ## Set lvl
+        self.lvl = lvl
 
-        return string
-            
-    @staticmethod
-    def cprint(txt : tuple, fg : str = None, sty : str = None, **kwargs):
-        string = stream.cstring(txt, fg, sty, **kwargs)
-        print(string, end=kwargs['end'])
+        ## Gather parameters
+        bg, fg, sty = self.params = self.Params(**kwargs)
 
-    def __lshift__(self, txt):
-        if self.__lvl__ is None or self.level <= self.__lvl__:
-            txt = (txt,) if type(txt) is not tuple else txt
-            stream.cprint(txt, self.fg, self.sty, **self.kwargs)
-        return self
+        ## Gather escape sequences
+        self.bg = "" if bg is None else getattr(colorama.Back, bg)
+        self.fg = "" if fg is None else getattr(colorama.Fore, fg)
+        self.sty = "" if sty is None else getattr(colorama.Style, sty)
+
+    def __repr__(self):
+        params = ", ".join([f"{key}={getattr(self.params, key)!r}" for key in ('bg', 'fg', 'sty')])
+        return f"{self.__class__.__name__}({self.lvl}, {params})"
+
+    def printf(self, *args, **kwargs):
+        if self.echo: self._printf(*args, **kwargs)
+
+    def _printf(self, *args, **kwargs):
+        print(self.bg, self.fg, self.sty, sep="", end="")
+        print(*args, **kwargs)
+        print(self.RESET, sep="", end="")
+
+    def string(self, s: str):
+        return f"{self.bg}{self.fg}{self.sty}{s}{self.RESET}"
+
+    def __lshift__(self, s: str):
+        if self.echo: print(self.string(s))
     
-    def __getitem__(self, level):
-        return stream(self.fg, self.sty, level, **self.kwargs)
+    def __getitem__(self, lvl: int):
+        return self.__class__(lvl, **self.params._asdict())
+
+    def __call__(self, **kwargs):
+        return self.__class__(self.lvl, **kwargs)
+
+    @property
+    def echo(self):
+        return (self.__lvl__ is None) or (self.__lvl__ >= self.lvl)
 
     @classmethod
-    def set_level(cls, level : int = None):
-        if level is None:
-            cls.__lvl__ = None
-        elif type(level) is int:
-            if level >= -1:
-                cls.__lvl__ = level
-            else:
-                raise ValueError(f'Invalid debug level {level}.')
+    def set_lvl(cls, lvl : int = None):
+        if lvl is None or type(lvl) is int:
+            cls.__lvl__ = lvl
         else:
-            raise TypeError(f'Invalid type for debug level. Must be `int`.')
+            raise TypeError(f'Invalid type `{type(lvl)}`` for debug lvl. Must be `int`.')
             
-
+stream = _stream()
 colorama.init()
-
-## default stream configs
-stdsys = stream('GREEN', 'DIM')
-stdout = stream('CYAN', None)
-stderr = stream('RED', None)

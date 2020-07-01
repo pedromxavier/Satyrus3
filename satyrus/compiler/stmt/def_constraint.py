@@ -6,9 +6,9 @@ import itertools as it
 
 ## Local
 from satlib import arange, stack
-from ...sat_types.error import SatValueError, SatTypeError
-from ...sat_types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL
-from ...sat_types import Number, Expr
+from ...types.error import SatValueError, SatTypeError
+from ...types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL
+from ...types import Number, Expr
 
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 
@@ -18,14 +18,11 @@ def def_constraint(compiler, type_, name, loops, expr, level):
 	elif type_ == 'int' and level is not None:
 		raise SatValueError(f'Integrity constraints have no penalty level.', target=level)
 	else:
-		## Add new constraint
-		compiler.sco[type_][name] = {}
-
 		## Get variables and indices from loops
 		var_stack, indices = def_constraint_loops(compiler, loops)
 
-		## 
-		compiler.sco[name] = (type_, var_stack, indices)
+		## Add new constraint
+		compiler.sco[type_][name] = (type_, var_stack, indices, expr)
 
 def def_constraint_loops(compiler, loops: list):
 	""" def_constraint_loops(compiler, loops: list) -> (var_stack: tuple, indices: list)

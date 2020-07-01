@@ -4,8 +4,8 @@
 
 ## Local
 from satlib import stack, join
-from ..sat_types.error import SatReferenceError
-from ..sat_types import Var, SatType
+from ..types.error import SatReferenceError
+from ..types import Var, SatType
 
 class Memory(list):
 	""" Satyrus Compiler Memory

@@ -11,10 +11,10 @@ import os
 ## Local
 from satlib import system, stdsys, stderr, stdout, Source
 
-from ..sat_parser import SatParser
-from ..sat_types import SatType, String, Number, Var, Array, Expr
-from ..sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
-from ..sat_types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA
+from ..parser import SatParser
+from ..types import SatType, String, Number, Var, Array, Expr
+from ..types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
+from ..types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA
 
 from .memory import Memory
 from .stmt import sys_config, def_constant, def_array, def_constraint
@@ -85,6 +85,8 @@ class SatCompiler:
 				except Exit as error:
 					code = error.code
 					break
+			else:
+				code = 0
 			
 			## Output
 			return self.sco
@@ -97,6 +99,7 @@ class SatCompiler:
 			self.sco = None
 			self.errors = None
 			self.memory.clear()
+			return code
 
 	def exit(self, code: int):
 		raise Exit(code)

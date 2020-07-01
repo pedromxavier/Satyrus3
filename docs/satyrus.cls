@@ -1,5 +1,5 @@
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesClass{sat}[11/01/2020 BookStyle]
+\ProvidesClass{satyrus}[30/06/2020 Satyrus]
 
 %% Article options
 \DeclareOption{12pt}{

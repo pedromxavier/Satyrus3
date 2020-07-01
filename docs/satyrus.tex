@@ -1,0 +1,38 @@
+\documentclass[12pt]{satyrus}
+\usepackage{satyrus}
+
+\title{Satyrus III}
+\author{Pedro Maciel Xavier}
+
+\begin{document}
+    \maketitle
+
+    \tableofcontents
+
+    \chapter{Introdução}
+
+    \section{Detalhes Técnicos}
+
+    \section{Implementação}
+
+    \subsection{Expressões}
+
+    \subsection{Etapas de Compilação e Execução}
+
+    \section{Uso}
+
+    \chapter{Conceitos Teóricos}
+
+    \section{Mapeamento}
+
+    \begin{align*}
+        \HH(T) = 1\\
+        \HH(F) = 0\\
+        \HH(a)=a\\
+        \HH(\neg p)=1−\HH(p)\\
+        \HH(p \wedge q)=\HH(p) \times \HH(q)\\
+        \HH(p \vee q)=\HH(p) + \HH(q)−\HH(p \wedge q)\\
+        \HH(p \oplus q) = \HH(p) + \HH(q) − 2 \times \HH(p \vee q)
+    \end{align*}
+
+\end{document}

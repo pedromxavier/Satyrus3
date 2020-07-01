@@ -8,12 +8,12 @@ from ply import lex, yacc
 
 ## Local
 from satlib import stderr, stdout, Source
-from ..sat_types.error import SatParserError, SatLexerError, SatSyntaxError
-from ..sat_types import Expr, Number, Var, String
-from ..sat_types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
-from ..sat_types.symbols.tokens import T_IDX
+from ..types.error import SatParserError, SatLexerError, SatSyntaxError
+from ..types import Expr, Number, Var, String
+from ..types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
+from ..types.symbols.tokens import T_IDX
 
-def regex(pattern):
+def regex(pattern: str):
     def decor(callback):
         callback.__doc__ = pattern
         return callback
@@ -491,5 +491,5 @@ class SatParser(object):
         else:
             stderr << "Unexpected End Of File."
 
-    def chrpos(self, lineno, lexpos):
+    def chrpos(self, lineno: int, lexpos: int):
         return (lexpos - self.source.table[lineno - 1] + 1)

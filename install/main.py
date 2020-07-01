@@ -5,6 +5,7 @@
 import os
 import sys
 import shutil
+import glob
 import pickle
 from setuptools import setup, find_packages
 
@@ -22,6 +23,14 @@ class installer:
 
     @classmethod
     def install_extensions(cls):
+<<<<<<< HEAD
+        path = os.path.join('install', 'extensions')
+        system.push(path)
+
+        shutil.copy()
+
+        system.pull()
+=======
         path = os.path.join(cls.home, 'install', 'extensions')
         return path
         
@@ -30,6 +39,7 @@ class installer:
     def make_install_file(cls):
         fname = os.path.join(cls.home, 'install', 'install.dat')
         pkdump(fname, cls.data)
+>>>>>>> 49b01cf5fca1e86c7e6d5d545062281ba3728568
 
     @classmethod
     def install(cls):

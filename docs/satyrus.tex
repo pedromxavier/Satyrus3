@@ -1,38 +1,89 @@
 \documentclass[12pt]{satyrus}
 \usepackage{satyrus}
+\usepackage[brazil]{babel}
 
 \title{Satyrus III}
 \author{Pedro Maciel Xavier}
 
 \begin{document}
     \maketitle
+    
+    \newpage
 
     \tableofcontents
 
     \chapter{Introdução}
+    
+    \section{Motivação}
 
-    \section{Detalhes Técnicos}
+    \section{Ficha Técnica}
 
-    \section{Implementação}
-
-    \subsection{Expressões}
-
-    \subsection{Etapas de Compilação e Execução}
+    \section{Características da Implementação}
 
     \section{Uso}
+    
+    \subsection{Instalação}
+    
+    A instalação pode demandar privilégios de administrador.
+    
+	\begin{bash}
+	~$ git clone
+	~$ cd Satyrus3
+	~$ sudo python3 setup.py install
+	\end{bash}
+	
+	\begin{shell}
+	C:\Users\User> git clone
+	C:\Users\User> cd Satyrus3
+	C:\Users\User\Satyrus3> python setup.py install
+	\end{shell}
+
+    \subsection{Execução}
+    
+    Escreva seu código em um arquivo de extensão \code{.sat}.
+    
+	\begin{bash}
+	~$ satyrus script.sat
+	\end{bash}
+	
+	\begin{shell}
+	C:\Users\User> python -m satyrus script.sat
+	\end{shell}
 
     \chapter{Conceitos Teóricos}
 
-    \section{Mapeamento}
-
-    \begin{align*}
-        \HH(T) = 1\\
-        \HH(F) = 0\\
-        \HH(a)=a\\
-        \HH(\neg p)=1−\HH(p)\\
-        \HH(p \wedge q)=\HH(p) \times \HH(q)\\
-        \HH(p \vee q)=\HH(p) + \HH(q)−\HH(p \wedge q)\\
-        \HH(p \oplus q) = \HH(p) + \HH(q) − 2 \times \HH(p \vee q)
-    \end{align*}
-
+    \section{Lógica Proposicional}
+    
+    \section{Compiladores}
+    
+    \chapter{Tipos}
+    
+    \section{Números}
+    
+    \section{Matrizes}
+    
+    \section{Variáveis}
+    
+    \chapter{Sintaxe do SATish}
+    
+    \section{Comentários}
+    
+    \section{Diretivas}
+    
+    \section{Atribuição}
+    
+    \section{Matrizes}
+    
+    \section{Definição de Restrições}
+    
+    \chapter{Exemplos}
+    
+    \section{Coloração de Grafos}
+    
+    \chapter*{Glossário}
+    
+    \begin{thebibliography}{20}
+    	\bibitem{monteiro:10} MONTEIRO, B. F. SATyrus2: \textbf{Compilando Especificações de Racioncínio Lógico}. Dissertação (Engenharia de Sistemas e Computação) - PESC/COPPER, UFRJ. Rio de Janeiro, 2010.
+    \end{thebibliography}
+    
 \end{document}

@@ -1,6 +1,5 @@
 ?prec: 32;
 ?epsilon: 1.5E-08;
-?dir: "c:/Users/Pedro";
 
 m = 3;
 n = m + 2;

@@ -10,12 +10,12 @@ import itertools as it
 from satlib import arange, stack
 from ...types.error import SatValueError, SatTypeError
 from ...types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL
-from ...types import Number, Expr
+from ...types import Var, Number, Expr
 
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 CONST_TYPES = {'int', 'opt'}
 
-def def_constraint(compiler, const_type, name: Var, loops, expr, level):
+def def_constraint(compiler, const_type: str, name: Var, loops: list, expr: Expr, level: int):
 	"""
 	"""
 	if const_type not in CONST_TYPES:

@@ -1,3 +1,4 @@
+## Local
 from satlib import stderr, stdout
 
 class SatError(Exception):
@@ -17,6 +18,9 @@ class SatError(Exception):
             )
         else:
             return self.msg
+
+class SatWarning(SatError):
+    TITLE = 'Warning'
 
 ##
 class SatIndexError(SatError):

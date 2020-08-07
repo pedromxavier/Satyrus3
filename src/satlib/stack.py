@@ -29,4 +29,4 @@ class Stack:
 
     @property
     def top(self):
-        return self[-1]
+        return self.__stack[-1]

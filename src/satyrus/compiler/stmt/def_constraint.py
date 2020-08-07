@@ -7,117 +7,107 @@
 import itertools as it
 
 ## Local
-from satlib import arange, stack
-from ...types.error import SatValueError, SatTypeError
+from satlib import arange, Stack
+from ..compiler import SatCompiler
+from ...types.error import SatValueError, SatTypeError, SatReferenceError
 from ...types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL
 from ...types import Var, Number, Expr
 
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 CONST_TYPES = {'int', 'opt'}
 
-def def_constraint(compiler, const_type: str, name: Var, loops: list, expr: Expr, level: int):
+def def_constraint(compiler: SatCompiler, const_type: str, name: Var, loops: list, expr: Expr, level: int):
 	"""
 	"""
 	if const_type not in CONST_TYPES:
-		raise SatValueError(f'Unknown constraint type {const_type}', target=const_type)
+		compiler << SatValueError(f'Unknown constraint type {const_type}', target=const_type)
 	elif const_type == 'int' and level is not None:
-		raise SatValueError(f'Integrity constraints have no penalty level.', target=level)
+		compiler << SatValueError(f'Integrity constraints have no penalty level.', target=level)
 	else:
-		## Get variables and indices from loops
-		var_stack, indices = def_constraint_loops(compiler, loops)
+		def_constraint_loops(compiler, loops)
 
-		## Add new constraint
-		compiler.sco[const_type][name] = (const_type, var_stack, indices, expr)
+	compiler.checkpoint()
 
-def def_constraint_loops(compiler, loops: list):
-	""" def_constraint_loops(compiler, loops: list) -> (var_stack: tuple, indices: list)
-
-		Returns a tuple containing the variables from outer to innermost, and a list of indices to be assigned to these variables in each loop. 
+def def_constraint_loops(compiler: SatCompiler, loops: list) -> None:
+	""" 
 	"""
-	var_stack, indices_stack = def_constraint_loop(compiler, loops)
 
-	indices = list(it.product(*indices_stack))
+	depth = len(loops)
 
-	return var_stack, indices
+	for loop in loops:
+		def_constraint_loop(compiler, loop)
 
-def def_constraint_loop(compiler, loops, var_stack=None, indices_stack=None):
-	if len(loops) >= 1:
+	compiler.pop(depth)
+	
+	compiler.checkpoint()
+
+def def_constraint_loop(compiler: SatCompiler, loop: tuple) -> None:
+	"""
+	"""
+	## Get loop attributes
+	(loop_type, loop_var, loop_range, loop_conds) = loop
+
+	## Check Loop Type
+	if loop_type not in LOOP_TYPES:
+		compiler << SatTypeError(f'Invalid loop type {loop_type}', target=loop_type)
+
+	if loop_var in compiler:
+		compiler << SatReferenceError(f"Duplicate definition for loop variable {loop_var}", target=loop_var)
+	else:
 		## Push compile memory scope
-		compiler.memory.push()
+		compiler.push()
 
-		## Untangle loop
-		(loop, *loops) = loops
+	## Evaluate Loop Parameters
+	start, stop, step = tuple(compiler.eval(k) for k in loop_range)
 
-		## Get loop attributes
-		(loop_type, loop_var, loop_range, loop_conds) = loop
+	## Check Values
+	if not start.is_int:
+		compiler << SatTypeError(f'Loop start must be an integer.', target=start)
 
-		## Add Variable to stack
-		if var_stack is None:
-			var_stack = (loop_var,)
+	if not stop.is_int:
+		compiler << SatTypeError(f'Loop end must be an integer.', target=stop)
+
+	if step is None:
+		if start < stop:
+			step = Number('1')
 		else:
-			var_stack = (*var_stack, loop_var)
+			step = Number('-1')
 
-		## Check Loop Type
-		if loop_type not in LOOP_TYPES:
-			raise SatTypeError(f'Invalid loop type {loop_type}', target=loop_type)
-
-		## Evaluate Loop Parameters
-		start = compiler.eval(loop_range[0])
-		stop = compiler.eval(loop_range[1])
-		step = compiler.eval(loop_range[2])
-
-		## Check Values
-		if not start.is_int:
-			raise SatTypeError(f'Loop start must be an integer.', target=start)
-
-		if not stop.is_int:
-			raise SatTypeError(f'Loop end must be an integer.', target=stop)
-
-		if step is None:
-			if start < stop:
-				step = Number('1')
-			else:
-				step = Number('-1')
-
-		elif not step.is_int:
-			raise SatTypeError(f'Loop step must be an integer.', target=step)
-			
-		if (start < stop and step < 0) or (start > stop and step > 0):
-			raise SatTypeError(f'Inconsistent Loop definition.', target=start)
-
-		## Build Indices list
-		indices = list(arange(int(start), int(stop), int(step)))
-
-		## Check Conditions
-		conds = [Expr.apply(compiler.eval_expr, cond) for cond in loop_conds]
-
-		## Build function from Conditions
-		def f(var, i):
-			for cond in conds:
-				for j in range(len(var)):
-					compiler.memset(var[j], i[j])
+	elif not step.is_int:
+		compiler << SatTypeError(f'Loop step must be an integer.', target=step)
 		
-		## Filter Indices list
-		indices = [(var, i) for (var, i) in indices if f(var, i)]
+	if (start < stop and step < 0) or (start > stop and step > 0):
+		compiler << SatTypeError(f'Inconsistent Loop definition.', target=start)
 
-		if indices_stack is None:
-			indices_stack = (indices,)
-		else:
-			indices_stack = (*indices_stack, indices)
+	## Set loop variable to itself
+	compiler.memset(loop_var, loop_var)
 
-		## Go deeper in nested loops
-		var_stack, indices_stack = def_constraint_loop(compiler, loops, var_stack, indices_stack)
+	for cond in loop_conds:
+		def_loop_cond(compiler, cond)
 
-		## Clear memory stack
-		compiler.memory.pop()
+	compiler.checkpoint()
 
-	## Output
-	return var_stack, indices_stack
-
-def def_constraint_expr(compiler, name, expr):
+def def_loop_cond(compiler: SatCompiler, cond: Expr):
+	""" DEF_LOOP_COND
+		=============
 	"""
+	try:
+		compiler.eval_expr(cond)
+	except SatReferenceError as error:
+		compiler << error
+	finally:
+		compiler.checkpoint()
+
+def def_expr(compiler, expr: Expr):
+	""" DEF_EXPR
+		========
+
+		Checks for expression consistency.
+		1. Variable definition
+		2. Proper indexing
 	"""
-	...
+
+	
 
 		
 

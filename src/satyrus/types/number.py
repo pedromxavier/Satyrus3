@@ -69,5 +69,5 @@ class Number(SatType, decimal.Decimal):
     def is_int(self):
         return (int(self) - self) == 0
 
-Number.TRUE = Number('1')
-Number.FALSE = Number('0')
+Number.T = Number('1')
+Number.F = Number('0')

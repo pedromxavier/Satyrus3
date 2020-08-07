@@ -9,16 +9,14 @@ suitable for json serialization.
 import os
 
 ## Local
-from satlib import system, stderr, stdout, Source, Stack
+from satlib import system, stderr, stdout, stdwar, Source, Stack
 
 from ..parser import SatParser
-from ..types.error import SatError, SatTypeError, SatCompilerError, SatReferenceError, SatExit
+from ..types.error import SatError, SatTypeError, SatCompilerError, SatReferenceError, SatExit, SatWarning
 from ..types import SatType, String, Number, Var, Array, Expr
-from ..types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
 from ..types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA
 
 from .memory import Memory
-from .stmt import sys_config, def_constant, def_array, def_constraint
 
 class SatCompiler:
 	"""
@@ -33,16 +31,25 @@ class SatCompiler:
 		EPSILON : Number(1E-05),
 	}
 
-	callbacks = {
-		SYS_CONFIG : sys_config,
-		DEF_CONSTANT : def_constant,
-		DEF_ARRAY : def_array,
-		DEF_CONSTRAINT : def_constraint
-	}
+	## Optimization Level
+	O = 0
 
-	def __init__(self, parser : SatParser = None):
+	def __init__(self, instructions: dict, parser : SatParser = None):
+		## Build Instruction Set
+		if type(instructions) is not dict:
+			raise TypeError("`instructions` must be of type `dict`.")
+		elif not instructions:
+			raise ValueError("Empty Instruction Set.")
+		else:
+			self.instructions = instructions
+
 		## Initialize parser
-		self.parser = parser if parser is not None else SatParser()
+		if type(parser) is not SatParser:
+			raise TypeError("`parser` must be of type `SatParser`.")
+		elif parser is None:
+			self.parser = SatParser()
+		else:
+			self.parser = parser
 
 		## Memory
 		self.memory = Memory()
@@ -58,6 +65,14 @@ class SatCompiler:
 
 	def __lshift__(self, error: SatError):
 		self.error_stack.push(error)
+
+	def __getitem__(self, level: int):
+		""" Optimization Level
+		"""
+		return self.O >= level
+
+	def __lt__(self, warning: SatWarning):
+		stdwar << warning
 		
 	def compile(self, source: Source):
 		try:
@@ -106,7 +121,7 @@ class SatCompiler:
 
 	def exec(self, stmt: tuple):
 		name, *args = stmt
-		return self.callbacks[name](self, *args)
+		return self.instructions[name](self, *args)
 
 	def eval(self, value: SatType):
 		if type(value) is Var:
@@ -114,7 +129,7 @@ class SatCompiler:
 			var = value
 
 			## Get value from memory
-			var_value = self.memory.memget(var)
+			var_value = self.memget(var)
 
 			## Copy error tracking information
 			var_value.lexinfo = value.lexinfo
@@ -124,14 +139,30 @@ class SatCompiler:
 		elif type(value) is Expr:
 			## Rename variable
 			expr = value
-
-			## Evaluate expression
-			expr = self.eval_expr(expr)
 			
 			## Return solved expression
-			return Expr.solve(expr)
+			if self[1]:
+				return Expr.solve(expr)
+			else:
+				return expr
 		else:
 			return value
+
+	def eval_expr(self, expr: Expr):
+		"""
+		"""
+		if type(expr) is Expr:
+			return Expr.back_apply(self._apply_eval_expr, expr)
+		else:
+			return expr
+
+	def _apply_eval_expr(self, value: SatType):
+		"""
+		"""
+		if type(value) is Expr:
+			return value
+		else:
+			return self.eval(value)
 
 	def __enter__(self, *args, **kwargs):
 		...
@@ -159,22 +190,16 @@ class SatCompiler:
 		finally:
 			self.checkpoint()
 
+	
+	def push(self):
+		""" push memory scope
+		"""
+		self.memory.push()
 
-	def eval_expr(self, expr: Expr):
+	def pop(self, depth: int=1):
+		""" pop memory scope
 		"""
-		"""
-		if type(expr) is Expr:
-			return Expr.apply(self._apply_eval_expr, expr)
-		else:
-			return expr
-
-	def _apply_eval_expr(self, value: SatType):
-		"""
-		"""
-		if type(value) is Expr:
-			return value
-		else:
-			return self.eval(value)
+		self.memory.pop(depth)
 
 	def interrupt(self):
 		"""

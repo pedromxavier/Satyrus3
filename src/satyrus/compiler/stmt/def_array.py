@@ -39,6 +39,7 @@ def def_array_shape(compiler, shape: tuple):
     for n in shape:
         if not (n.is_int and n > 0):
             compiler << SatTypeError(f'Array dimensions must be positive integers.', target=n)
+
     compiler.checkpoint()
 
 def def_array_buffer(compiler, shape: tuple, buffer: list, array: dict):
@@ -64,4 +65,5 @@ def def_array_buffer(compiler, shape: tuple, buffer: list, array: dict):
             compiler << SatValueError(f'Array elements must be numbers.', target=val)
         else:
             array[tuple(map(int, idx))] = val
+
     compiler.checkpoint()

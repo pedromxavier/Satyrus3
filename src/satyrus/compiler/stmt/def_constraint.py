@@ -9,39 +9,51 @@ import itertools as it
 ## Local
 from satlib import arange, Stack
 from ..compiler import SatCompiler
-from ...types.error import SatValueError, SatTypeError, SatReferenceError
+from ...types.error import SatValueError, SatTypeError, SatReferenceError, SatWarning
 from ...types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL
-from ...types import Var, Number, Expr
+from ...types import Var, Number, Expr, Constraint
 
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 CONST_TYPES = {'int', 'opt'}
 
-def def_constraint(compiler: SatCompiler, const_type: str, name: Var, loops: list, expr: Expr, level: int):
+def def_constraint(compiler: SatCompiler, cons_type: Var, name: Var, loops: list, expr: Expr, level: Number):
 	"""
 	"""
-	if const_type not in CONST_TYPES:
-		compiler << SatValueError(f'Unknown constraint type {const_type}', target=const_type)
-	elif const_type == 'int' and level is not None:
+
+	if cons_type not in CONST_TYPES:
+		compiler << SatValueError(f'Unknown constraint type {cons_type}', target=cons_type)
+	elif (cons_type == 'int') and (level is not None):
 		compiler << SatValueError(f'Integrity constraints have no penalty level.', target=level)
+	elif not level.is_int:
+		compiler << SatValueError(f'Penalty level must be an integer.', target=level)
 	else:
-		def_constraint_loops(compiler, loops)
+		## Create constraint
+		constraint = Constraint(cons_type, int(level))
+
+		## Compile constraint loops
+		loop_depth = len(loops)
+
+		for loop in loops:
+			def_constraint_loop(compiler, loop, constraint)
+
+		compiler.checkpoint()
+
+		## Compile expression
+		def_expr(compiler, expr, constraint)
+
+		compiler.pop(loop_depth)
 
 	compiler.checkpoint()
 
-def def_constraint_loops(compiler: SatCompiler, loops: list) -> None:
-	""" 
-	"""
+	## Check for constraint re-definition
+	if name in compiler:
+		compiler < SatWarning(f'Constraint definition overrides previous assignment.', target=name)
 
-	depth = len(loops)
+	compiler.memset(name, constraint)
 
-	for loop in loops:
-		def_constraint_loop(compiler, loop)
-
-	compiler.pop(depth)
-	
 	compiler.checkpoint()
 
-def def_constraint_loop(compiler: SatCompiler, loop: tuple) -> None:
+def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constraint) -> None:
 	"""
 	"""
 	## Get loop attributes
@@ -82,23 +94,26 @@ def def_constraint_loop(compiler: SatCompiler, loop: tuple) -> None:
 	## Set loop variable to itself
 	compiler.memset(loop_var, loop_var)
 
-	for cond in loop_conds:
-		def_loop_cond(compiler, cond)
+	## Evaluate loop conditionals
+	def_loop_conds(compiler, loop_conds)
 
 	compiler.checkpoint()
 
-def def_loop_cond(compiler: SatCompiler, cond: Expr):
+def def_loop_conds(compiler: SatCompiler, loop_conds: list):
 	""" DEF_LOOP_COND
 		=============
 	"""
-	try:
-		compiler.eval_expr(cond)
-	except SatReferenceError as error:
-		compiler << error
-	finally:
+	for i, cond in enumerate(loop_conds):
+		try:
+			loop_conds[i] = compiler.eval_expr(cond)
+		except SatReferenceError as error:
+			compiler << error
+		except Exception as error:
+			raise error
+	else:
 		compiler.checkpoint()
 
-def def_expr(compiler, expr: Expr):
+def def_expr(compiler, expr: Expr, constraint: Constraint):
 	""" DEF_EXPR
 		========
 
@@ -106,6 +121,9 @@ def def_expr(compiler, expr: Expr):
 		1. Variable definition
 		2. Proper indexing
 	"""
+	expr = compiler.eval_expr(expr)
+	
+
 
 	
 

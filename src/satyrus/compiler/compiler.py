@@ -146,7 +146,11 @@ class SatCompiler:
 			else:
 				return expr
 		else:
-			return value
+			if not issubclass(type(value), SatType):
+				self << SatTypeError(f'{type(value)} is not a valid Satyrus Type for evaluation.', target=value)
+				self.checkpoint()
+			else:
+				return value
 
 	def eval_expr(self, expr: Expr):
 		"""

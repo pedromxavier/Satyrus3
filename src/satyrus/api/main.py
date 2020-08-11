@@ -23,9 +23,11 @@ class MetaSatAPI(type):
 
     def __new__(cls, name: str, bases: tuple, attrs: dict):
         if name == cls.name:
-            cls.base_class = type(name, bases, {**attrs, 'subclasses': cls.subclasses})
+            cls.base_class = new_class = type(name, bases, {**attrs, 'subclasses': cls.subclasses})
         else:
-            cls.subclasses[attrs['key']] = type(name, bases, attrs)
+            cls.subclasses[attrs['key']] = new_class = type(name, bases, attrs)
+        
+        return new_class
 
 class SatAPI(metaclass=MetaSatAPI):
 
@@ -43,7 +45,7 @@ class SatAPI(metaclass=MetaSatAPI):
 
     @classmethod
     def load_source(cls, source: str):
-        return str()
+        ...
 
 class Text(SatAPI):
 

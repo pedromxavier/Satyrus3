@@ -100,8 +100,8 @@ def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constrai
 	compiler.checkpoint()
 
 def def_loop_conds(compiler: SatCompiler, loop_conds: list):
-	""" DEF_LOOP_COND
-		=============
+	""" DEF_LOOP_CONDS
+		==============
 	"""
 	for i, cond in enumerate(loop_conds):
 		try:
@@ -121,7 +121,8 @@ def def_expr(compiler, expr: Expr, constraint: Constraint):
 		1. Variable definition
 		2. Proper indexing
 	"""
-	expr = compiler.eval_expr(expr)
+
+def 
 	
 
 

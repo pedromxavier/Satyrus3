@@ -203,6 +203,8 @@ class SatParser(object):
         self.lexer = None
         self.parser = None
 
+        self.errors = []
+
     def parse(self, source: Source):
         try:
             ## Input
@@ -220,7 +222,7 @@ class SatParser(object):
             ## Output
             return self.bytecode
         except SatSyntaxError as error:
-            error.launch()
+            self << error
             return None
         finally:
             self.source = None

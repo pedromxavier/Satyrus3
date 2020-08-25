@@ -27,12 +27,16 @@
 \LoadClass[a4paper]{memoir}
 
 %% Load additional packages and commands.
+\RequirePackage{amsmath}
+\RequirePackage{amssymb}
+\RequirePackage{mathrsfs}
 \RequirePackage{xcolor}
 \RequirePackage[utf8]{inputenc}
 \RequirePackage{float}
 \RequirePackage{graphicx}
 \RequirePackage{xspace}
 \RequirePackage{listings}
+\RequirePackage{textcomp}
 
 %% Additional TeX/LaTeX code...
 
@@ -102,7 +106,7 @@
 	stringstyle={\stringstyle},
 	keywordstyle={\keywordstyle},
 	morekeywords={%  
-		def, seja, enquanto, para, cada, em, se, retorna, continua, e, ou%
+		git, sudo, cd, python, python3%
 	},
 	emphstyle={\emphstyle},
 	emph={%
@@ -112,7 +116,7 @@
 	stepnumber=1,
 	showstringspaces=false,
 	basicstyle=\ttfamily,
-	mathescape=false,
+	mathescape=true,
 	breaklines=true,
 	breakatwhitespace=false,
 	extendedchars=true,
@@ -149,7 +153,7 @@
 	stringstyle={\stringstyle},
 	keywordstyle={\keywordstyle},
 	morekeywords={%  
-		def, seja, enquanto, para, cada, em, se, retorna, continua, e, ou%
+		int, opt%
 	},
 	emphstyle={\emphstyle},
 	emph={%
@@ -159,14 +163,14 @@
 	stepnumber=1,
 	showstringspaces=false,
 	basicstyle=\ttfamily,
-	mathescape=true,
+	mathescape=false,
 	breaklines=true,
 	breakatwhitespace=false,
 	extendedchars=true,
 	inputencoding=utf8,
 	xleftmargin=1.5cm,
-	morecomment=[l]{//},
-	morecomment=[s]{/*}{*/},
+	morecomment=[l]{\#},
+	%% morecomment=[s]{#{}{}#},
 	morestring=[b]",
 	literate=
 	{ã}{{\~a}}1                         {õ}{{\~o}}1 

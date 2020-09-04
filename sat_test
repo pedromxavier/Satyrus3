@@ -1,4 +1,0 @@
-#!/usr/env/python
-from test import SatTest
-
-SatTest.main()

@@ -14,3 +14,7 @@ OUT = intern('out')
 EPSILON = intern('epsilon')
 ALPHA = intern('alpha')
 EXIT = intern('exit')
+
+## Constraint Types
+CONS_INT = intern('int')
+CONS_OPT = intern('opt')

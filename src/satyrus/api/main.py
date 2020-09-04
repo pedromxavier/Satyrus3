@@ -3,12 +3,11 @@
 
     Example:
 
-    >>> source = load('source.sat')
-    >>> sat = SatAPI(source)
+    >>> sat = SatAPI.load_source('~/path/source.sat')
     >>> # - Mosel Xpress Solver -
-    >>> dump(sat['mosel'], 'sat.xpress')
+    >>> sat['mosel'].solve()
     >>> # - DWave Quantum Annealing Solver -
-    >>> dwave.neal.solve(sat['dwave'])
+    >>> sat['dwave'].solve()
 """ 
 
 class MetaSatAPI(type):
@@ -46,6 +45,10 @@ class SatAPI(metaclass=MetaSatAPI):
     @classmethod
     def load_source(cls, source: str):
         ...
+
+## NOTE: DO NOT EDIT ABOVE THIS LINE
+## ---------------------------------
+## 
 
 class Text(SatAPI):
 

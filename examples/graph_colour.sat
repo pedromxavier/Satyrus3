@@ -1,26 +1,54 @@
 #{ ------------------- }
+    Exemplo - Satyrus 3
    Coloração de Grafos
-   Exemplo - Satyrus 3
  { ------------------- }#
 
-# Dimensão da matriz
-m = 5;
-# Matriz de distâncias
-x[m][m] = {(1, 1) : 0, (1, 2) : 2, (1, 3) : 4, (1, 4) : 5, (1, 5) : 2,
-           (2, 1) : 2, (2, 2) : 0, (2, 3) : 4, (2, 4) : 5, (2, 5) : 6,
-           (3, 1) : 4, (3, 2) : 4, (3, 3) : 0, (3, 4) : 1, (3, 5) : 4,
-           (4, 1) : 5, (4, 2) : 5, (4, 3) : 1, (4, 4) : 0, (4, 5) : 3,
-           (5, 1) : 2, (5, 2) : 6, (5, 3) : 4, (5, 4) : 3, (5, 5) : 0};
+# Dimensão das matrizes
+m = 5; # número de vérties
+n = 5; # número de cores
+
+# Matriz de Adjacências
+# viz[i][j] = 1 sse i é vizinho de j
+viz[m][m] = {
+    (1, 1) : 0, (1, 2) : 1, (1, 3) : 1, (1, 4) : 0, (1, 5) : 1,
+    (2, 1) : 1, (2, 2) : 0, (2, 3) : 1, (2, 4) : 0, (2, 5) : 1,
+    (3, 1) : 1, (3, 2) : 1, (3, 3) : 0, (3, 4) : 1, (3, 5) : 0,
+    (4, 1) : 0, (4, 2) : 0, (4, 3) : 1, (4, 4) : 0, (4, 5) : 1,
+    (5, 1) : 1, (5, 2) : 1, (5, 3) : 0, (5, 4) : 1, (5, 5) : 0
+};
+
+# Matriz de Coloração
+col[m][n];
+
+# Cores utilizadas
+cor[n];
 
 # Restrição de Integridade
-(int) A:
-    @{i = [1:m]} # para todo i
-    ${j = [1:m]} # existe j
+(int) iAdj[2]:
+    # Vizinhos devem ter cores distintas
+    @{i = [1:m]}
+    @{j = [i+1:m]}
+    @{k = [1:n]}
+    viz[i][j] -> ~(col[i][k] & col[j][k]);
 
-    x[i][j] <-> x[j][i];
+(int) iCol2[2]:
+    # Um vértice não pode ser colorido com mais do que uma cor
+    @{i = [1:m]}
+    @{k = [1:n]}
+    @{l = [1:k-1]}
+    ~(col[i][k] & col[i][l]);
 
-(opt) X[0]:
-    @{i = [1:m]} # para todo i
-    ${j = [1:m]} # existe j
+(int) iCol1[1]:
+    # Todo vértice deve ser colorido
+    @{i = [1:m]} # para todo i (and)
+    ${k = [1:n]} # existe k (ou)
+    col[i][k];
 
-    x[i][j] & x[j][i];
+(int) iCol3[1]:
+    @{i = [1:m]}
+    @{k = [1:n]}
+    col[i][k] -> cor[k];
+
+(opt) oCol:
+    ${k = [1:n]}
+    cor[k];

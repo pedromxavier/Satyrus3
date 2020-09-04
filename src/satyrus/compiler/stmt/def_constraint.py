@@ -11,10 +11,11 @@ from satlib import arange, Stack
 from ..compiler import SatCompiler
 from ...types.error import SatValueError, SatTypeError, SatReferenceError, SatWarning
 from ...types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL
+from ...types.symbols import CONS_INT, CONS_OPT
 from ...types import Var, Number, Expr, Constraint
 
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
-CONST_TYPES = {'int', 'opt'}
+CONST_TYPES = {CONS_INT, CONS_OPT}
 
 def def_constraint(compiler: SatCompiler, cons_type: Var, name: Var, loops: list, expr: Expr, level: Number):
 	"""
@@ -22,8 +23,8 @@ def def_constraint(compiler: SatCompiler, cons_type: Var, name: Var, loops: list
 
 	if cons_type not in CONST_TYPES:
 		compiler << SatValueError(f'Unknown constraint type {cons_type}', target=cons_type)
-	elif (cons_type == 'int') and (level is not None):
-		compiler << SatValueError(f'Integrity constraints have no penalty level.', target=level)
+	elif (cons_type == CONS_OPT) and (level is not None):
+		compiler << SatValueError(f'Optimality constraints have no penalty level.', target=level)
 	elif not level.is_int:
 		compiler << SatValueError(f'Penalty level must be an integer.', target=level)
 	else:
@@ -121,8 +122,6 @@ def def_expr(compiler, expr: Expr, constraint: Constraint):
 		1. Variable definition
 		2. Proper indexing
 	"""
-
-def 
 	
 
 

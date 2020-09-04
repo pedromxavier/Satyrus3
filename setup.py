@@ -15,10 +15,6 @@ def load(fname: str):
     with open(fname, 'r') as file:
         return file.read()
 
-def dump(fname: str, s: str):
-    with open(fname, 'w') as file:
-        return file.write(s)
-
 URL = r'https://pedromxavier.github.io/projetos/satyrus'
 
 DESCRIPTION = r''
@@ -43,7 +39,7 @@ kwargs = {
     # For a discussion on single-sourcing the version across setup.py and the
     # project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    "version" : '3.0.1',  # Required
+    "version" : '3.0.0',  # Required
 
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
@@ -119,7 +115,7 @@ kwargs = {
 
     # When your source code is in a subdirectory under the project root, e.g.
     # `src/`, it is necessary to specify the `package_dir` argument.
-    "package_dir" : {'': 'src'},  # Optional
+    #"package_dir" : {'': 'src'},  # Optional
 
     # You can just specify package directories manually here if your project is
     # simple. Or you can use find_packages().
@@ -132,7 +128,7 @@ kwargs = {
     #
     "packages" : [
         "satyrus",
-        "satyrus.satlib",
+        "satyrus.satlib"
         ],
 
     # Specify which Python versions you support. In contrast to the

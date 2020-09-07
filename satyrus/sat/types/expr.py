@@ -2,7 +2,7 @@
 from functools import reduce
 
 ## Local
-from ...satlib import join
+from ...satlib import join, compose
 from .main import Expr
 from .number import Number
 
@@ -74,6 +74,31 @@ def DIV(x, y):
 def MOD(x, y):
     return x.__mod__(y)
 
+Expr.ASSOCIATIVE.update({
+    ## Logical
+    T_AND, T_OR,
+
+    ## Arithmetic
+    T_ADD, T_MUL,
+})
+
+Expr.GROUPS.update({ ## precedence groups
+    ## Logical
+    ## 1
+    T_IMP : 1,
+    T_RIMP : 1,
+    T_IFF : 1,
+
+    ## 2
+    T_OR : 2,
+
+    ## 3
+    T_AND : 3,
+
+    ## 4
+    T_NOT : 4,
+})
+
 Expr.FORMAT_PATTERNS.update({
     
     ## Logical
@@ -100,7 +125,6 @@ Expr.FORMAT_FUNCS.update({
     T_AND : (lambda head, *tail: (join(f' {head} ', tail))),
     T_OR  : (lambda head, *tail: (join(f' {head} ', tail))),
 })
-
 
 ## Expression  Tables
 Expr.TABLE['IMP'] = {
@@ -162,3 +186,40 @@ Expr.HASH.update({
 
     T_MUL : (lambda head, *tail: reduce(lambda x, y: hash((head, hash(x) + hash(y))), tail)),
     })
+
+def remove_implications(expr):
+    if expr.head in expr.TABLE['IMP']:
+        return expr.TABLE['IMP'][expr.head](*expr.tail)
+    else:
+        return expr
+
+def move_not_inwards(expr):
+    if expr.head == T_NOT:
+        expr = expr.tail[0]
+        if type(expr) is Expr:
+            if expr.head in expr.TABLE['NOT']:
+                return expr.TABLE['NOT'][expr.head](*expr.tail)
+            else:
+                return expr
+        else:
+            return Expr(T_NOT, expr)
+    else:
+        return expr
+
+def distribute_and_over_or(expr):
+    """
+        (A & B) | C => (A | C) & (B | C)
+        (A & B) | (C & D) => (A | C) & (A | D) & (B | C) & (B | D)
+    """
+    if expr.head == T_OR:
+        conjs = [(p.tail if (type(p) is Expr and p.head == T_AND) else (p,)) for p in expr.tail]
+        return Expr(T_AND, *(Expr(T_OR, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
+    else:
+        return expr
+
+@Expr.property
+def cnf(expr):
+    expr = Expr.apply(expr, compose(move_not_inwards, remove_implications))
+    expr = expr.associate
+    expr = expr.back_apply(expr, distribute_and_over_or)
+    return expr

@@ -12,12 +12,29 @@ T_NOT = intern('~')
 
 T_IFF = intern('<->')
 T_IMP = intern('->')  
-T_RIMP = intern('<-')  
+T_RIMP = intern('<-')
 
 ## Quantifiers
-T_FORALL = intern('@')     # These only appear at statements,
-T_EXISTS = intern('$')     # not at expressions, thus no head
-T_EXISTS_ONE = intern('!$')    # is needed.
+T_FORALL = intern('@')      # These only appear at statements,
+T_EXISTS = intern('$')      # not at expressions, thus no head
+T_EXISTS_ONE = intern('$!') # is needed.
+
+T_LOGICAL = {
+  T_AND,
+  T_OR,
+  T_XOR,
+  T_NOT,
+
+  T_IFF,
+  T_IMP,
+  T_RIMP,
+
+  ## Quantifiers
+  T_FORALL,
+  T_EXISTS,
+  T_EXISTS_ONE,
+}
+
 
 ## Arithmetic
 T_ADD = intern('+')

@@ -66,8 +66,8 @@ class Number(SatType, decimal.Decimal):
             cls.context.prec = value
 
     @property
-    def is_int(self):
-        return (int(self) - self) == 0
+    def is_int(self) -> bool:
+        return ((int(self) - float(self)) == 0)
 
 Number.T = Number('1')
 Number.F = Number('0')

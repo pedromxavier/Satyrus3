@@ -65,6 +65,9 @@ def keep_type(callbacks : set):
         return cls
     return class_decor
 
+def compose(*funcs):
+    return reduce(lambda f, g: (lambda *x, **kw: f(g(*x, **kw))), funcs)
+
 def join(glue : str, args : list, func : callable=str):
     return glue.join(map(func, args))
 

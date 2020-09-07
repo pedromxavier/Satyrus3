@@ -75,43 +75,41 @@ class SatCompiler:
 		stdwar << warning
 		
 	def compile(self, source: Source):
-		try:
-			## Input
-			self.source = source
+		"""
+		"""
+		code = 1
 
-			## Parse code into bytecode
-			self.bytecode = self.parser.parse(self.source)
+		## Input
+		self.source = source
 
-			## Set default environment variables
-			self.env = Memory(self.DEFAULT_ENV)
+		## Parse code into bytecode
+		self.bytecode = self.parser.parse(self.source)
 
-			## Set default output
-			self.sco = Memory(self.DEFAULT_SCO)
+		## Set default environment variables
+		self.env = self.DEFAULT_ENV.copy()
 
-			## Error collector
-			self.errors = []
+		## Set default output
+		self.sco = self.DEFAULT_SCO.copy()
 
-			for stmt in self.bytecode:
-				try:
-					self.exec(stmt)
-				except SatExit as error:
-					code = error.code
-					break
-			else:
-				code = 0
-			
-			## Output
-			return self.sco
-		except Exception as error:
-			raise error
-		finally:
-			self.source = None
-			self.bytecode = None
-			self.env = None
-			self.sco = None
-			self.errors = None
-			self.memory.clear()
-			return code
+		## Error collector
+		self.errors = []
+
+		for stmt in self.bytecode:
+			try:
+				stdout[1] << f"> {stmt}"
+				self.exec(stmt)
+			except SatExit as error:
+				code = error.code
+				break
+		else:
+			code = 0
+		
+		if code:
+			stderr[1] << f"> compiler exited with code {code}."
+		else:
+			stdout[1] << f"> compiler exited with code {code}."
+		return code
+		
 
 	def exit(self, code: int):
 		raise SatExit(code)
@@ -211,7 +209,8 @@ class SatCompiler:
 		while self.error_stack:
 			error = self.error_stack.pop()
 			stderr << error
-		self.exit(self.status)
+		else:
+			self.exit(1)
 
 	def checkpoint(self):
 		"""
@@ -222,4 +221,4 @@ class SatCompiler:
 	def status(self):
 		"""
 		"""
-		return int(not self.error_stack)
+		return bool(self.error_stack)

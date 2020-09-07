@@ -30,7 +30,7 @@
 				},
 				{
 				"name":"keyword.operator.sat",
-				"match": "(\\&|\\||\\^|\\~|\\<\\-\\>|(\\<\\-)|\\-\\>|\\+|\\-|\\*|\\/|\\=\\=|\\!\\=|\\>\\=|\\<\\=)"
+				"match": "(\\&|\\||\\^|\\~|\\<\\-\\>|(\\<\\-)|\\-\\>|\\+|\\%|\\-|\\*|\\/|\\=\\=|\\!\\=|\\>\\=|\\<\\=)"
 				}
 			]
 		},
@@ -38,7 +38,7 @@
 			"patterns": [
 				{
 				"name":"entity.name.tag.sat",
-				"match": "\\#[a-zA-Z]+\\:"
+				"match": "\\?[a-zA-Z]+\\:"
 				},
 				{
 				"name":"entity.name.type.sat",
@@ -84,12 +84,12 @@
 			"patterns": [
 				{
 					"name":"comment.block.sat",
-					"begin": "%{",
-					"end": "}%"
+					"begin": "#{",
+					"end": "}#"
 				},
 				{
 				"name": "comment.line.sat",
-				"begin": "%",
+				"begin": "#",
 				"end": "\n"
 				}
 				

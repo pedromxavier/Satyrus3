@@ -1,1 +1,1 @@
-from .main import SatCompiler
+from .compiler import SatCompiler

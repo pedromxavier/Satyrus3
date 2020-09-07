@@ -3,6 +3,8 @@
    Coloração de Grafos
  { ------------------- }#
 
+?prec: 13;
+
 # Dimensão das matrizes
 m = 5; # número de vérties
 n = 5; # número de cores

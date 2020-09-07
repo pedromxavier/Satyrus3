@@ -1,1 +1,1 @@
-from .main import SatParser
+from .parser import SatParser

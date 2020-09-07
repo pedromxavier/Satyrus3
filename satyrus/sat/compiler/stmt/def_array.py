@@ -37,7 +37,7 @@ def def_array_shape(compiler, shape: tuple):
         ===============
     """
     for n in shape:
-        if not (n.is_int and n > 0):
+        if not (n.is_int and int(n) > 0):
             compiler << SatTypeError(f'Array dimensions must be positive integers.', target=n)
 
     compiler.checkpoint()
@@ -56,7 +56,7 @@ def def_array_buffer(compiler, shape: tuple, buffer: list, array: dict):
             if not i.is_int:
                 compiler << SatTypeError(f'Array indices must be integers.', target=i)
                 
-            if not 1 <= i <= n:
+            if not 1 <= int(i) <= int(n):
                 compiler << SatValueError(f'Indexing ´{i}´ is out of bounds [1, {n}]', target=i)
 
         val = compiler.eval(val)

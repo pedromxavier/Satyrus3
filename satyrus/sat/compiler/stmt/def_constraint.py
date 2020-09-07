@@ -7,12 +7,13 @@
 import itertools as it
 
 ## Local
-from satlib import arange, Stack
+from ....satlib import arange, Stack
 from ..compiler import SatCompiler
 from ...types.error import SatValueError, SatTypeError, SatReferenceError, SatWarning
 from ...types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL
 from ...types.symbols import CONS_INT, CONS_OPT
-from ...types import Var, Number, Expr, Constraint
+from ...types import Var, Number, Constraint
+from ...types.expr import Expr
 
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 CONST_TYPES = {CONS_INT, CONS_OPT}
@@ -21,11 +22,13 @@ def def_constraint(compiler: SatCompiler, cons_type: Var, name: Var, loops: list
 	"""
 	"""
 
-	if cons_type not in CONST_TYPES:
+	if str(cons_type) not in CONST_TYPES:
 		compiler << SatValueError(f'Unknown constraint type {cons_type}', target=cons_type)
-	elif (cons_type == CONS_OPT) and (level is not None):
+	elif (str(cons_type) == CONS_OPT) and (level is not None):
 		compiler << SatValueError(f'Optimality constraints have no penalty level.', target=level)
-	elif not level.is_int:
+	elif (str(cons_type) == CONS_INT) and (level is None):
+		compiler << SatValueError(f'Integrity constraints must have a penalty level.', target=cons_type)
+	elif (level is not None and not level.is_int):
 		compiler << SatValueError(f'Penalty level must be an integer.', target=level)
 	else:
 		## Create constraint
@@ -40,7 +43,7 @@ def def_constraint(compiler: SatCompiler, cons_type: Var, name: Var, loops: list
 		compiler.checkpoint()
 
 		## Compile expression
-		def_expr(compiler, expr, constraint)
+		get_expr(compiler, expr)
 
 		compiler.pop(loop_depth)
 
@@ -65,10 +68,10 @@ def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constrai
 		compiler << SatTypeError(f'Invalid loop type {loop_type}', target=loop_type)
 
 	if loop_var in compiler:
-		compiler << SatReferenceError(f"Duplicate definition for loop variable {loop_var}", target=loop_var)
-	else:
-		## Push compile memory scope
-		compiler.push()
+		compiler < SatWarning(f"Duplicate definition for loop variable `{loop_var}`.", target=loop_var)
+
+	## Push compile memory scope
+	compiler.push()
 
 	## Evaluate Loop Parameters
 	start, stop, step = tuple(compiler.eval(k) for k in loop_range)
@@ -106,7 +109,7 @@ def def_loop_conds(compiler: SatCompiler, loop_conds: list):
 	"""
 	for i, cond in enumerate(loop_conds):
 		try:
-			loop_conds[i] = compiler.eval_expr(cond)
+			loop_conds[i] = get_common_expr(compiler, cond)
 		except SatReferenceError as error:
 			compiler << error
 		except Exception as error:
@@ -114,14 +117,38 @@ def def_loop_conds(compiler: SatCompiler, loop_conds: list):
 	else:
 		compiler.checkpoint()
 
-def def_expr(compiler, expr: Expr, constraint: Constraint):
-	""" DEF_EXPR
+def get_common_expr(compiler, expr: Expr) -> Expr:
+	""" DEF_COMMON_EXPR
 		========
 
 		Checks for expression consistency.
 		1. Variable definition
 		2. Proper indexing
+		3. Constant evaluation
 	"""
+	expr = compiler.eval_expr(expr)
+
+	return expr
+
+
+def get_expr(compiler, expr: Expr):
+	""" DEF_EXPR
+		========
+
+		Checks for expression consistency.
+		1. Constant evaluation
+		2. Proper indexing
+	"""
+	expr = compiler.eval_expr(expr)
+
+	## Translates to C.N.F.
+	expr = expr.cnf
+
+	return expr
+
+
+
+
 	
 
 

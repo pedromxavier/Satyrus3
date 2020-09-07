@@ -17,7 +17,7 @@ class MetaSatType(type):
     def null_func(*args):
         return NotImplemented
 
-    def __init__(cls, name, bases, attrs):
+    def __new__(cls, name, bases, attrs):
         for name, token in cls.ATTRS.items():
             if name in attrs:
                 callback = attrs[name]
@@ -26,8 +26,12 @@ class MetaSatType(type):
 
             attrs[name] = cls.sat_magic(token, callback)
 
+        return type(name, bases, attrs)
+
     @classmethod
     def sat_magic(cls, token, callback):
+        """
+        """
         @wraps(callback)
         def new_callback(*args):
             answer = callback(*args)
@@ -89,25 +93,23 @@ class SatType(metaclass=MetaSatType):
 
     @property
     def is_int(self):
-        print(self)
         raise NotImplementedError
-    
-    @property
-    def as_int(self):
-        try:
-            return int(self)
-        except:
-            raise NotImplementedError
 
 class Expr(SatType, tuple):
     """ :: Expr ::
         ==========
 
         This is one of the core elements of the system. This is used to represent ASTs.
+
+        Only basic functionality is implemented here. Context is implemented in `expr.py`
     """
     HASH = {}
     RULES = {}
     TABLE = {}
+
+    GROUPS = {}
+
+    ASSOCIATIVE = set()
 
     FORMAT_PATTERNS = {}
     FORMAT_FUNCS = {}
@@ -119,13 +121,28 @@ class Expr(SatType, tuple):
         SatType.__init__(self)
         self._var_stack = None
 
-    def __str__(self):
-        if self.head in self.FORMAT_PATTERNS:
-            return self.FORMAT_PATTERNS[self.head].format(*self)
-        elif self.head in self.FORMAT_FUNCS:
-            return self.FORMAT_FUNCS[self.head](*self)
+    def parenthesise(self, child) -> bool:
+        if type(child) is not type(self):
+            return False
+        elif self.head not in self.GROUPS:
+            return False
+        elif child.head not in self.GROUPS:
+            return False
+        elif self.GROUPS[self.head] > self.GROUPS[child.head]:
+            return True
         else:
-            return ' '.join(self)
+            return False
+
+    def __str__(self):
+        head = self.head
+        tail = [(f"({p})" if self.parenthesise(p) else str(p)) for p in self.tail]
+        if head in self.FORMAT_PATTERNS:
+            return self.FORMAT_PATTERNS[head].format(head, *tail)
+        elif head in self.FORMAT_FUNCS:
+            return self.FORMAT_FUNCS[head](head, *tail)
+        else:
+            return join(" ", [head, *tail])
+        
 
     def __repr__(self):
         return f"Expr({join(', ', self, repr)})"
@@ -160,38 +177,75 @@ class Expr(SatType, tuple):
     def copy(self):
         return Expr(self.head, *[p.copy for p in self.tail])
 
-    @property
-    def var_stack(self):
-        if self._var_stack is None:
-            self._var_stack = set()
-            for value in self.tail:
-                if type(value) is Expr:
-                    self._var_stack.update(value.var_stack)
-                elif type(value) is Var:
-                    self._var_stack.add(value)
-            return self._var_stack
+    @classmethod
+    def _associate(cls, expr):
+        if expr.head in cls.ASSOCIATIVE:
+            tail = []
+            for p in expr.tail:
+                if type(p) is cls: ## is an expression
+                    if p.head == expr.head:
+                        tail.extend(p.tail)
+                        continue
+                tail.append(p)
+            return cls(expr.head, *tail)
         else:
-            return self._var_stack
+            return expr
+
+    @property
+    def associate(self):
+        return type(self).back_apply(self, self._associate)
 
     @classmethod
-    def apply(cls, func, expr, *args, **kwargs):
+    def transverse(cls, expr, func, *args, **kwargs) -> None:
+        """ Transverses expression
+
+            >>> def func(expr, *args, **kwargs):
+            ...     ...
+            ...     return None
+        """
+        if type(expr) is cls:
+            for p in expr.tail:
+                cls.transverse(p, func, *args, **kwargs)
+        else:
+            func(expr, *args, **kwargs)
+
+    @classmethod
+    def seek(cls, expr, func, *args, **kwargs) -> list:
+        """ Seeks for tree leaves who satisfy `func`
+
+            >>> def func(expr, *args, **kwargs):
+            ...     ...
+            ...     return ...
+        """
+        results = []
+        if type(expr) is cls:
+            for p in expr.tail:
+                results.extend(cls.seek(p, func, *args, **kwargs))
+        else:
+            if func(expr, *args, **kwargs):
+                results.append(expr)
+        return results
+
+    @classmethod
+    def apply(cls, expr, func, *args, **kwargs):
         """ Forward-applies function `func` to `expr`.
 
             >>> def func(expr, *args, **kwargs):
             ...    new_expr = ...
             ...    return new_expr
         """
-        ## Apply function to expr.
-        expr = func(expr, *args, **kwargs)
-        
         if type(expr) is cls:
-            tail = [cls.apply(func, p, *args, **kwargs) for p in expr.tail]
-            return cls(expr.head, *tail)
+            expr = func(expr, *args, **kwargs)
+            if type(expr) is cls:
+                tail = [cls.apply(p, func, *args, **kwargs) for p in expr.tail]
+                return cls(expr.head, *tail)
+            else:
+                return expr
         else:
             return expr
 
     @classmethod
-    def back_apply(cls, func, expr, *args, **kwargs):
+    def back_apply(cls, expr, func, *args, **kwargs):
         """ Back-applies function `func` to `expr`.
 
             >>> def func(expr, *args, **kwargs):
@@ -199,11 +253,13 @@ class Expr(SatType, tuple):
             ...    return new_expr
         """
         if type(expr) is cls:
-            tail = [cls.back_apply(func, p, *args, **kwargs) for p in expr.tail]
+            tail = [cls.back_apply(p, func, *args, **kwargs) for p in expr.tail]
             expr = cls(expr.head, *tail)
-        
-        ## Apply function to expr.
-        return func(expr, *args, **kwargs)
+
+            ## Apply function to expr.
+            return func(expr, *args, **kwargs)
+        else:
+            return expr
 
     @classmethod
     def from_tuple(cls, tup: tuple):
@@ -225,6 +281,20 @@ class Expr(SatType, tuple):
             Compares both expressions.
         """
         return hash(p) == hash(q)
+
+    @classmethod
+    def property(cls, func: callable):
+        """ >>> @Expr.property
+            ... def func(expr):
+            ...     ...
+            ...     return expr.attr
+
+            >>> e = Expr(...)
+            >>> e.func
+            e.attr
+        """
+        setattr(cls, func.__name__, property(func))
+        return getattr(cls, func.__name__)
 
 class Var(SatType, str):
 

@@ -1,54 +1,57 @@
+## Standard Library
+import os
+
 ## Local
 from ...satlib import stderr, stdout
 
 class SatError(Exception):
-    TITLE = 'Error'
+    'Error'
     def __init__(self, msg=None, target=None):
         Exception.__init__(self, msg)
-        self.msg = msg
+        self.msg = str(msg) if msg is not None else ""
         self.target = target
 
     def __str__(self):
         if self.target is not None:
             return (
-                f"In '{self.target.source.fname}' at line {self.target.lineno}:"
-                f"{self.target.source.lines[self.target.lineno]}"
-                f"{' ' * self.target.chrpos}^"
-                f"{self.TITLE}: {self.msg}"
+                f"In '{os.path.abspath(self.target.source.fname)}' at line {self.target.lineno}:\n"
+                f"{self.target.source.lines[self.target.lineno]}\n"
+                f"{' ' * self.target.chrpos}^\n"
+                f"{self.__class__.__doc__}: {self.msg}"
             )
         else:
             return self.msg
 
 class SatWarning(SatError):
-    TITLE = 'Warning'
+    'Warning'
 
 ##
 class SatIndexError(SatError):
-    TITLE = 'Index Error'
+    'Index Error'
     
 class SatCompilerError(SatError):
-	TITLE = 'Compiler Error'
+	'Compiler Error'
 
 class SatValueError(SatError):
-	TITLE = 'Value Error'
+	'Value Error'
 
 class SatTypeError(SatError):
-	TITLE = 'Type Error'
+	'Type Error'
 
 class SatReferenceError(SatError):
-	TITLE = 'Reference Error'
+	'Reference Error'
 
 class SatParserError(SatError):
-    TITLE = 'Parser Error'
+    'Parser Error'
 
 class SatLexerError(SatError):
-    TITLE = 'Lexer Error'
+    'Lexer Error'
 
 class SatSyntaxError(SatError):
-    TITLE = 'SyntaxError'
+    'Syntax Error'
 
 class SatExit(SatError):
-    TITLE = 'Exit'
+    'Exit'
 
     def __init__(self, code: int):
         self.code = code

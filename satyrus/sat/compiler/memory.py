@@ -3,7 +3,7 @@
 """
 
 ## Local
-from satlib import Stack, join
+from ...satlib import Stack, join
 from ..types.error import SatReferenceError
 from ..types import Var, SatType
 
@@ -50,7 +50,7 @@ class Memory(object):
 	def memget(self, name: Var):
 		"""
 		"""
-		i = len(self) - 1
+		i = len(self.__memory) - 1
 		while i >= 0:
 			try:
 				return self.__memory[i][name]

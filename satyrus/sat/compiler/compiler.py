@@ -139,13 +139,11 @@ class SatCompiler:
 			expr = value
 			
 			## Return solved expression
-			if self[1]:
-				return Expr.solve(expr)
-			else:
-				return expr
+			return expr
 		else:
 			if not issubclass(type(value), SatType):
-				self << SatTypeError(f'{type(value)} is not a valid Satyrus Type for evaluation.', target=value)
+				print(self.memory)
+				self << SatTypeError(f'{type(value)} is not a valid Satyrus type for evaluation.', target=value)
 				self.checkpoint()
 			else:
 				return value
@@ -166,11 +164,8 @@ class SatCompiler:
 		else:
 			return self.eval(value)
 
-	def __enter__(self, *args, **kwargs):
-		...
-
-	def __exit__(self, *args, **kwargs):
-		...
+	def __contains__(self, item: Var):
+		return (item in self.memory)
 
 	def memset(self, name: Var, value: SatType):
 		"""

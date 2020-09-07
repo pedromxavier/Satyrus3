@@ -19,6 +19,19 @@ class Memory(object):
 	def __iter__(self):
 		return iter(self.__memory)
 
+	def __getitem__(self, key):
+		i = len(self.__memory) - 1
+		while i >= 0:
+			try:
+				return self.__memory[i][key]
+			except KeyError:
+				i -= 1
+		else:
+			return None
+
+	def __contains__(self, item):
+		return self[item] is not None
+
 	def push(self):
 		"""
 		"""
@@ -50,11 +63,8 @@ class Memory(object):
 	def memget(self, name: Var):
 		"""
 		"""
-		i = len(self.__memory) - 1
-		while i >= 0:
-			try:
-				return self.__memory[i][name]
-			except KeyError:
-				i -= 1
-		else:
+		value = self[name]
+		if value is None:
 			raise SatReferenceError(f"Undefined variable `{name}`.", target=name)
+		else:
+			return value

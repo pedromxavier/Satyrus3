@@ -165,8 +165,6 @@ class SatParser(object):
 
     precedence = (
 
-        ('left', 'LBRA', 'RBRA'),
-
         ('left', 'ADD', 'SUB'),
         ('left', 'MUL', 'DIV', 'MOD'),
 
@@ -179,6 +177,8 @@ class SatParser(object):
         ('left', 'EQ', 'NE', 'GE', 'LE', 'GT', 'LT'),
 
         ('left', 'FORALL', 'EXISTS', 'EXISTS_ONE'),
+
+        ('left', 'LBRA', 'RBRA'),
 
         ('left', 'LCUR', 'RCUR'),
         ('left', 'LPAR', 'RPAR'),

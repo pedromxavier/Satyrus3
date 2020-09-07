@@ -18,6 +18,8 @@ class Satyrus:
     }
 
     def __init__(self, source_path: str):
+        """
+        """
         self.parser = SatParser()
         self.compiler = SatCompiler(self.instructions, self.parser)
 

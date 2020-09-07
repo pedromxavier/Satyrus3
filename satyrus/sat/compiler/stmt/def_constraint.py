@@ -7,7 +7,7 @@
 import itertools as it
 
 ## Local
-from ....satlib import arange, Stack
+from ....satlib import arange, Stack, stdout
 from ..compiler import SatCompiler
 from ...types.error import SatValueError, SatTypeError, SatReferenceError, SatWarning
 from ...types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL
@@ -74,24 +74,29 @@ def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constrai
 	compiler.push()
 
 	## Evaluate Loop Parameters
-	start, stop, step = tuple(compiler.eval(k) for k in loop_range)
+	start, stop, step = tuple((compiler.eval(k) if (k is not None) else None) for k in loop_range)
 
 	## Check Values
 	if not start.is_int:
 		compiler << SatTypeError(f'Loop start must be an integer.', target=start)
+	else:
+		start = int(start)
 
 	if not stop.is_int:
 		compiler << SatTypeError(f'Loop end must be an integer.', target=stop)
+	else:
+		start = int(start)
 
 	if step is None:
 		if start < stop:
-			step = Number('1')
+			step = 1
 		else:
-			step = Number('-1')
-
+			step = -1
 	elif not step.is_int:
 		compiler << SatTypeError(f'Loop step must be an integer.', target=step)
-		
+	else:
+		step = int(step)
+
 	if (start < stop and step < 0) or (start > stop and step > 0):
 		compiler << SatTypeError(f'Inconsistent Loop definition.', target=start)
 

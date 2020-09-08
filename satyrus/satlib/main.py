@@ -52,7 +52,12 @@ def func_type(cls):
     def decor(callback):
         @wraps(callback)
         def new_callback(*args, **kwargs):
-            return cls(callback(*args, **kwargs))
+            answer = callback(*args, **kwargs)
+            try:
+                return cls(answer)
+            except TypeError:
+                return answer
+            
         return new_callback
     return decor
 

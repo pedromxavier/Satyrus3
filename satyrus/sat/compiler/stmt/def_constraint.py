@@ -31,8 +31,13 @@ def def_constraint(compiler: SatCompiler, cons_type: Var, name: Var, loops: list
 	elif (level is not None and not level.is_int):
 		compiler << SatValueError(f'Penalty level must be an integer.', target=level)
 	else:
+		if level is None:
+			level = 0
+		else:
+			level = int(level)
+
 		## Create constraint
-		constraint = Constraint(cons_type, int(level))
+		constraint = Constraint(cons_type, level)
 
 		## Compile constraint loops
 		loop_depth = len(loops)
@@ -43,7 +48,7 @@ def def_constraint(compiler: SatCompiler, cons_type: Var, name: Var, loops: list
 		compiler.checkpoint()
 
 		## Compile expression
-		get_expr(compiler, expr)
+		expr = get_expr(compiler, expr)
 
 		compiler.pop(loop_depth)
 
@@ -112,6 +117,9 @@ def def_loop_conds(compiler: SatCompiler, loop_conds: list):
 	""" DEF_LOOP_CONDS
 		==============
 	"""
+	if loop_conds is None:
+		return
+
 	for i, cond in enumerate(loop_conds):
 		try:
 			loop_conds[i] = get_common_expr(compiler, cond)

@@ -40,7 +40,7 @@ class Array(SatType, dict):
             return self.name.__idx__(idx)
 
     def __str__(self):
-        return str(self.name)
+        return f"{self.name}" + "".join([f"[{n}]" for n in self.shape])
 
     def __repr__(self):
         return f"{{{', '.join([f'{k} : {self[k].__repr__()}' for k in self])}}}"

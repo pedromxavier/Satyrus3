@@ -12,7 +12,7 @@ from ...satlib import keep_type
 from .symbols.tokens import T_DICT
 
 @keep_type({f"__{name.lower()}__" for name in T_DICT})
-class Number(SatType, decimal.Decimal):
+class Number(decimal.Decimal, SatType):
 
     context = decimal.getcontext()
     context.prec = 16

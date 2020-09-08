@@ -13,18 +13,15 @@ from satyrus.satlib import system, stderr, stdout, stdwar, Source, Stack
 
 from ..parser import SatParser
 from ..types.error import SatError, SatTypeError, SatCompilerError, SatReferenceError, SatExit, SatWarning
-from ..types import SatType, String, Number, Var, Array, Expr
+from ..types import SatType, String, Number, Var, Array, Expr, Constraint
 from ..types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA
+from ..types.symbols import CONS_INT, CONS_OPT
 
 from .memory import Memory
 
 class SatCompiler:
 	"""
 	"""
-	DEFAULT_SCO = {
-
-	}
-	
 	DEFAULT_ENV = {
 		PREC : 16,
 		ALPHA : Number(1.0),
@@ -56,9 +53,6 @@ class SatCompiler:
 
 		## Environment
 		self.env = None
-	
-		## Compiled Object
-		self.sco = None
 
 		## Errors
 		self.error_stack = Stack()
@@ -88,9 +82,6 @@ class SatCompiler:
 		## Set default environment variables
 		self.env = self.DEFAULT_ENV.copy()
 
-		## Set default output
-		self.sco = self.DEFAULT_SCO.copy()
-
 		## Error collector
 		self.errors = []
 
@@ -102,6 +93,39 @@ class SatCompiler:
 				code = error.code
 				break
 		else:
+			## Constraint compilation
+			constraints = [item for item in self.memory if (type(item) is Constraint)]
+
+			constraints = {
+				CONS_INT: [cons for cons in constraints if cons.cons_type == CONS_INT],
+				CONS_OPT: [cons for cons in constraints if cons.cons_type == CONS_OPT]
+			}
+
+			## value for alpha
+			alpha = self.env[ALPHA]
+
+			## value for epsilon
+			epsilon = self.env[EPSILON]
+
+			## Penalties
+			penalties = {
+				0: alpha
+			}
+
+			cons_levels = {}
+
+			levels = []
+
+			for cons in constraints[CONS_INT]:
+				level = cons.level
+				if level not in cons_levels:
+					cons_levels[level] = 1
+					levels.append(level)
+				else:
+					cons_levels[level] += 1
+			
+			
+
 			code = 0
 		
 		if code:
@@ -110,6 +134,9 @@ class SatCompiler:
 			stdout[1] << f"> compiler exited with code {code}."
 		return code
 		
+	def p(n: int, penalties):
+		if n == 0:
+			return 
 
 	def exit(self, code: int):
 		raise SatExit(code)
@@ -152,7 +179,7 @@ class SatCompiler:
 		"""
 		"""
 		if type(expr) is Expr:
-			return Expr.back_apply(self._apply_eval_expr, expr)
+			return Expr.back_apply(expr, self._apply_eval_expr)
 		else:
 			return expr
 

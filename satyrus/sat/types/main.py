@@ -2,6 +2,7 @@
     ===============
 """
 ## Standard Library
+import re
 from sys import intern
 from functools import wraps
 
@@ -13,30 +14,36 @@ class MetaSatType(type):
 
     ATTRS = {f"__{name.lower()}__" : T_DICT[name] for name in T_DICT}
 
+    regex = re.compile(r"__r[a-zA-Z]+__")
+
     @staticmethod
     def null_func(*args):
         return NotImplemented
 
     def __new__(cls, name, bases, attrs):
+
         for name, token in cls.ATTRS.items():
             if name in attrs:
                 callback = attrs[name]
             else:
                 callback = cls.null_func
 
-            attrs[name] = cls.sat_magic(token, callback)
+            attrs[name] = cls.sat_magic(token, callback, swap=(cls.regex.match(name) is not None))
 
         return type(name, bases, attrs)
 
     @classmethod
-    def sat_magic(cls, token, callback):
+    def sat_magic(cls, token, callback, swap=False):
         """
         """
         @wraps(callback)
         def new_callback(*args):
             answer = callback(*args)
             if answer is NotImplemented:
-                return Expr(token, *args)
+                if swap:
+                    return Expr(token, *args[::-1])
+                else:
+                    return Expr(token, *args)
             else:
                 return answer
         return new_callback

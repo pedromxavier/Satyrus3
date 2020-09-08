@@ -17,7 +17,17 @@ class Memory(object):
 		return join(">\n", [join("\n", (f"{key}:\t{val}" for key, val in layer.items())) for layer in self])
 
 	def __iter__(self):
-		return iter(self.__memory)
+		i = len(self.__memory) - 1
+		found = set()
+		while i >= 0:
+			for key in self.__memory[i]:
+				if key not in found:
+					yield self.__memory[i][key]
+					found.add(key)
+				else:
+					continue
+			else:
+				i -= 1
 
 	def __getitem__(self, key):
 		i = len(self.__memory) - 1

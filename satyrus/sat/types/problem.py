@@ -1,51 +1,8 @@
+from ...satlib import arange
+
 from .expr import Expr
 from .main import Var
-
-class Problem(object):
-    """ :: PROBLEM ::
-        =============
-
-        This is the last instance (the output) of the compiler pipeline.
-
-        This is also the input for the Solver API.
-
-        Requisites:
-        - JSON-serializable
-        
-        {
-            "int" : [
-
-            ],
-
-            "opt" : [
-
-            ],
-
-            "env" : {
-                "prec"    : 16,
-                "epsilon" : 0.001,
-                .
-                .
-                .
-            }
-        }
-    """
-
-    def __init__(self, constraints: list, *args, **kwargs):
-        self.int = [c for c in constraints if (c.cons_type == 'int')]
-        self.opt = [c for c in constraints if (c.cons_type == 'opt')]
-        
-        self.env = {
-
-        }
-
-    def __json__(self):
-        return {
-            'int' : self.int,
-            'opt' : self.opt,
-            'env' : self.env
-        }
-
+from .number import Number
 
 class Constraint(object):
     """ :: CONSTRAINT ::
@@ -55,14 +12,38 @@ class Constraint(object):
     TYPES = {'int', 'opt'}
 
     def __init__(self, cons_type: str, level: int):
-        self.cons_type = cons_type
+        self.cons_type = str(cons_type)
         self.level = level
 
         self.loops = []
         self.expr = None
 
-    def add_loop(self, var: Var, start: int, stop: int, step: int, conds: list):
-        self.loops.append([var, [start, stop, step], [*conds]])
+    def add_loop(self, var: Var, loop_type, start: int, stop: int, step: int, conds: list):
+        self.loops.append([var, loop_type, [start, stop, step], [*conds] if conds is not None else None])
 
     def set_expr(self, expr: Expr):
-        self.expr = expr
+        self.expr = expr.cnf
+
+    def lms(self, compiler, p: Number):
+        i = len(self.loops) - 1
+        terms = []
+        stack = []
+        types = {}
+        while i >= 0:
+            compiler.push()
+            var, loop_type, (start, stop, step), conds = self.loops[i]
+            stack.append((var, loop_type, arange(start, stop, step)))
+            i -= 1
+        else:
+            while stack:
+                var, loop_type, idx = stack.pop()
+
+                if str(loop_type) == '@':
+                    token = '&'
+                elif str(loop_type) == '&':
+                    token = '|'
+                else:
+                    raise ValueError
+
+
+                

@@ -50,6 +50,8 @@ def def_constraint(compiler: SatCompiler, cons_type: Var, name: Var, loops: list
 		## Compile expression
 		expr = get_expr(compiler, expr)
 
+		constraint.set_expr(expr)
+
 		compiler.pop(loop_depth)
 
 	compiler.checkpoint()
@@ -106,10 +108,12 @@ def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constrai
 		compiler << SatTypeError(f'Inconsistent Loop definition.', target=start)
 
 	## Set loop variable to itself
-	compiler.memset(loop_var, loop_var)
+	## compiler.memset(loop_var, loop_var)
 
 	## Evaluate loop conditionals
-	def_loop_conds(compiler, loop_conds)
+	## def_loop_conds(compiler, loop_conds)
+
+	constraint.add_loop(loop_var, loop_type, start, stop, step, loop_conds)
 
 	compiler.checkpoint()
 

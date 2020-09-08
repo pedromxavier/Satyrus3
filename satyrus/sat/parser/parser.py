@@ -135,7 +135,6 @@ class SatLexer(object):
 
     # String containing ignored characters between tokens
     t_ignore = ' \t'
-
     t_ignore_COMMENT = r'\#.*'
 
     @regex(r'\#\{[\s\S]*?\}\#')
@@ -337,7 +336,7 @@ class SatParser(object):
         if len(p) == 5: # array declared
             buffer = p[4]
         else: # implicit array
-            buffer = self.get_arg(None)
+            buffer = None
         
         p[0] = (DEF_ARRAY, name, shape, buffer)
 
@@ -432,8 +431,8 @@ class SatParser(object):
         p[0] = p[1]
 
     def p_domain(self, p):
-        """ domain : LBRA literal DOTS literal DOTS literal RBRA
-                   | LBRA literal DOTS literal RBRA
+        """ domain : LBRA expr DOTS expr DOTS expr RBRA
+                   | LBRA expr DOTS expr RBRA
         """
         if len(p) == 8:
             p[0] = (p[2], p[4], p[6])
@@ -510,7 +509,7 @@ class SatParser(object):
                 'chrpos' : self.chrpos(t.lineno, t.lexpos),
                 'source' : self.source,
             }
-            msg = ""
+            msg = "Invalid Syntax"
         else:
             lineno = len(self.source.lines) - 1
             lexpos = len(self.source.lines[lineno]) - 1
@@ -522,6 +521,7 @@ class SatParser(object):
             }
             msg = "Unexpected End Of File."
         self << SatSyntaxError(msg=msg, target=target)
+        return None
 
     def chrpos(self, lineno: int, lexpos: int):
         return (lexpos - self.source.table[lineno - 1] + 1)

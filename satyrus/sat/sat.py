@@ -3,7 +3,6 @@
 from ..satlib import Source
 
 from .compiler import SatCompiler
-from .parser import SatParser
 
 from .types.symbols import DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, SYS_CONFIG
 from .compiler.stmt import def_constant, def_array, def_constraint, sys_config
@@ -20,8 +19,7 @@ class Satyrus:
     def __init__(self, source_path: str):
         """
         """
-        self.parser = SatParser()
-        self.compiler = SatCompiler(self.instructions, self.parser)
+        self.compiler = SatCompiler(self.instructions)
 
         self.source = Source(source_path)
 

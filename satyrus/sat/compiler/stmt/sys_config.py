@@ -32,7 +32,7 @@ def sys_config_prec(compiler, name: Var, argc: int, argv: list):
     elif not argv[0].is_int or int(argv[0]) <= 0:
         compiler << SatValueError(f'Precision must be a positive integer.', target=argv[0])
     else:
-        compiler.env[PREC] = int(argv[0])
+        compiler.env[PREC] = argv[0]
     compiler.checkpoint()
 
 def sys_config_epsilon(compiler, name: Var, argc: int, argv: list):
@@ -46,7 +46,7 @@ def sys_config_epsilon(compiler, name: Var, argc: int, argv: list):
     elif float(argv[0]) <= 0:
         compiler << SatValueError(f'Epsilon must be a positive number.', target=argv[0])
     else:
-        compiler.env[EPSILON] = float(argv[0])
+        compiler.env[EPSILON] = argv[0]
     compiler.checkpoint()
 
 def sys_config_load(compiler, name: Var, argc: int, argv: list):
@@ -63,7 +63,7 @@ def sys_config_alpha(compiler, name: Var, argc: int, argv: list):
     elif float(argv[0]) <= 0:
         compiler << SatValueError(f'Parameter `alpha` must be a positive number.', target=argv[0])
     else:
-        compiler.env[ALPHA] = (argv[0])
+        compiler.env[ALPHA] = argv[0]
     compiler.checkpoint()
 
 def sys_config_exit(compiler, name: Var, argc: int, argv: list):

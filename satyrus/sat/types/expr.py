@@ -223,3 +223,20 @@ def cnf(expr):
     expr = expr.associate
     expr = expr.back_apply(expr, distribute_and_over_or)
     return expr
+
+@Expr.property
+def lms(expr):
+    if expr.head == T_AND:
+        array = []
+        for p in expr.tail:
+            if type(p) is Expr:
+                if p.head == T_OR:
+                    array.append(list(p.tail))
+                else:
+                    print(expr)
+                    raise ValueError
+            else:
+                array.append([p])
+    else:
+        print(expr)
+        raise ValueError

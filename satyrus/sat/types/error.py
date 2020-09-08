@@ -24,7 +24,6 @@ class SatError(Exception):
 
 class SatWarning(SatError):
     'Warning'
-
 ##
 class SatIndexError(SatError):
     'Index Error'

@@ -47,6 +47,7 @@ cor[n];
     col[i][k];
 
 (int) iCol3[1]:
+    # Se o vértice é colorido com uma cor k, então ela é usada
     @{i = [1:m]}
     @{k = [1:n]}
     col[i][k] -> cor[k];

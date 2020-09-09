@@ -175,10 +175,10 @@ class SatCompiler:
 		## Generate Energy equation
 
 		## Integrity Constraints
-		#E_int = [cons.lms(self, self.penalties[cons.level]) for cons in self.constraints[CONS_INT]]
+		#E_int = [cons.lms for cons in self.constraints[CONS_INT]]
 		
 		## Optimality ones
-		#E_opt = [cons.lms(self, self.penalties[cons.level]) for cons in self.constraints[CONS_OPT]]
+		#E_opt = [cons.lms for cons in self.constraints[CONS_OPT]]
 
 		self.checkpoint()
 		

@@ -19,7 +19,7 @@
 ╚██████╔╝██║                ███████╗╚██████╔╝╚██████╔╝██║╚██████╗            ╚═╝╚██╗               
  ╚═════╝ ╚═╝                ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝                ╚═╝        
 
-    Please send error log to
-    pedromxavier at poli.ufrj.br
-
-    Sorry.
+   | Please send error tracebak to
+   | pedromxavier at poli.ufrj.br
+   |
+   | Sorry.

@@ -30,7 +30,7 @@ def def_array(compiler, name: Var, shape: tuple, buffer: list):
 
     ## Sets new `types.Array` to memory.
     ## Also runs automatic compiler.checkpoint()
-    compiler.memset(name, Array(name, shape, array))
+    compiler.memset(name, Array.from_buffer(name, shape, array))
 
 def def_array_shape(compiler, shape: tuple):
     """ DEF_ARRAY_SHAPE
@@ -46,6 +46,9 @@ def def_array_buffer(compiler, shape: tuple, buffer: list, array: dict):
     """ DEF_ARRAY_BUFFER
         ================
     """
+    if buffer is None:
+        return
+
     for idx, val in buffer:
         idx = tuple(compiler.eval(i) for i in idx)
 

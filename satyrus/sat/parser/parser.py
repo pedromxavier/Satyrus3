@@ -9,7 +9,7 @@ from ply import lex, yacc
 ## Local
 from ...satlib import stderr, stdout, Source, Stack
 from ..types.error import SatParserError, SatLexerError, SatSyntaxError, SatExit
-from ..types import Expr, Number, Var, String, SatType
+from ..types import Expr, Var, Number, String, SatType
 from ..types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
 from ..types.symbols.tokens import T_IDX
 

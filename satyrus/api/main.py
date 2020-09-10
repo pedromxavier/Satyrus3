@@ -10,7 +10,7 @@
     >>> sat['dwave'].solve()
 """ 
 
-from ...satlib import Source
+from ..satlib import stdout
 
 class MetaSatAPI(type):
 
@@ -26,10 +26,10 @@ class MetaSatAPI(type):
 
     def __new__(cls, name: str, bases: tuple, attrs: dict):
         if name == cls.name:
-            cls.base_class = new_class = type(name, bases, {**attrs, 'subclasses': cls.subclasses, 'options' : cls.options})
+            cls.base_class = new_class = type.__new__(cls, name, bases, {**attrs, 'subclasses': cls.subclasses, 'options' : cls.options})
         else:
             if attrs['key'] not in cls.options:
-                cls.subclasses[attrs['key']] = new_class = type(name, bases, attrs)
+                cls.subclasses[attrs['key']] = new_class = type.__new__(cls, name, bases, attrs)
                 cls.options.append(attrs['key'])
             else:
                 raise ValueError(f"Key {attrs['key']} defined twice.")
@@ -45,15 +45,23 @@ class SatAPI(metaclass=MetaSatAPI):
 
     options = []
 
-    def __init__(self, source_path: str):
-        self.source = Source(source_path)
+    def __init__(self, source_path: str=None):
+        """
+        """
+        self.source_path = source_path
+
+        ## Regular usage
+        if source_path is not None:
+            from ..sat import Satyrus
+            self.satyrus = Satyrus(self.source_path)
+        
+            ## Gather results
+            self.results = self.satyrus.results
 
     def __getitem__(self, key: str):
-        return self.subclasses[key]
-
-    @classmethod
-    def load_source(cls, source: str):
-        ...
+        subclass = self.subclasses[key](None)
+        subclass.results = self.results
+        return subclass
 
 ## NOTE: DO NOT EDIT ABOVE THIS LINE
 ## ---------------------------------
@@ -63,5 +71,6 @@ class Text(SatAPI):
 
     key = 'text'
 
-    def __init__(self):
-        ...
+    def solve(self):
+        stdout << "\nResults:"
+        stdout << self.results

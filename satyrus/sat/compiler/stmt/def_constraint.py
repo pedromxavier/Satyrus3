@@ -77,26 +77,24 @@ def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constrai
 	## Check Values
 	if not start.is_int:
 		compiler << SatTypeError(f'Loop start must be an integer.', target=start)
-	else:
-		start = int(start)
 
 	if not stop.is_int:
 		compiler << SatTypeError(f'Loop end must be an integer.', target=stop)
-	else:
-		start = int(start)
 
 	if step is None:
 		if start < stop:
-			step = 1
+			step = Number('1')
 		else:
-			step = -1
+			step = Number('1')
 	elif not step.is_int:
 		compiler << SatTypeError(f'Loop step must be an integer.', target=step)
-	else:
-		step = int(step)
 
 	if (start < stop and step < 0) or (start > stop and step > 0):
-		compiler << SatTypeError(f'Inconsistent Loop definition.', target=start)
+		print(start < stop)
+		print(step < 0)
+		compiler << SatValueError(f'Inconsistent Loop definition.', target=start)
+
+	compiler.checkpoint()
 
 	## Evaluate loop conditionals
 	conds = []

@@ -3,10 +3,10 @@
 ?alpha: 1.0;	# base penalty
 
 m = 3;
-n = 5;
+n = 3;
 
-x[m] = {(1) : 1, (m) : -1};
-y[n] = {(1) : 0, (n) : +1};
+x[m];
+y[n] = {(1) : 0, (n) : 1};
 
 #{---------------------}
  * THIS IS SOME MULTI- *
@@ -14,49 +14,19 @@ y[n] = {(1) : 0, (n) : +1};
  {---------------------}#
 
  # Integrity Constraints
-(int) XYZ[4]:
-	@{i=[1:m]}        # forall i from 1 to m
-	${j=[1:n], j > i} # exists j from 1 to n for j greater than i
-
-	x[i] -> y[j];
-
-(int) X[3]:
-	@{i=[1:m]}        # forall i from 1 to m
-	${j=[1:n], j > i} # exists j from 1 to n for j greater than i
-
-	x[i] -> y[j];
-
-# Integrity Constraints
-(int) Y[2]:
-	@{i=[1:m]}        # forall i from 1 to m
-	${j=[1:n], j > i} # exists j from 1 to n for j greater than i
-
-	x[i] -> y[j];
-
-# Integrity Constraints
-(int) Z[2]:
-	@{i=[1:m]}        # forall i from 1 to m
-	${j=[1:n], j > i} # exists j from 1 to n for j greater than i
-
-	x[i] -> y[j];
-
-# Integrity Constraints
 (int) A[1]:
-	@{i=[1:m]}        # forall i from 1 to m
-	${j=[1:n], j > i} # exists j from 1 to n for j greater than i
-
-	x[i] -> y[j];
-
-# Optmality Constraints
-(opt) B:	
-	@{i=[1:m]}         # forall i from 1 to m
-	@{j=[1:n], i != j} # forall j from 1 to n where i is different from j
+	@{i=[1:m]} # forall i from 1 to m
+	${j=[1:n]} # exists j from 1 to n for j greater than i
 
 	x[i] & y[j];
+
+(int) B[1]:
+	@{i=[1:m]} # forall i from 1 to m
+	${j=[1:n]} # exists j from 1 to n for j greater than i
+
+	x[i] -> y[j];
 
 # Optmality Constraints
 (opt) C:	
-	@{i=[1:m]}         # forall i from 1 to m
-	@{j=[1:n], i != j} # forall j from 1 to n where i is different from j
-
-	x[i] & y[j];
+	${i=[1:m]} # forall i from 1 to m
+	x[i];

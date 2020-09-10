@@ -1,11 +1,8 @@
 """ :: Sat Compiler ::
 	==================
-
-The SATyrus Compiler translates .sbc (SATyrus Bytecode) into
-.sco (SATyrus compiled object), basically a Python dictionary
-suitable for json serialization.
 """
 ## Standard Library
+import traceback
 import os
 import math
 
@@ -15,9 +12,11 @@ from satyrus.satlib import system, stderr, stdout, stdwar, Source, Stack
 from ..parser import SatParser
 from ..types.error import SatValueError, SatTypeError, SatCompilerError, SatReferenceError
 from ..types.error import SatError, SatExit, SatWarning
-from ..types import SatType, String, Number, Var, Array, Expr, Constraint
+from ..types import SatType, String, Number, Var, Array, Constraint
+from ..types.expr import Expr
 from ..types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA
 from ..types.symbols import CONS_INT, CONS_OPT
+from ..types.symbols.tokens import T_ADD, T_MUL
 
 from .memory import Memory
 
@@ -56,8 +55,11 @@ class SatCompiler:
 		## Environment
 		self.env = None
 
+		## Results
+		self.results = None
+
 		## Exit code
-		self.code = 0
+		self.code = 1
 
 		## Errors
 		self.error_stack = Stack()
@@ -78,12 +80,19 @@ class SatCompiler:
 		"""
 		try:
 			self.code = 0
-			self._compile(source)
+			self.results = self._compile(source)
 		except SatExit as error:
 			self.code = error.code
-		except Exception as error:
-			stderr << error
+			self.results = None
+		except Exception:
+			stderr << traceback.format_exc()
+			self.results = None
+			raise
 		finally:
+			if self.code:
+				stderr[1] << f"> compiler exited with code {self.code}."
+			else:
+				stdout[1] << f"> compiler exited with code {self.code}."
 			return self.code
 
 	def _compile(self, source: Source):
@@ -105,7 +114,7 @@ class SatCompiler:
 			self.exec(stmt)
 
 		## Parameter capture
-		if (self.env[EPSILON] < pow(10, -Number.prec())):
+		if (self.env[EPSILON] < pow(10, -Number.prec(None))):
 			self << SatValueError("Tiebraker `epsilon` is neglected due to numeric precision.", target=self.env[EPSILON])
 		
 		## Set numeric presision
@@ -123,8 +132,8 @@ class SatCompiler:
 		constraints = [item for item in self.memory if (type(item) is Constraint)]
 
 		self.constraints = {
-			CONS_INT: [cons for cons in constraints if (cons.cons_type == CONS_INT)],
-			CONS_OPT: [cons for cons in constraints if (cons.cons_type == CONS_OPT)]
+			CONS_INT: [cons for cons in constraints if (cons.type == CONS_INT)],
+			CONS_OPT: [cons for cons in constraints if (cons.type == CONS_OPT)]
 		}
 
 		if len(self.constraints[CONS_INT]) + len(self.constraints[CONS_OPT]) == 0:
@@ -146,18 +155,12 @@ class SatCompiler:
 		}
 
 		for cons in self.constraints[CONS_INT]:
-			stdout[1] << f"({cons.cons_type}) {cons.name}:"
-			stdout[1] << f"{cons.expr}"
 			if cons.level not in self.levels:
 				self.levels[cons.level] = 1
 			else:
 				self.levels[cons.level] += 1
 		else:
 			self.levels = sorted(self.levels.items())
-
-		for cons in self.constraints[CONS_OPT]:
-			stdout[1] << f"({cons.cons_type}) {cons.name}:"
-			stdout[1] << f"{cons.expr}"
 
 		## Compute penalty levels
 		level_j, n_j = self.levels[0]
@@ -180,73 +183,47 @@ class SatCompiler:
 
 		self.checkpoint()
 
-		## Generate Energy equation
+		## Generate Energy equations
 
 		## Integrity Constraints
-		#E_int = [cons.lms for cons in self.constraints[CONS_INT]]
+		f_int = lambda expr: Expr.lms(Expr.dnf(~Expr.calc(expr)))
+		E_int = []
+		for cons in self.constraints[CONS_INT]:
+			expr = self.penalties[cons.level] * f_int(cons.get_expr(self))
+			E_int.append(expr)
+		else:
+			if len(E_int) == 1:
+				E_int = E_int[0]
+			else:
+				E_int = Expr(T_ADD, *E_int)
 		
 		## Optimality ones
-		#E_opt = [cons.lms for cons in self.constraints[CONS_OPT]]
+		f_opt = lambda expr: Expr.lms(Expr.dnf(Expr.calc(expr)))
+		E_opt = []
+		for cons in self.constraints[CONS_OPT]:
+			expr = self.penalties[cons.level] * f_opt(cons.get_expr(self))
+			E_opt.append(expr)
+		else:
+			if len(E_opt) == 1:
+				E_opt = E_opt[0]
+			else:
+				E_opt = Expr(T_ADD, *E_opt)
 
 		self.checkpoint()
-		
-		if self.code:
-			stderr[1] << f"> compiler exited with code {self.code}."
-		else:
-			stdout[1] << f"> compiler exited with code {self.code}."
+
+		## Combining both
+		E = Expr.calc(E_int + E_opt)
+
+		self.checkpoint()
+
+		return E
 
 	def exit(self, code: int):
 		raise SatExit(code)
 
-	def dir(self, path: str):
-		return system.dir_push(path)
-
 	def exec(self, stmt: tuple):
 		name, *args = stmt
 		return self.instructions[name](self, *args)
-
-	def eval(self, value: SatType):
-		if type(value) is Var:
-			## Rename variable
-			var = value
-
-			## Get value from memory
-			var_value = self.memget(var)
-
-			## Copy error tracking information
-			var_value.lexinfo = value.lexinfo
-			
-			return var_value
-
-		elif type(value) is Expr:
-			## Rename variable
-			expr = value
-			
-			## Return solved expression
-			return expr
-		else:
-			if not issubclass(type(value), SatType):
-				print(self.memory)
-				self << SatTypeError(f'{type(value)} is not a valid Satyrus type for evaluation.', target=value)
-				self.checkpoint()
-			else:
-				return value
-
-	def eval_expr(self, expr: Expr):
-		"""
-		"""
-		if type(expr) is Expr:
-			return Expr.back_apply(expr, self._apply_eval_expr)
-		else:
-			return expr
-
-	def _apply_eval_expr(self, value: SatType):
-		"""
-		"""
-		if type(value) is Expr:
-			return value
-		else:
-			return self.eval(value)
 
 	def __contains__(self, item: Var):
 		return (item in self.memory)
@@ -271,6 +248,30 @@ class SatCompiler:
 		finally:
 			self.checkpoint()
 
+	def eval(self, item: SatType):
+		if type(item) is Var:
+			## Get value from memory
+			value = self.memget(item)
+
+			## Copy error tracking information
+			value.lexinfo = item.lexinfo
+			
+			return value
+
+		elif type(item) is Expr:				
+			## Return own expression
+			return item
+
+		elif not issubclass(type(item), SatType):
+			raise TypeError(f'{type(item)} is not a valid Satyrus type for evaluation.')
+
+		else:
+			return item
+
+	def eval_expr(self, expr: Expr, calc=False):
+		"""
+		"""
+		return Expr.back_apply(expr, (lambda item: (Expr.calc(item) if calc else item) if (type(item) is Expr) else self.eval(item)))
 	
 	def push(self):
 		""" push memory scope

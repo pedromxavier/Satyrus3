@@ -12,7 +12,7 @@ class SatError(Exception):
         self.target = target
 
     def __str__(self):
-        if self.target is not None:
+        if self.target is not None and hasattr(self.target, 'lexinfo'):
             return (
                 f"In '{os.path.abspath(self.target.source.fname)}' at line {self.target.lineno}:\n"
                 f"{self.target.source.lines[self.target.lineno]}\n"

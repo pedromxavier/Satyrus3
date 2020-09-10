@@ -2,10 +2,8 @@ from collections import deque
 
 ## Local
 from ...satlib import arange
-from ..compiler import SatCompiler
 from .expr import Expr
-from .main import Var
-from .number import Number
+from .main import Var, Number
 
 from .symbols import CONS_INT, CONS_OPT
 from .symbols.tokens import T_FORALL, T_EXISTS, T_EXISTS_ONE, T_AND, T_OR
@@ -25,7 +23,7 @@ class Loop(object):
 
         self.conds = conds
 
-    def cond_func(self, compiler: SatCompiler):
+    def cond_func(self, compiler):
         """
         """
         if self.conds is None:
@@ -34,7 +32,7 @@ class Loop(object):
         conds = [compiler.eval_expr(cond) for cond in self.conds]
         return all([type(conds) is Number and (conds != Number('0')) for cond in conds])
 
-    def indices(self, compiler: SatCompiler):
+    def indices(self, compiler):
         I = []
         for i in arange(self.start, self.stop, self.step):
             i = Number(i)
@@ -78,15 +76,15 @@ class Constraint(object):
 
             Sets the expr of this constraint in the C.N.F.
         """
-        self.expr = expr.cnf
+        self.expr = Expr.cnf(expr)
 
-    def get_expr(self, compiler: SatCompiler):
+    def get_expr(self, compiler):
         """ GET_EXPR
             ========
         """
         return self._get_expr(compiler)
 
-    def _get_expr(self, compiler: SatCompiler):
+    def _get_expr(self, compiler):
         """
         """
         if not self.loop_stack:
@@ -99,6 +97,7 @@ class Constraint(object):
         head = self.HEAD_TABLE[loop.type]
         tail = []
 
+        ## Push compiler memory scope
         compiler.push()
 
         for i in loop.indices(compiler):

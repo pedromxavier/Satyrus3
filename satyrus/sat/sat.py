@@ -24,3 +24,5 @@ class Satyrus:
         self.source = Source(source_path)
 
         self.compiler.compile(self.source)
+        
+        self.results = self.compiler.results

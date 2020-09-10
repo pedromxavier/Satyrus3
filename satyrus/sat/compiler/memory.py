@@ -14,7 +14,7 @@ class Memory(object):
 		self.__memory = [{} if defaults is None else defaults]
 
 	def __str__(self):
-		return join(">\n", [join("\n", (f"{key}:\t{val}" for key, val in layer.items())) for layer in self])
+		return join(">\n", [join("\n", (f"{key}:\t{val}" for key, val in layer.items())) for layer in self.__memory])
 
 	def __iter__(self):
 		i = len(self.__memory) - 1

@@ -12,7 +12,7 @@ from ...types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA, EXIT
 from ...types import SatType, String, Number, Var, Array
 from ...types.error import SatValueError, SatTypeError
 
-from ...api import SatAPI
+from ....api import SatAPI
 
 def sys_config(compiler, name: Var, args: list):
     if name in sys_config_options:

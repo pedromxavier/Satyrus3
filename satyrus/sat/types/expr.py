@@ -3,8 +3,7 @@ from functools import reduce
 
 ## Local
 from ...satlib import join, compose
-from .main import Expr
-from .number import Number
+from .main import Expr, Number
 
 ## :: Rule Definition ::
 ## :: Logical ::
@@ -51,7 +50,29 @@ from .symbols.tokens import T_ADD, T_SUB, T_MUL, T_DIV, T_MOD
 @Expr.rule(T_ADD)
 def ADD(*args):
     if len(args) >= 2:
-        return reduce(lambda x, y : x.__add__(y), args)
+        number = []
+        others = []
+        for arg in args:
+            if type(arg) is Number:
+                number.append(arg)
+            else:
+                others.append(arg)
+        else:
+            if number:
+                x = reduce(lambda x, y : x.__add__(y), number)
+            else:
+                x = None
+            if others:
+                y = Expr(T_ADD, *others)
+            else:
+                y = None
+
+            if y is None:
+                return x
+            if x is None:
+                return y
+            else:
+                return Expr.associate(x + y)
     else:
         args[0].__pos__()
 
@@ -64,7 +85,29 @@ def SUB(x, y=None):
 
 @Expr.rule(T_MUL)
 def MUL(*args):
-    return reduce(lambda x, y : x.__mul__(y), args)
+    number = []
+    others = []
+    for arg in args:
+        if type(arg) is Number:
+            number.append(arg)
+        else:
+            others.append(arg)
+    else:
+        if number:
+            x = reduce(lambda x, y : x.__mul__(y), number)
+        else:
+            x = None
+        if others:
+            y = Expr(T_MUL, *others)
+        else:
+            y = None
+
+        if x is None:
+            return y
+        if y is None:
+            return x
+        else:
+            return Expr.associate(x * y)
 
 @Expr.rule(T_DIV)
 def DIV(x, y):
@@ -82,6 +125,26 @@ Expr.ASSOCIATIVE.update({
     T_ADD, T_MUL,
 })
 
+Expr.NULL.update({
+    ## Logical
+    T_AND : Number.F,
+    T_OR : Number.T,
+
+    ## Arithmetic
+    T_ADD : None,
+    T_MUL : Number('0'),
+})
+
+Expr.NEUTRAL.update({
+    ## Logical
+    T_AND : Number.T,
+    T_OR : Number.F,
+
+    ## Arithmetic
+    T_ADD : Number('0'),
+    T_MUL : Number('1'),
+})
+
 Expr.GROUPS.update({ ## precedence groups
     ## Logical
     ## 1
@@ -97,6 +160,12 @@ Expr.GROUPS.update({ ## precedence groups
 
     ## 4
     T_NOT : 4,
+
+    T_ADD : 5,
+
+    T_SUB : 5,
+
+    T_MUL : 6,
 })
 
 Expr.FORMAT_PATTERNS.update({
@@ -141,8 +210,8 @@ Expr.TABLE['LMS'] = {
 
 Expr.TABLE['NOT'] = {
     # AND, OR, XOR:
-    T_AND  : (lambda A, B : ~A | ~B),
-    T_OR   : (lambda A, B : ~A & ~B),
+    T_AND  : (lambda *X : Expr(T_OR, *[Expr(T_NOT, x) for x in X])),
+    T_OR   : (lambda *X : Expr(T_AND, *[Expr(T_NOT, x) for x in X])),
     T_XOR  : (lambda A, B : A.__iff__(B)),
     # Implications:
     T_IMP  : (lambda A, B : (~B).__imp__(~A)),
@@ -188,13 +257,13 @@ Expr.HASH.update({
     })
 
 def remove_implications(expr):
-    if expr.head in expr.TABLE['IMP']:
+    if type(expr) is Expr and expr.head in expr.TABLE['IMP']:
         return expr.TABLE['IMP'][expr.head](*expr.tail)
     else:
         return expr
 
 def move_not_inwards(expr):
-    if expr.head == T_NOT:
+    if type(expr) is Expr and expr.head == T_NOT:
         expr = expr.tail[0]
         if type(expr) is Expr:
             if expr.head in expr.TABLE['NOT']:
@@ -208,35 +277,42 @@ def move_not_inwards(expr):
 
 def distribute_and_over_or(expr):
     """
-        (A & B) | C => (A | C) & (B | C)
-        (A & B) | (C & D) => (A | C) & (A | D) & (B | C) & (B | D)
     """
-    if expr.head == T_OR:
+    if type(expr) is Expr and expr.head == T_OR:
         conjs = [(p.tail if (type(p) is Expr and p.head == T_AND) else (p,)) for p in expr.tail]
         return Expr(T_AND, *(Expr(T_OR, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
     else:
         return expr
 
-@Expr.property
-def cnf(expr):
-    expr = Expr.apply(expr, compose(move_not_inwards, remove_implications))
-    expr = expr.associate
-    expr = expr.back_apply(expr, distribute_and_over_or)
-    return expr
-
-@Expr.property
-def lms(expr):
-    if expr.head == T_AND:
-        array = []
-        for p in expr.tail:
-            if type(p) is Expr:
-                if p.head == T_OR:
-                    array.append(list(p.tail))
-                else:
-                    print(expr)
-                    raise ValueError
-            else:
-                array.append([p])
+def distribute_or_over_and(expr):
+    """
+    """
+    if type(expr) is Expr and expr.head == T_AND:
+        conjs = [(p.tail if (type(p) is Expr and p.head == T_OR) else (p,)) for p in expr.tail]
+        return Expr(T_OR, *(Expr(T_AND, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
     else:
-        print(expr)
-        raise ValueError
+        return expr
+
+def cnf(cls, expr):
+    expr = cls.associate(cls.apply(expr, compose(move_not_inwards, remove_implications)))
+    return cls.simplify(cls.back_apply(expr, distribute_and_over_or))
+
+Expr.cnf = classmethod(cnf)
+
+def dnf(cls, expr):
+    expr = cls.associate(cls.apply(expr, compose(move_not_inwards, remove_implications)))
+    return cls.simplify(cls.back_apply(expr, distribute_or_over_and))
+
+Expr.dnf = classmethod(dnf)
+
+def lms(cls, expr):
+    """ Expr is assumed to be in the c.n.f.
+    """
+    table = {
+        T_AND : (lambda tail: cls(T_MUL, *tail)),
+        T_OR : (lambda tail: cls(T_ADD, *tail)),
+        T_NOT : (lambda tail: cls(T_SUB, Number('1'), *tail))
+    }
+    return Expr.apply(expr, lambda expr: table[expr.head](expr.tail) if (type(expr) is cls and expr.head in table) else expr)
+
+Expr.lms = classmethod(lms)

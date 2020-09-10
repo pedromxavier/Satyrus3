@@ -4,43 +4,69 @@
 import itertools as it
 
 ## Local
-from .main import SatType, Var
+from .main import SatType, Var, Number
 from .error import SatIndexError
 
-class Array(SatType, dict):
-    ''' Sparse Array
-    '''
-    def __init__(self, name, shape, buffer=None):
+class Array(SatType):
+    """ :: Array ::
+        ===========
+    """
+    def __init__(self, name, shape):
         SatType.__init__(self)
-        dict.__init__(self, buffer if buffer is not None else {})
         
+        self.array = {}
+
         self.name = name
         self.shape = shape
         self.dim = len(shape)
 
-    def __idx__(self, idx):
-        if len(idx) == self.dim:
-            for i, n in zip(idx, self.shape):
-                if not (1 <= int(i) <= int(n)):
-                    raise IndexError(f'Index {i} is out of bounds [1, {int(n)}]') #, target=i)
+    def __idx__(self, idx: Number):
+        return self[idx]
+
+    def __getitem__(self, idx: Number):
+        if type(idx) is Number and idx.is_int:
+            i = int(idx)
+            if i in self.array:
+                return self.array[i]
             else:
-                return self[idx]
-        elif len(idx) < self.dim:
-            raise NotImplementedError('Array slicing is under the way...')
+                n = int(self.shape[0])
+                if 1 <= i <= n:
+                    if len(self.shape) > 1:
+                        self.array[i] = Array(self.name.__idx__(idx), self.shape[1:])
+                        return self.array[i]
+                    else:
+                        return self.name.__idx__(idx)
+                else:
+                    raise SatIndexError(f"Index {idx} is out of bounds [1, {n}].", target=idx)
         else:
-            raise IndexError(f'Too much indices for {self.dim}-dimensional array.') #, target=idx[self.dim])
+            raise SatIndexError(f"Invalid index {idx}.", target=idx)
 
-    def __setitem__(self, idx, value):
-        dict.__setitem__(self, tuple(map(int, idx)), value)
-
-    def __getitem__(self, idx):
-        try:
-            return dict.__getitem__(self, tuple(map(int, idx)))
-        except KeyError:
-            return self.name.__idx__(idx)
+    def __setitem__(self, idx: Number, value: SatType):
+        if type(idx) is Number and idx.is_int:
+            if self.dim > 1:
+                raise SatIndexError(f"Attempt to assign to {self.dim}-dimensional array.", target=idx)
+            else:
+                i = int(idx)
+                n = int(self.shape[0])
+                if 1 <= i <= n:
+                    self.array[i] = value
+                else:
+                    raise SatIndexError(f"Index {idx} is out of bounds [1, {n}].", target=idx)                 
+        else:
+            raise SatIndexError(f"Invalid index {idx}.", target=idx)
 
     def __str__(self):
-        return f"{self.name}" + "".join([f"[{n}]" for n in self.shape])
+        return f"{self.name}"
 
     def __repr__(self):
-        return f"{{{', '.join([f'{k} : {self[k].__repr__()}' for k in self])}}}"
+        return f"{self.name}" + "".join([f"[{n}]" for n in self.shape])
+        
+    @classmethod
+    def from_buffer(cls, name, shape, buffer: dict):
+        array = cls(name, shape)
+        for idx in buffer:
+            subarray = array
+            for i in idx[:-1]:
+                subarray = subarray[Number(i)]
+            subarray[Number(idx[-1])] = buffer[idx]
+        return array

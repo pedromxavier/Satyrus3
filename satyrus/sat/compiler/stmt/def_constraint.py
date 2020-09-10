@@ -19,7 +19,8 @@ LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 CONST_TYPES = {CONS_INT, CONS_OPT}
 
 def def_constraint(compiler: SatCompiler, cons_type: Var, name: Var, loops: list, expr: Expr, level: Number):
-	"""
+	""" DEF_CONSTRAINT
+		==============
 	"""
 
 	if str(cons_type) not in CONST_TYPES:
@@ -37,22 +38,16 @@ def def_constraint(compiler: SatCompiler, cons_type: Var, name: Var, loops: list
 			level = int(level)
 
 		## Create constraint
-		constraint = Constraint(cons_type, level)
+		constraint = Constraint(name, cons_type, level)
 
-		## Compile constraint loops
-		loop_depth = len(loops)
-
+		## Compile Constraint Loops
 		for loop in loops:
 			def_constraint_loop(compiler, loop, constraint)
 
 		compiler.checkpoint()
 
 		## Compile expression
-		expr = get_expr(compiler, expr)
-
 		constraint.set_expr(expr)
-
-		compiler.pop(loop_depth)
 
 	compiler.checkpoint()
 
@@ -61,7 +56,6 @@ def def_constraint(compiler: SatCompiler, cons_type: Var, name: Var, loops: list
 		compiler < SatWarning(f'Constraint definition overrides previous assignment.', target=name)
 
 	compiler.memset(name, constraint)
-
 	compiler.checkpoint()
 
 def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constraint) -> None:
@@ -76,9 +70,6 @@ def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constrai
 
 	if loop_var in compiler:
 		compiler < SatWarning(f"Duplicate definition for loop variable `{loop_var}`.", target=loop_var)
-
-	## Push compile memory scope
-	compiler.push()
 
 	## Evaluate Loop Parameters
 	start, stop, step = tuple((compiler.eval(k) if (k is not None) else None) for k in loop_range)
@@ -107,75 +98,29 @@ def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constrai
 	if (start < stop and step < 0) or (start > stop and step > 0):
 		compiler << SatTypeError(f'Inconsistent Loop definition.', target=start)
 
-	## Set loop variable to itself
-	## compiler.memset(loop_var, loop_var)
-
 	## Evaluate loop conditionals
-	## def_loop_conds(compiler, loop_conds)
+	conds = []
 
-	constraint.add_loop(loop_var, loop_type, start, stop, step, loop_conds)
+	def_loop_conds(compiler, loop_conds, conds)
+
+	constraint.add_loop(loop_var, loop_type, start, stop, step, conds)
 
 	compiler.checkpoint()
 
-def def_loop_conds(compiler: SatCompiler, loop_conds: list):
+def def_loop_conds(compiler: SatCompiler, loop_conds: list, conds: list):
 	""" DEF_LOOP_CONDS
 		==============
 	"""
+	## No conditions at all
 	if loop_conds is None:
 		return
 
-	for i, cond in enumerate(loop_conds):
+	for cond in loop_conds:
 		try:
-			loop_conds[i] = get_common_expr(compiler, cond)
+			conds.append(compiler.eval_expr(cond))
 		except SatReferenceError as error:
 			compiler << error
 		except Exception as error:
 			raise error
 	else:
 		compiler.checkpoint()
-
-def get_common_expr(compiler, expr: Expr) -> Expr:
-	""" DEF_COMMON_EXPR
-		========
-
-		Checks for expression consistency.
-		1. Variable definition
-		2. Proper indexing
-		3. Constant evaluation
-	"""
-	expr = compiler.eval_expr(expr)
-
-	return expr
-
-
-def get_expr(compiler, expr: Expr):
-	""" DEF_EXPR
-		========
-
-		Checks for expression consistency.
-		1. Constant evaluation
-		2. Proper indexing
-	"""
-	expr = compiler.eval_expr(expr)
-
-	## Translates to C.N.F.
-	expr = expr.cnf
-
-	return expr
-
-
-
-
-	
-
-
-	
-
-		
-
-
-
-
-
-
-		

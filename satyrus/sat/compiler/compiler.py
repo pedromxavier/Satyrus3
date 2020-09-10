@@ -81,6 +81,8 @@ class SatCompiler:
 			self._compile(source)
 		except SatExit as error:
 			self.code = error.code
+		except Exception as error:
+			stderr << error
 		finally:
 			return self.code
 
@@ -144,12 +146,18 @@ class SatCompiler:
 		}
 
 		for cons in self.constraints[CONS_INT]:
+			stdout[1] << f"({cons.cons_type}) {cons.name}:"
+			stdout[1] << f"{cons.expr}"
 			if cons.level not in self.levels:
 				self.levels[cons.level] = 1
 			else:
 				self.levels[cons.level] += 1
 		else:
 			self.levels = sorted(self.levels.items())
+
+		for cons in self.constraints[CONS_OPT]:
+			stdout[1] << f"({cons.cons_type}) {cons.name}:"
+			stdout[1] << f"{cons.expr}"
 
 		## Compute penalty levels
 		level_j, n_j = self.levels[0]

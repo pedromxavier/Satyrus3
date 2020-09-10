@@ -1,49 +1,112 @@
-from ...satlib import arange
+from collections import deque
 
+## Local
+from ...satlib import arange
+from ..compiler import SatCompiler
 from .expr import Expr
 from .main import Var
 from .number import Number
+
+from .symbols import CONS_INT, CONS_OPT
+from .symbols.tokens import T_FORALL, T_EXISTS, T_EXISTS_ONE, T_AND, T_OR
+
+class Loop(object):
+    """ :: LOOP ::
+        ==========
+    """
+
+    def __init__(self, var: Var, loop_type: str, start: Number, stop: Number, step: Number, conds: list=None):
+        self.var = var
+        self.type = str(loop_type)
+
+        self.start = start
+        self.stop = stop
+        self.step = step
+
+        self.conds = conds
+
+    def cond_func(self, compiler: SatCompiler):
+        """
+        """
+        if self.conds is None:
+            return True
+
+        conds = [compiler.eval_expr(cond) for cond in self.conds]
+        return all([type(conds) is Number and (conds != Number('0')) for cond in conds])
+
+    def indices(self, compiler: SatCompiler):
+        I = []
+        for i in arange(self.start, self.stop, self.step):
+            i = Number(i)
+            compiler.memset(self.var, i)
+            if self.cond_func(compiler):
+                I.append(i)
+            else:
+                continue
+        return I
 
 class Constraint(object):
     """ :: CONSTRAINT ::
         ================
     """
 
-    TYPES = {'int', 'opt'}
+    HEAD_TABLE = {
+        T_FORALL: T_AND,
+        T_EXISTS: T_OR,
+        T_EXISTS_ONE: None,
+    }
 
-    def __init__(self, cons_type: str, level: int):
-        self.cons_type = str(cons_type)
-        self.level = level
+    def __init__(self, name: Var, cons_type: Var, level: int):
+        """
+        """
+        self.name = str(name)
+        self.type = str(cons_type)
+        self.level = int(level)
 
-        self.loops = []
+        self.loop_stack = deque([])
         self.expr = None
 
-    def add_loop(self, var: Var, loop_type, start: int, stop: int, step: int, conds: list):
-        self.loops.append([var, loop_type, [start, stop, step], [*conds] if conds is not None else None])
+    def add_loop(self, var: Var, loop_type: Var, start: Number, stop: Number, step: Number, conds: list):
+        """ ADD_LOOP
+            ========
+        """
+        self.loop_stack.append(Loop(var, loop_type, start, stop, step, conds))
 
     def set_expr(self, expr: Expr):
+        """ SET_EXPR
+            ========
+
+            Sets the expr of this constraint in the C.N.F.
+        """
         self.expr = expr.cnf
 
-    def lms(self, compiler, p: Number):
-        i = len(self.loops) - 1
-        terms = []
-        stack = []
-        types = {}
-        while i >= 0:
-            compiler.push()
-            var, loop_type, (start, stop, step), conds = self.loops[i]
-            stack.append((var, loop_type, arange(start, stop, step)))
-            i -= 1
+    def get_expr(self, compiler: SatCompiler):
+        """ GET_EXPR
+            ========
+        """
+        return self._get_expr(compiler)
+
+    def _get_expr(self, compiler: SatCompiler):
+        """
+        """
+        if not self.loop_stack:
+            return self.expr
+        
+        ## Retrieves the outermost loop from the stack
+        loop = self.loop_stack.popleft()
+
+        ## Expression
+        head = self.HEAD_TABLE[loop.type]
+        tail = []
+
+        compiler.push()
+
+        for i in loop.indices(compiler):
+            compiler.memset(loop.var, i)
+            expr = compiler.eval_expr(self._get_expr(compiler))
+            tail.append(expr)
         else:
-            while stack:
-                var, loop_type, idx = stack.pop()
-
-                if str(loop_type) == '@':
-                    token = '&'
-                elif str(loop_type) == '&':
-                    token = '|'
-                else:
-                    raise ValueError
-
-
-                
+            self.loop_stack.appendleft(loop)
+            compiler.pop()
+            return Expr(head, *tail)
+        

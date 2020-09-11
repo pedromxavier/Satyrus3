@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+"""
+"""
+
+def main(argc: int, argv: list):
+    import argparse
+    from satyrus import SatAPI
+
+    kwargs = {
+        'description' : """Satyrus Compiler"""
+    }
+
+    parser = argparse.ArgumentParser(**kwargs)
+    parser.add_argument("-o", "--out", dest="out", help="output format", choices=SatAPI.options)
+    parser.add_argument("source", dest="source", help="source file")
+
+if __name__ == '__main__':
+    import sys
+    main(len(sys.argv), sys.argv)

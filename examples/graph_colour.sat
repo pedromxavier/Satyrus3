@@ -28,8 +28,8 @@ cor[n];
 # Restrição de Integridade
 (int) iAdj[2]:
     # Vizinhos devem ter cores distintas
-    @{i = [1:m - 1]}
-    @{j = [i + 1:m]}
+    @{i = [1:m]}
+    @{j = [1:m], i < j}
     @{k = [1:n]}
     viz[i][j] -> ~(col[i][k] & col[j][k]);
 

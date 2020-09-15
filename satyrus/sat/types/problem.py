@@ -29,7 +29,7 @@ class Loop(object):
         if self.conds is None:
             return True
 
-        conds = [compiler.eval_expr(cond) for cond in self.conds]
+        conds = [compiler.eval_expr(cond, calc=True) for cond in self.conds]
         return all([type(conds) is Number and (conds != Number('0')) for cond in conds])
 
     def indices(self, compiler):

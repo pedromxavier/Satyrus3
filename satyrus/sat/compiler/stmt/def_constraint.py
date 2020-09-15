@@ -104,11 +104,11 @@ def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constrai
 	## Evaluate loop conditionals
 	conds = []
 
+	compiler.memset(loop_var, loop_var)
+
 	def_loop_conds(compiler, loop_conds, conds)
 
 	constraint.add_loop(loop_var, loop_type, start, stop, step, conds)
-
-	compiler.memset(loop_var, loop_var)
 
 	compiler.checkpoint()
 

@@ -11,11 +11,11 @@ from .symbols.tokens import T_AND, T_OR, T_XOR, T_NOT, T_IFF, T_IMP, T_RIMP
 
 @Expr.rule(T_AND)
 def AND(*args):
-    return reduce(lambda x, y : x.__and__(y), args)
+    return reduce(lambda x, y : x.__and__(y), args, Number.T) ## Empty product
 
 @Expr.rule(T_OR)
 def OR(*args):
-    return reduce(lambda x, y : x.__or__(y), args)
+    return reduce(lambda x, y : x.__or__(y), args, Number.F) ## Empty Sum
 
 @Expr.rule(T_XOR)
 def XOR(x, y):
@@ -116,6 +116,29 @@ def DIV(x, y):
 @Expr.rule(T_MOD)
 def MOD(x, y):
     return x.__mod__(y)
+
+## :: Comparison ::
+from .symbols.tokens import T_GE, T_GT, T_EQ, T_LT, T_LE, T_NE
+
+@Expr.rule(T_GT)
+def GT(x, y):
+    return x.__gt__(y)
+
+@Expr.rule(T_GE)
+def GE(x, y):
+    return x.__ge__(y)
+
+@Expr.rule(T_LT)
+def LT(x, y):
+    return x.__lt__(y)
+
+@Expr.rule(T_LE)
+def LE(x, y):
+    return x.__le__(y)
+
+@Expr.rule(T_NE)
+def NE(x, y):
+    return (~ x.__ge__(y))
 
 Expr.ASSOCIATIVE.update({
     ## Logical

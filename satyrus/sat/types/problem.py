@@ -34,7 +34,11 @@ class Loop(object):
 
     def indices(self, compiler):
         I = []
-        for i in arange(self.start, self.stop, self.step):
+        start = compiler.eval_expr(self.start, calc=True)
+        stop = compiler.eval_expr(self.stop, calc=True)
+        step = compiler.eval_expr(self.step, calc=True)
+
+        for i in arange(start, stop, step):
             i = Number(i)
             compiler.memset(self.var, i)
             if self.cond_func(compiler):

@@ -101,7 +101,7 @@ def arange(start, stop=None, step=None):
 
     ## A bit more Value Checking
     if start > stop and step > 0 or start < stop and step < 0:
-        raise ValueError('Infinite range.')
+        raise ValueError(f'Infinite range in [{start}:{stop}:{step}].')
 
     ## Type Coercing
     if any(type(s) is float for s in {start, stop, step}):

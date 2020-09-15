@@ -42,7 +42,10 @@ def def_constraint(compiler: SatCompiler, cons_type: Var, name: Var, loops: list
 
 		## Compile Constraint Loops
 		for loop in loops:
+			compiler.push()
 			def_constraint_loop(compiler, loop, constraint)
+		else:
+			compiler.pop(len(loops))
 
 		compiler.checkpoint()
 
@@ -58,6 +61,9 @@ def def_constraint(compiler: SatCompiler, cons_type: Var, name: Var, loops: list
 	compiler.memset(name, constraint)
 	compiler.checkpoint()
 
+def is_var_or_expr(*X: object):
+	return any((type(x) is Var or type(x)) is Expr for x in X)
+
 def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constraint) -> None:
 	"""
 	"""
@@ -72,13 +78,13 @@ def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constrai
 		compiler < SatWarning(f"Duplicate definition for loop variable `{loop_var}`.", target=loop_var)
 
 	## Evaluate Loop Parameters
-	start, stop, step = tuple((compiler.eval(k) if (k is not None) else None) for k in loop_range)
+	start, stop, step = tuple((compiler.eval_expr(k) if (k is not None) else None) for k in loop_range)
 
 	## Check Values
-	if not start.is_int:
+	if not is_var_or_expr(start) and not start.is_int:
 		compiler << SatTypeError(f'Loop start must be an integer.', target=start)
 
-	if not stop.is_int:
+	if not is_var_or_expr(stop) and not stop.is_int:
 		compiler << SatTypeError(f'Loop end must be an integer.', target=stop)
 
 	if step is None:
@@ -86,13 +92,12 @@ def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constrai
 			step = Number('1')
 		else:
 			step = Number('1')
-	elif not step.is_int:
+	elif not is_var_or_expr(step) and not step.is_int:
 		compiler << SatTypeError(f'Loop step must be an integer.', target=step)
 
-	if (start < stop and step < 0) or (start > stop and step > 0):
-		print(start < stop)
-		print(step < 0)
-		compiler << SatValueError(f'Inconsistent Loop definition.', target=start)
+	if not is_var_or_expr(start, stop, step):
+		if (start < stop and step < 0) or (start > stop and step > 0):
+			compiler << SatValueError(f'Inconsistent Loop definition.', target=start)
 
 	compiler.checkpoint()
 
@@ -102,6 +107,8 @@ def def_constraint_loop(compiler: SatCompiler, loop: tuple, constraint: Constrai
 	def_loop_conds(compiler, loop_conds, conds)
 
 	constraint.add_loop(loop_var, loop_type, start, stop, step, conds)
+
+	compiler.memset(loop_var, loop_var)
 
 	compiler.checkpoint()
 

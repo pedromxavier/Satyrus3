@@ -25,6 +25,8 @@ class MetaSatAPI(type):
     options = []
 
     def __new__(cls, name: str, bases: tuple, attrs: dict):
+        if 'solve' not in attrs:
+            raise NotImplementedError(f"Method .solve(self) must be implemented for class {name}.")
         if name == cls.name:
             cls.base_class = new_class = type.__new__(cls, name, bases, {**attrs, 'subclasses': cls.subclasses, 'options' : cls.options})
         else:
@@ -63,14 +65,34 @@ class SatAPI(metaclass=MetaSatAPI):
         subclass.results = self.results
         return subclass
 
+    def solve(self):
+        return self.results
+
 ## NOTE: DO NOT EDIT ABOVE THIS LINE
 ## ---------------------------------
 ## 
 
+## Text Output
 class Text(SatAPI):
 
     key = 'text'
 
     def solve(self):
-        stdout << "\nResults:"
-        stdout << self.results
+        return str(self.results)
+
+## cvxpy
+## https://www.cvxpy.org/tutorial/advanced/index.html#mixed-integer-programs
+## import cvxpy as cp
+class cvxpy(SatAPI):
+
+    key = 'cvxpy'
+
+    def solve(self):
+        ...
+
+class dwave(SatAPI):
+
+    key = 'dwave'
+
+    def solve(self):
+       ...

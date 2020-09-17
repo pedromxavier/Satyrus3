@@ -26,8 +26,8 @@ with open('sat.csv', 'w') as file:
 ```
 ## Available Solvers
 
--### Text \[`'text'`\]
+- ### Text \[`'text'`\]
 Returns the arithmetic expression for the Energy Equation as a Python string.
 
--### CSV \[`'csv'`\]
+- ### CSV \[`'csv'`\]
 Returns a comma-separated values table as a Python string where each line contains a coefficient followed by the respective variable names. There may one line with no variable names, representing a constant term.

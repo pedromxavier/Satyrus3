@@ -1,9 +1,10 @@
 ## Standard Library
 from functools import reduce
+from collections import defaultdict
 
 ## Local
 from ...satlib import join, compose
-from .main import Expr, Number
+from .main import Expr, Number, Var
 
 ## :: Rule Definition ::
 ## :: Logical ::
@@ -246,6 +247,15 @@ Expr.TABLE['NOT'] = {
     T_IDX  : (lambda A, B : ~(A.__idx__(B))),
     }
 
+Expr.TABLE['NEG'] = {
+    # AND, OR, XOR:
+    T_ADD  : (lambda *X : Expr(T_ADD, *[Expr(T_SUB, x) for x in X])),
+    T_MUL  : (lambda *x, Y : Expr(T_MUL, Expr(T_SUB, x), *Y)),
+    T_SUB  : (lambda A, B=None : A.__add__(B) if (B is not None) else A),
+    # Implications:
+    T_DIV  : (lambda A, B : Expr(T_SUB, A) / (B)),
+    }
+
 Expr.TABLE['XOR'] = {
     T_XOR : (lambda A, B : (~A & B) | (A & ~B)),
     }
@@ -279,52 +289,56 @@ Expr.HASH.update({
     T_MUL : (lambda head, *tail: reduce(lambda x, y: hash((head, hash(x) + hash(y))), tail)),
     })
 
-def remove_implications(expr):
-    if type(expr) is Expr and expr.head in expr.TABLE['IMP']:
-        return expr.TABLE['IMP'][expr.head](*expr.tail)
+def remove_implications(cls, expr):
+    if type(expr) is cls and expr.head in cls.TABLE['IMP']:
+        return cls.TABLE['IMP'][expr.head](*expr.tail)
     else:
         return expr
 
-def move_not_inwards(expr):
-    if type(expr) is Expr and expr.head == T_NOT:
+Expr.remove_implications = classmethod(remove_implications)
+
+def move_not_inwards(cls, expr):
+    if type(expr) is cls and expr.head == T_NOT:
         expr = expr.tail[0]
         if type(expr) is Expr:
-            if expr.head in expr.TABLE['NOT']:
-                return expr.TABLE['NOT'][expr.head](*expr.tail)
+            if expr.head in cls.TABLE['NOT']:
+                return cls.TABLE['NOT'][expr.head](*expr.tail)
             else:
                 return expr
         else:
-            return Expr(T_NOT, expr)
+            return cls(T_NOT, expr)
     else:
         return expr
 
-def distribute_and_over_or(expr):
-    """
-    """
-    if type(expr) is Expr and expr.head == T_OR:
-        conjs = [(p.tail if (type(p) is Expr and p.head == T_AND) else (p,)) for p in expr.tail]
-        return Expr(T_AND, *(Expr(T_OR, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
+Expr.move_not_inwards = classmethod(move_not_inwards)
+
+def distribute_and_over_or(cls, expr):
+    if type(expr) is cls and expr.head == T_OR:
+        conjs = [(p.tail if (type(p) is cls and p.head == T_AND) else (p,)) for p in expr.tail]
+        return cls(T_AND, *(cls(T_OR, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
     else:
         return expr
 
-def distribute_or_over_and(expr):
-    """
-    """
-    if type(expr) is Expr and expr.head == T_AND:
-        conjs = [(p.tail if (type(p) is Expr and p.head == T_OR) else (p,)) for p in expr.tail]
-        return Expr(T_OR, *(Expr(T_AND, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
+Expr.distribute_and_over_or = classmethod(distribute_and_over_or)
+
+def distribute_or_over_and(cls, expr):
+    if type(expr) is cls and expr.head == T_AND:
+        conjs = [(p.tail if (type(p) is cls and p.head == T_OR) else (p,)) for p in expr.tail]
+        return cls(T_OR, *(cls(T_AND, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
     else:
         return expr
+
+Expr.distribute_or_over_and = classmethod(distribute_or_over_and)
 
 def cnf(cls, expr):
-    expr = cls.associate(cls.apply(expr, compose(move_not_inwards, remove_implications)))
-    return cls.simplify(cls.back_apply(expr, distribute_and_over_or))
+    expr = cls.associate(cls.apply(expr, compose(cls.move_not_inwards, cls.remove_implications)))
+    return cls.simplify(cls.back_apply(expr, cls.distribute_and_over_or))
 
 Expr.cnf = classmethod(cnf)
 
 def dnf(cls, expr):
-    expr = cls.associate(cls.apply(expr, compose(move_not_inwards, remove_implications)))
-    return cls.simplify(cls.back_apply(expr, distribute_or_over_and))
+    expr = cls.associate(cls.apply(expr, compose(cls.move_not_inwards, cls.remove_implications)))
+    return cls.simplify(cls.back_apply(expr, cls.distribute_or_over_and))
 
 Expr.dnf = classmethod(dnf)
 
@@ -339,3 +353,98 @@ def lms(cls, expr):
     return Expr.apply(expr, lambda expr: table[expr.head](expr.tail) if (type(expr) is cls and expr.head in table) else expr)
 
 Expr.lms = classmethod(lms)
+
+def move_neg_inwards(cls, expr):
+    if type(expr) is cls and expr.head == T_SUB:
+        expr = expr.tail[0]
+        if type(expr) is cls:
+            if expr.head in cls.TABLE['NEG']:
+                return cls.TABLE['NEG'][expr.head](*expr.tail)
+            else:
+                return expr
+        else:
+            return cls(T_SUB, expr)
+    else:
+        return expr
+
+Expr.move_neg_inwards = classmethod(move_neg_inwards)
+
+def remove_subtractions(cls, expr):
+    if type(expr) is cls and expr.head == T_SUB and len(expr.tail) == 2:
+        return cls(T_ADD, expr.tail[0], cls(T_SUB, expr.tail[1]))
+    else:
+        return expr
+
+Expr.remove_subtractions = classmethod(remove_subtractions)
+
+def distribute_add_over_mul(cls, expr):
+    """
+    """
+    if type(expr) is cls and expr.head == T_MUL:
+        conjs = [(p.tail if (type(p) is cls and p.head == T_ADD) else (p,)) for p in expr.tail]
+        return cls(T_ADD, *(cls(T_MUL, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
+    else:
+        return expr
+
+Expr.distribute_add_over_mul = classmethod(distribute_add_over_mul)
+
+def anf(cls, expr):
+    expr = cls.associate(cls.apply(expr, compose(cls.move_neg_inwards, cls.remove_subtractions)))
+    return cls.associate(cls.back_apply(expr, cls.distribute_add_over_mul))
+
+Expr.anf = classmethod(anf)
+
+def calc_prod(cls, expr) -> (frozenset, Number):
+    c = Number('1.0')
+    s = set()
+    for e in expr.tail:
+        if type(e) is cls:
+            if e.head == T_SUB:
+                c *= Number('-1')
+                s.add(e.tail[0])
+            else:
+                raise ValueError('CALC_PRODx00')
+        elif type(e) is Var:
+            s.add(e)
+        elif type(e) is Number:
+            c *= e
+        else:
+            raise ValueError('CALC_PRODx10')
+    else:
+        return (frozenset(s), c)
+
+Expr.calc_prod = classmethod(calc_prod)
+
+def sum_table(cls, expr):
+    if type(expr) is cls:
+        if expr.head == T_ADD:
+            table = defaultdict(lambda: Number('0'))
+            for e in expr.tail:
+                if type(e) is cls:
+                    if e.head == T_MUL:
+                        k, v = cls.calc_prod(e)
+                    elif e.head == T_SUB:
+                        k, v = (frozenset([e.tail[0]]), Number('-1'))
+                    else:
+                        raise ValueError('SUM_TABLE')
+                else:
+                    k, v = (None, Number('1'))
+                table[k] += v
+                continue
+            else:
+                return table
+
+        elif expr.head == T_MUL:
+            return dict([cls.calc_prod(expr)])
+        elif expr.head == T_SUB:
+            return {frozenset([expr.tail[0]]) : Number('-1')}
+        else:
+            raise ValueError('SUM_TABLEx00')
+    elif type(expr) is Var:
+        return {frozenset([expr]) : Number('-1')}
+    elif type(expr) is Number:
+        return {None: expr}
+    else:
+        raise ValueError('SUM_TABLEx10')
+
+Expr.sum_table = classmethod(sum_table)

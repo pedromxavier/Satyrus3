@@ -216,7 +216,13 @@ class SatCompiler:
 
 		self.checkpoint()
 
-		return E
+		E = Expr.anf(Expr.calc(Expr.anf(E)))
+
+		self.checkpoint()
+
+		table = Expr.sum_table(E)
+
+		return {(tuple(k) if k is not None else None): table[k] for k in table}
 
 	def exit(self, code: int):
 		raise SatExit(code)

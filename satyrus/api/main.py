@@ -77,8 +77,18 @@ class Text(SatAPI):
 
     key = 'text'
 
+    def solve(self) -> str:
+        x = [((v, *k) if k is not None else (v,)) for (k, v) in self.results.items()]
+        return " + ".join([" * ".join([str(y) for y in z]) for z in x])
+
+## CSV Output
+class CSV(SatAPI):
+
+    key = 'csv'
+
     def solve(self):
-        return str(self.results)
+        x = [((v, *k) if k is not None else (v,)) for (k, v) in self.results.items()]
+        return "\n".join([",".join([str(y) for y in z]) for z in x])
 
 ## cvxpy
 ## https://www.cvxpy.org/tutorial/advanced/index.html#mixed-integer-programs

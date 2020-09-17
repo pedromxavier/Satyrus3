@@ -14,8 +14,10 @@ from satyrus import SatAPI
 
 SOURCE_PATH = r"examples/graph_colour.sat"
 
-## Text output
+## Computes Energy equation
 sat = SatAPI(SOURCE_PATH)
+
+## Text output
 txt = sat['text'].solve()
 print(txt)
 

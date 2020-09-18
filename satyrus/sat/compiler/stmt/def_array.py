@@ -16,7 +16,9 @@ def def_array(compiler, name: Var, shape: tuple, buffer: list):
         3. Set Array to memory
     """
     ## Evaluates shape values and variables
-    shape = tuple(compiler.eval(n) for n in shape)
+    shape = tuple(compiler.eval_expr(n, calc=True) for n in shape)
+
+    compiler.checkpoint()
     
     ## Checks for array shape consistency.
     def_array_shape(compiler, shape)
@@ -37,7 +39,7 @@ def def_array_shape(compiler, shape: tuple):
         ===============
     """
     for n in shape:
-        if not (n.is_int and int(n) > 0):
+        if type(n) is not Number or not (n.is_int and int(n) > 0):
             compiler << SatTypeError(f'Array dimensions must be positive integers.', target=n)
 
     compiler.checkpoint()
@@ -50,7 +52,7 @@ def def_array_buffer(compiler, shape: tuple, buffer: list, array: dict):
         return
 
     for idx, val in buffer:
-        idx = tuple(compiler.eval(i) for i in idx)
+        idx = tuple(compiler.eval_expr(i, calc=True) for i in idx)
 
         if len(idx) > len(shape):
             compiler << SatValueError(f'Too much indices for {len(shape)}-dimensional array', target=idx[len(shape)])

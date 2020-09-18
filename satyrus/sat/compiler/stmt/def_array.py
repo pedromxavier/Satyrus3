@@ -64,7 +64,7 @@ def def_array_buffer(compiler, shape: tuple, buffer: list, array: dict):
             if not 1 <= int(i) <= int(n):
                 compiler << SatValueError(f'Indexing ´{i}´ is out of bounds [1, {n}]', target=i)
 
-        val = compiler.eval(val)
+        val = compiler.eval_expr(val, calc=True)
 
         if type(val) is not Number:
             compiler << SatValueError(f'Array elements must be numbers.', target=val)

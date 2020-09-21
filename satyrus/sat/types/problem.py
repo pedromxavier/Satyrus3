@@ -1,7 +1,7 @@
 from collections import deque
 
 ## Local
-from ...satlib import arange
+from ...satlib import arange, stdwar
 from .expr import Expr
 from .main import Var, Number
 

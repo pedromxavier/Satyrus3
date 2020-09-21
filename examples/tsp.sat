@@ -26,14 +26,14 @@ tour[m + 1][m + 1];
 (int) unicidade_posicao_cidade[2]:
     # Não pode ter duas cidades na mesma posição
     @{i = [1:m]} # para cada cidade
-    @{j = [1:m], i != j} # para cada outra cidade
+    @{j = [1:m], j > i} # para cada outra cidade
     @{k = [1:m]} # para cada posição no tour
     ~(tour[k][i] & tour[k][j]);
 
 (int) unicidade_cidade_posicao[2]:
     # Uma cidade não pode ocupar duas posições
     @{i = [1:m]} # para cada posição no tour
-    @{j = [1:m], i != j} # para cada outra posição
+    @{j = [1:m], j > i} # para cada outra posição
     @{k = [1:m]} # para cada cidade
     ~(tour[i][k] & tour[j][k]);
 
@@ -44,7 +44,7 @@ tour[m + 1][m + 1];
     tour[j][i];
 
 (opt) distancia:
-    @{i = [1:m]}
-    @{j = [1:m]}
-    @{k = [1:m]}
+    ${i = [1:m]} # para cada par de posições (i, i+1)
+    ${j = [1:m]} # para cada cidade
+    ${k = [1:m], k > j} # para cada outra cidade
     (tour[i][j] & tour[i + 1][k]) -> d[j][k];

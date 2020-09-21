@@ -19,7 +19,7 @@ class Satyrus:
     def __init__(self, source_path: str):
         """
         """
-        stream.set_lvl(3)
+        stream.set_lvl(0)
 
         self.compiler = SatCompiler(self.instructions)
 

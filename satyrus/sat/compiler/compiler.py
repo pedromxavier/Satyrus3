@@ -7,7 +7,7 @@ import os
 import math
 
 ## Local
-from satyrus.satlib import log, system, stderr, stdout, stdwar, Source, Stack
+from satyrus.satlib import log, system, stderr, stdout, stdwar, Source, Stack, join
 
 from ..parser import SatParser
 from ..types.error import SatValueError, SatTypeError, SatCompilerError, SatReferenceError
@@ -115,8 +115,12 @@ class SatCompiler:
 		self.errors = []
 
 		for stmt in self.bytecode:
-			stdout[3] << stmt
+			stdout[3] << f"{stmt[0]} {stmt[1]} {stmt[2]}"
 			self.exec(stmt)
+		else:
+			stdout[3] << ""
+
+		self.checkpoint()
 
 		## Parameter capture
 		if (self.env[EPSILON] < pow(10, -Number.prec(None))):
@@ -179,23 +183,26 @@ class SatCompiler:
 			else:
 				self.penalties[level_j] = self.penalties[level_k] * (n_k + 1)
 
-		stdout[1] << ':  Penalty Table  :'
-		stdout[1] << '| lvl | n | value |'
+		stdout[2] << ':  Penalty Table  :'
+		stdout[2] << '| lvl | n | value |'
 		for k, n in self.levels:
-			stdout[1] << f"|{k:4d} | {n:d} | {self.penalties[k]:5.2f} |"
+			stdout[2] << f"|{k:4d} | {n:d} | {self.penalties[k]:5.2f} |"
 
-		stdout[1] << f"| ε={epsilon:.2f} ; α={alpha:.2f} |"
+		stdout[2] << f"| ε={epsilon:.2f} ; α={alpha:.2f} |"
+		stdout[2] << ""
 
 		self.checkpoint()
 
 		## Generate Energy equations
-
+		f_std = lambda expr: Expr.anf(Expr.calc(Expr.anf(Expr.calc(expr))))
 		## Integrity Constraints
+		stdout[3] << f"INT CONST"
 		f_int = lambda expr: Expr.lms(Expr.dnf(~Expr.calc(expr)))
 		E_int = []
 		for cons in self.constraints[CONS_INT]:
 			expr = self.penalties[cons.level] * f_int(cons.get_expr(self))
-			E_int.append(expr)
+			stdout[3] << f"\t{expr!r}\n"
+			E_int.append(f_std(expr))
 		else:
 			if len(E_int) == 1:
 				E_int = E_int[0]
@@ -203,11 +210,13 @@ class SatCompiler:
 				E_int = Expr(T_ADD, *E_int)
 		
 		## Optimality ones
+		stdout[3] << f"OPT CONST"
 		f_opt = lambda expr: Expr.lms(Expr.dnf(Expr.calc(expr)))
 		E_opt = []
 		for cons in self.constraints[CONS_OPT]:
 			expr = self.penalties[cons.level] * f_opt(cons.get_expr(self))
-			E_opt.append(expr)
+			stdout[3] << f"\t{expr!r}\n"
+			E_opt.append(f_std(expr))
 		else:
 			if len(E_opt) == 1:
 				E_opt = E_opt[0]
@@ -217,11 +226,11 @@ class SatCompiler:
 		self.checkpoint()
 
 		## Combining both
-		E = Expr.calc(E_int + E_opt)
+		E = E_int + E_opt
 
 		self.checkpoint()
 
-		E = Expr.anf(Expr.calc(Expr.anf(E)))
+		E = f_std(E)
 
 		self.checkpoint()
 

@@ -191,40 +191,6 @@ class Expr(SatType, tuple):
         return Expr(self.head, *[p.copy for p in self.tail])
 
     @classmethod
-    def _simplify(cls, expr):
-        if type(expr) is Expr and expr.head in cls.ASSOCIATIVE:
-            tail = []
-            for p in expr.tail:
-                if type(p) is Number:
-                    if p == cls.NULL[expr.head]: ## null element
-                        return cls.NULL[expr.head]
-                    elif p == cls.NEUTRAL[expr.head]:
-                        continue
-                    else:
-                        tail.append(p)
-                else:
-                    tail.append(p)
-
-            if len(tail) == 0:
-                return cls.NULL[expr.head]
-
-            elif len(tail) == 1:
-                return expr.tail[0]
-
-            else:
-                return cls(expr.head, *tail)
-        else:
-            return expr
-
-
-    @classmethod
-    def simplify(cls, expr):
-        if type(expr) is cls:
-            return cls.back_apply(expr, cls._simplify)
-        else:
-            return expr
-
-    @classmethod
     def associate(cls, expr):
         if type(expr) is cls:
             return cls.back_apply(expr, cls._associate)

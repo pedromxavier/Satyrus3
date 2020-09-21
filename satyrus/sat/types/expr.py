@@ -330,13 +330,13 @@ Expr.distribute_or_over_and = classmethod(distribute_or_over_and)
 
 def cnf(cls, expr):
     expr = cls.associate(cls.apply(expr, compose(cls.move_not_inwards, cls.remove_implications)))
-    return cls.simplify(cls.back_apply(expr, cls.distribute_and_over_or))
+    return cls.associate(cls.back_apply(expr, cls.distribute_and_over_or))
 
 Expr.cnf = classmethod(cnf)
 
 def dnf(cls, expr):
     expr = cls.associate(cls.apply(expr, compose(cls.move_not_inwards, cls.remove_implications)))
-    return cls.simplify(cls.back_apply(expr, cls.distribute_or_over_and))
+    return cls.associate(cls.back_apply(expr, cls.distribute_or_over_and))
 
 Expr.dnf = classmethod(dnf)
 

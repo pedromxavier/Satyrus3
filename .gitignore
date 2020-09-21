@@ -8,6 +8,9 @@ __pycache__/
 # C extensions
 *.so
 
+# CSV Output
+*.csv
+
 # Ply Output Files
 parser.out
 parsetab.py

@@ -9,7 +9,10 @@
     >>> # - DWave Quantum Annealing Solver -
     >>> sat['dwave'].solve()
 """ 
+## Standard Library
+from functools import wraps
 
+## Local
 from ..satlib import stdout
 
 class MetaSatAPI(type):
@@ -27,6 +30,9 @@ class MetaSatAPI(type):
     def __new__(cls, name: str, bases: tuple, attrs: dict):
         if 'solve' not in attrs:
             raise NotImplementedError(f"Method .solve(self) must be implemented for class {name}.")
+        else:
+            attrs['solve'] = cls.solve_func(attrs['solve'])
+
         if name == cls.name:
             cls.base_class = new_class = type.__new__(cls, name, bases, {**attrs, 'subclasses': cls.subclasses, 'options' : cls.options})
         else:
@@ -35,7 +41,20 @@ class MetaSatAPI(type):
                 cls.options.append(attrs['key'])
             else:
                 raise ValueError(f"Key {attrs['key']} defined twice.")
+
         return new_class
+
+    @classmethod
+    def solve_func(cls, func: callable):
+        """ func(api: SatAPI)
+        """
+        @wraps(func)
+        def new_func(api):
+            if api.code:
+                return None
+            else:
+                return func(api)
+        return new_func
 
 class SatAPI(metaclass=MetaSatAPI):
 
@@ -60,9 +79,13 @@ class SatAPI(metaclass=MetaSatAPI):
             ## Gather results
             self.results = self.satyrus.results
 
+            ## Exit code
+            self.code = self.satyrus.compiler.code
+
     def __getitem__(self, key: str):
         subclass = self.subclasses[key](None)
         subclass.results = self.results
+        subclass.code = self.code
         return subclass
 
     def solve(self):

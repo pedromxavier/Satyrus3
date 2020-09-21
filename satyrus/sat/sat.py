@@ -1,6 +1,6 @@
 
 ## Local
-from ..satlib import Source
+from ..satlib import Source, stream
 
 from .compiler import SatCompiler
 
@@ -19,6 +19,8 @@ class Satyrus:
     def __init__(self, source_path: str):
         """
         """
+        stream.set_lvl(3)
+
         self.compiler = SatCompiler(self.instructions)
 
         self.source = Source(source_path)

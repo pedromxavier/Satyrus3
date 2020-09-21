@@ -68,6 +68,9 @@ class Constraint(object):
         self.loop_stack = deque([])
         self.expr = None
 
+    def __repr__(self):
+        return f"({self.type}) {self.name} [{self.level}]"
+
     def add_loop(self, var: Var, loop_type: Var, start: Number, stop: Number, step: Number, conds: list):
         """ ADD_LOOP
             ========

@@ -7,7 +7,7 @@ import os
 import math
 
 ## Local
-from satyrus.satlib import system, stderr, stdout, stdwar, Source, Stack
+from satyrus.satlib import log, system, stderr, stdout, stdwar, Source, Stack
 
 from ..parser import SatParser
 from ..types.error import SatValueError, SatTypeError, SatCompilerError, SatReferenceError
@@ -85,14 +85,18 @@ class SatCompiler:
 			self.code = error.code
 			self.results = None
 		except Exception:
-			stderr << traceback.format_exc()
+			trace = traceback.format_exc()
+			with open('sat.log', 'w') as file:
+				file.write(trace)
+			stderr[3] << trace
+			self.code = 1
 			self.results = None
 			raise
 		finally:
 			if self.code:
-				stderr[1] << f"> compiler exited with code {self.code}."
+				stderr << f"> compiler exited with code {self.code}."
 			else:
-				stdout[1] << f"> compiler exited with code {self.code}."
+				stdout << f"> compiler exited with code {self.code}."
 			return self.code
 
 	def _compile(self, source: Source):
@@ -111,6 +115,7 @@ class SatCompiler:
 		self.errors = []
 
 		for stmt in self.bytecode:
+			stdout[3] << stmt
 			self.exec(stmt)
 
 		## Parameter capture

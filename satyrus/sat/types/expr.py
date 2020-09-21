@@ -242,9 +242,7 @@ Expr.TABLE['NOT'] = {
     T_RIMP : (lambda A, B : (~B).__rimp__(~A)),
     T_IFF  : (lambda A, B : A ^ B),
     # Double NOT:
-    T_NOT  : (lambda A : A),
-    # Indexing:
-    T_IDX  : (lambda A, B : ~(A.__idx__(B))),
+    T_NOT  : (lambda A : A)
     }
 
 Expr.TABLE['NEG'] = {

@@ -20,3 +20,24 @@ class Source(str):
     @staticmethod
     def load(fname : str):
         return Source(fname)
+
+    @property
+    def eof(self):
+        ## SatType lexinfo interface
+        lineno = len(self.lines) - 1
+        lexpos = len(self.lines[lineno]) - 1
+        chrpos = (lexpos - self.table[lineno - 1] + 1)
+
+        lexinfo = {
+            'lineno': lineno,
+            'lexpos': lexpos,
+            'chrpos' : chrpos,
+            'source' : self
+        }
+
+        ## Anonymous object
+        name = 'SAT_EOF'
+        bases = (object,)
+        attrs = {**lexinfo, 'lexinfo': lexinfo}
+
+        return type(name, bases, attrs)()

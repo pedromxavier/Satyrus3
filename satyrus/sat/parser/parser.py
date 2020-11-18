@@ -22,13 +22,11 @@ def regex(pattern: str):
 class SatLexer(object):
     ## List of token names.
     tokens = (
-        'NAME', 'NUMBER',
+        'FORALL', 'EXISTS', 'EXISTS_ONE', # quantifiers
 
-        'FORALL', 'EXISTS', 'EXISTS_ONE',
+        'NOT', 'AND', 'OR', 'XOR', # logical
 
-        'NOT', 'AND', 'OR', 'XOR',
-
-        'IMP', 'RIMP', 'IFF',
+        'IMP', 'RIMP', 'IFF', # extended logical
 
         'CONFIG',
 
@@ -47,13 +45,13 @@ class SatLexer(object):
 
         'NE', # not equal
 
-        'MUL', 'DIV', 'MOD', 'ADD', 'SUB',
+        'MUL', 'DIV', 'MOD', 'ADD', 'SUB', # arithmetic
 
         'DOTS',
 
         'LBRA', 'RBRA', 'LPAR', 'RPAR', 'LCUR', 'RCUR',
 
-        'STRING',
+        'NAME', 'NUMBER', 'STRING',
         )
 
     # Regular expression rules for tokens
@@ -125,7 +123,7 @@ class SatLexer(object):
 
     @regex(r"[a-zA-Z_][a-zA-Z0-9_]*")
     def t_NAME(self, t):
-        t.value = Var(t.value)
+        t.value = String(t.value)
         return t
 
     @regex(r"[-+]?[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
@@ -187,6 +185,7 @@ class SatParser(object):
         ('left', 'CONFIG'),
 
         ('left', 'NAME'),
+
         ('left', 'STRING', 'NUMBER'),
 
         ('left', 'ENDL'),
@@ -314,7 +313,7 @@ class SatParser(object):
         p[0] = p[1]
 
     def p_def_constant(self, p):
-        """ def_constant : NAME ASSIGN expr
+        """ def_constant : varname ASSIGN expr
         """
         name = self.get_arg(p, 1)
         value = self.get_arg(p, 3)
@@ -322,13 +321,18 @@ class SatParser(object):
 
     def p_literal(self, p):
         """ literal : NUMBER
-                    | NAME
+                    | varname
         """
         p[0] = self.get_arg(p, 1)
 
+    def p_varname(self, p):
+        """ varname : NAME
+        """
+        p[0] = 
+
     def p_def_array(self, p):
-        """ def_array : NAME shape ASSIGN array_buffer
-                      | NAME shape
+        """ def_array : varname shape ASSIGN array_buffer
+                      | varname shape
         """
         name = self.get_arg(p, 1)
         shape = p[2]
@@ -388,8 +392,8 @@ class SatParser(object):
             p[0] = ( p[1],)
 
     def p_def_constraint(self, p):
-        """ def_constraint : LPAR NAME RPAR NAME LBRA literal RBRA DOTS loops expr
-                           | LPAR NAME RPAR NAME DOTS loops expr
+        """ def_constraint : LPAR NAME RPAR varname LBRA literal RBRA DOTS loops expr
+                           | LPAR NAME RPAR varname DOTS loops expr
         """
         type_= self.get_arg(p, 2)
         name = self.get_arg(p, 4)
@@ -415,8 +419,8 @@ class SatParser(object):
             p[0] = [ p[1],]
 
     def p_loop(self, p):
-        """ loop : quant LCUR NAME ASSIGN domain COMMA conditions RCUR
-                 | quant LCUR NAME ASSIGN domain RCUR
+        """ loop : quant LCUR varname ASSIGN domain COMMA conditions RCUR
+                 | quant LCUR varname ASSIGN domain RCUR
         """
         if len(p) == 9:
             p[0] = (p[1], self.get_arg(p, 3), p[5], p[7])
@@ -501,6 +505,7 @@ class SatParser(object):
         p[0] = p[2]
 
     def p_error(self, t):
+        stderr[5] << f"Error Token: `{t}`"
         target = SatType()
         if t:
             target.lexinfo = {

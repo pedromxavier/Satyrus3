@@ -1,5 +1,7 @@
 """ :: Memory ::
 	============
+
+	STATUS: OK
 """
 
 ## Local

@@ -17,7 +17,7 @@ class SatError(Exception):
                 f"In '{os.path.abspath(self.target.source.fname)}' at line {self.target.lineno}:\n"
                 f"{self.target.source.lines[self.target.lineno]}\n"
                 f"{' ' * self.target.chrpos}^\n"
-                f"{self.__class__.__doc__}: {self.msg}"
+                f"{self.__class__.__doc__}: {self.msg}\n"
             )
         else:
             return self.msg

@@ -6,10 +6,11 @@ import decimal
 import re
 from sys import intern
 from functools import wraps
+import itertools as it
 
 ## Local
 from ...satlib import join, keep_type
-from .error import SatValueError
+from .error import SatValueError, SatIndexError
 from .symbols.tokens import T_DICT, T_IDX, T_AND, T_OR, T_MUL, T_ADD, T_SUB
 
 class MetaSatType(type):
@@ -111,7 +112,6 @@ class Expr(SatType, tuple):
 
         Only basic functionality is implemented here. Context is implemented in `expr.py`
     """
-    HASH = {}
     RULES = {}
     TABLE = {}
 
@@ -130,7 +130,6 @@ class Expr(SatType, tuple):
 
     def __init__(self, head, *tail):
         SatType.__init__(self)
-        self._var_stack = None
 
     def parenthesise(self, child) -> bool:
         if type(child) is not type(self):
@@ -157,14 +156,6 @@ class Expr(SatType, tuple):
 
     def __repr__(self):
         return f"Expr({join(', ', self, repr)})"
-
-    def __hash__(self):
-        """ This hash function identifies uniquely each expression.
-        """
-        if self.head in self.HASH:
-            return self.HASH[self.head](*self)
-        else:
-            return tuple.__hash__((self.head, *(hash(p) for p in self.tail)))
 
     @classmethod
     def rule(cls, token: str):
@@ -278,27 +269,6 @@ class Expr(SatType, tuple):
 
         ## Apply function to expr.
         return func(expr, *args, **kwargs)
-
-    @classmethod
-    def from_tuple(cls, tup: tuple):
-        if type(tup) is tuple:
-            return cls(tup[0], *(cls.from_tuple(t) for t in tup[1:]))
-        else:
-            return tup
-
-    @classmethod
-    def to_tuple(cls, expr):
-        if type(expr) is cls:
-            return tuple(cls.to_tuple(p) for p in expr)
-        else:
-            return expr
-
-    @classmethod
-    def cmp(cls, p, q):
-        """ cls.cmp(p, q) -> bool
-            Compares both expressions.
-        """
-        return hash(p) == hash(q)
 
     @classmethod
     def property(cls, func: callable):
@@ -549,6 +519,9 @@ Number.T = Number('1')
 Number.F = Number('0')
 
 class Var(SatType, str):
+    """ :: VAR ::
+        =========
+    """
 
     def __init__(self, name : str):
         SatType.__init__(self)
@@ -567,3 +540,88 @@ class Var(SatType, str):
                 raise SatValueError(f"Invalid non-integer index {idx}", target=idx)
         else:
             return Expr(T_IDX, self, idx)
+
+class String(SatType, str):
+    """ :: STRING ::
+        ============
+    """
+
+    def __new__(cls, *args, **kwargs):
+        return str.__new__(cls, *args, **kwargs)
+
+    def __init__(self, *args, **kwargs):
+        SatType.__init__(self)
+
+class Array(SatType):
+    """ :: Array ::
+        ===========
+    """
+    def __init__(self, name, shape):
+        SatType.__init__(self)
+        
+        self.array = {}
+
+        self.name = name
+        self.shape = shape
+        self.dim = len(shape)
+
+    def __idx__(self, idx: Number):
+        return self[idx]
+
+    def __getitem__(self, idx: Number):
+        if type(idx) is Number and idx.is_int:
+            i = int(idx)
+            if i in self.array:
+                return self.array[i]
+            else:
+                n = int(self.shape[0])
+                if 1 <= i <= n:
+                    if len(self.shape) > 1:
+                        self.array[i] = Array(self.name.__idx__(idx), self.shape[1:])
+                        return self.array[i]
+                    else:
+                        return self.name.__idx__(idx)
+                else:
+                    raise SatIndexError(f"Index {idx} is out of bounds [1, {n}].", target=idx)
+        else:
+            raise SatIndexError(f"Invalid index {idx}.", target=idx)
+
+    def __setitem__(self, idx: Number, value: SatType):
+        if type(idx) is Number and idx.is_int:
+            if self.dim > 1:
+                raise SatIndexError(f"Attempt to assign to {self.dim}-dimensional array.", target=idx)
+            else:
+                i = int(idx)
+                n = int(self.shape[0])
+                if 1 <= i <= n:
+                    self.array[i] = value
+                else:
+                    raise SatIndexError(f"Index {idx} is out of bounds [1, {n}].", target=idx)                 
+        else:
+            raise SatIndexError(f"Invalid index {idx}.", target=idx)
+
+    def __str__(self):
+        return f"{self.name}"
+
+    def __repr__(self):
+        return f"{self.name}" + "".join([f"[{n}]" for n in self.shape])
+        
+    @classmethod
+    def from_buffer(cls, name, shape, buffer: dict):
+        array = cls(name, shape)
+        for idx in buffer:
+            subarray = array
+            for i in idx[:-1]:
+                subarray = subarray[Number(i)]
+            subarray[Number(idx[-1])] = buffer[idx]
+        return array
+
+class Constraint(object):
+
+    def __init__(self, cons_type: String, name: Var, loops: list, expr: Expr, level: int):
+        self.type = cons_type
+        self.name = name
+        self.loops = loops
+        self.expr = expr
+        self.level = level
+

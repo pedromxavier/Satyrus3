@@ -259,14 +259,14 @@ Expr.TABLE['XOR'] = {
     }
 
 @Expr.classmethod
-def remove_implications(cls, expr):
+def _remove_implications(cls, expr):
     if type(expr) is cls and expr.head in cls.TABLE['IMP']:
         return cls.TABLE['IMP'][expr.head](*expr.tail)
     else:
         return expr
 
 @Expr.classmethod
-def move_not_inwards(cls, expr):
+def _move_not_inwards(cls, expr):
     if type(expr) is cls and expr.head == T_NOT:
         expr = expr.tail[0]
         if type(expr) is Expr:
@@ -280,7 +280,7 @@ def move_not_inwards(cls, expr):
         return expr
 
 @Expr.classmethod
-def distribute_and_over_or(cls, expr):
+def _distribute_and_over_or(cls, expr):
     if type(expr) is cls and expr.head == T_OR:
         conjs = [(p.tail if (type(p) is cls and p.head == T_AND) else (p,)) for p in expr.tail]
         return cls(T_AND, *(cls(T_OR, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
@@ -288,7 +288,7 @@ def distribute_and_over_or(cls, expr):
         return expr
 
 @Expr.classmethod
-def distribute_or_over_and(cls, expr):
+def _distribute_or_over_and(cls, expr):
     if type(expr) is cls and expr.head == T_AND:
         conjs = [(p.tail if (type(p) is cls and p.head == T_OR) else (p,)) for p in expr.tail]
         return cls(T_OR, *(cls(T_AND, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
@@ -296,29 +296,32 @@ def distribute_or_over_and(cls, expr):
         return expr
 
 @Expr.classmethod
-def cnf(cls, expr):
-    expr = cls.associate(cls.apply(expr, compose(cls.move_not_inwards, cls.remove_implications)))
-    return cls.associate(cls.back_apply(expr, cls.distribute_and_over_or))
+def cnf(cls: type, expr: Expr):
+    expr = cls.associate(cls.apply(expr, compose(cls._move_not_inwards, cls._remove_implications)))
+    return cls.associate(cls.back_apply(expr, cls._distribute_and_over_or))
 
 @Expr.classmethod
-def dnf(cls, expr):
-    expr = cls.associate(cls.apply(expr, compose(cls.move_not_inwards, cls.remove_implications)))
-    return cls.associate(cls.back_apply(expr, cls.distribute_or_over_and))
+def dnf(cls: type, expr: Expr):
+    expr = cls.associate(cls.apply(expr, compose(cls._move_not_inwards, cls._remove_implications)))
+    return cls.associate(cls.back_apply(expr, cls._distribute_or_over_and))
+
+Expr.LMS_TABLE = {
+    T_AND : (lambda tail: Expr(T_MUL, *tail)),
+    T_OR  : (lambda tail: Expr(T_ADD, *tail)),
+    T_NOT : (lambda tail: Expr(T_SUB, Number('1'), *tail))
+}
 
 @Expr.classmethod
-def lms(cls, expr):
+def lms(cls: type, expr: Expr):
     """ Expr is assumed to be in the c.n.f.
-    """
-    table = {
-        T_AND : (lambda tail: cls(T_MUL, *tail)),
-        T_OR : (lambda tail: cls(T_ADD, *tail)),
-        T_NOT : (lambda tail: cls(T_SUB, Number('1'), *tail))
-    }
-    return Expr.apply(expr, lambda expr: table[expr.head](expr.tail) if (type(expr) is cls and expr.head in table) else expr)
+    """   
+    return cls.apply(expr, lambda expr: cls.LMS_TABLE[expr.head](expr.tail) if (type(expr) is cls and expr.head in cls.LMS_TABLE) else expr)
 
 @Expr.classmethod
-def move_neg_inwards(cls, expr):
-    if type(expr) is cls and expr.head == T_SUB:
+def _move_neg_inwards(cls: type, expr: Expr):
+    """
+    """
+    if type(expr) is cls and (expr.head == T_SUB):
         expr = expr.tail[0]
         if type(expr) is cls:
             if expr.head in cls.TABLE['NEG']:
@@ -331,14 +334,16 @@ def move_neg_inwards(cls, expr):
         return expr
 
 @Expr.classmethod
-def remove_subtractions(cls, expr):
+def _remove_subtractions(cls: type, expr: Expr):
+    """
+    """
     if type(expr) is cls and expr.head == T_SUB and len(expr.tail) == 2:
         return cls(T_ADD, expr.tail[0], cls(T_SUB, expr.tail[1]))
     else:
         return expr
 
 @Expr.classmethod
-def distribute_add_over_mul(cls, expr):
+def _distribute_add_over_mul(cls: type, expr: Expr):
     """
     """
     if type(expr) is cls and expr.head == T_MUL:
@@ -348,59 +353,8 @@ def distribute_add_over_mul(cls, expr):
         return expr
 
 @Expr.classmethod
-def anf(cls, expr):
-    expr = cls.associate(cls.apply(expr, compose(cls.move_neg_inwards, cls.remove_subtractions)))
-    return cls.associate(cls.back_apply(expr, cls.distribute_add_over_mul))
-
-@Expr.classmethod
-def calc_prod(cls, expr) -> (frozenset, Number):
-    c = Number('1.0')
-    s = set()
-    for e in expr.tail:
-        if type(e) is cls:
-            if e.head == T_SUB:
-                c *= Number('-1')
-                s.add(e.tail[0])
-            else:
-                raise ValueError('CALC_PRODx00')
-        elif type(e) is Var:
-            s.add(e)
-        elif type(e) is Number:
-            c *= e
-        else:
-            raise ValueError('CALC_PRODx10')
-    else:
-        return (frozenset(s), c)
-
-@Expr.classmethod
-def sum_table(cls, expr):
-    if type(expr) is cls:
-        if expr.head == T_ADD:
-            table = defaultdict(lambda: Number('0'))
-            for e in expr.tail:
-                if type(e) is cls:
-                    if e.head == T_MUL:
-                        k, v = cls.calc_prod(e)
-                    elif e.head == T_SUB:
-                        k, v = (frozenset([e.tail[0]]), Number('-1'))
-                    else:
-                        raise ValueError('SUM_TABLE')
-                else:
-                    k, v = (None, Number('1'))
-                table[k] += v
-                continue
-            else:
-                return table
-
-        elif expr.head == T_MUL:
-            return dict([cls.calc_prod(expr)])
-        elif expr.head == T_SUB:
-            return {frozenset([expr.tail[0]]) : Number('-1')}
-        else:
-            raise ValueError('SUM_TABLEx00')
-    elif type(expr) is Var:
-        return {frozenset([expr]) : Number('-1')}
-    elif type(expr) is Number:
-        return {None: expr}
-    else:
-        raise ValueError('SUM_TABLEx10')
+def anf(cls: type, expr: Expr):
+    """
+    """
+    expr = cls.associate(cls.apply(expr, compose(cls._move_neg_inwards, cls._remove_subtractions)))
+    return cls.associate(cls.back_apply(expr, cls._distribute_add_over_mul))

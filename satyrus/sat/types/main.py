@@ -87,22 +87,9 @@ class SatType(metaclass=MetaSatType):
     def __invert__(self):
         return self.__not__()
 
-    @classmethod
-    def check_type(cls, obj):
-        if not isinstance(obj, cls):
-            raise TypeError(f'Object of type {type(obj)} found.')
-
-    @property
-    def copy(self):
-        return self
-
-    @property
-    def is_expr(self):
-        return type(self) is Expr
-
     @property
     def is_int(self):
-        raise NotImplementedError
+        return False
 
 class Expr(SatType, tuple):
     """ :: Expr ::
@@ -131,7 +118,7 @@ class Expr(SatType, tuple):
     def __init__(self, head, *tail):
         SatType.__init__(self)
 
-    def parenthesise(self, child) -> bool:
+    def parenthesise(self, child: object) -> bool:
         if type(child) is not type(self):
             return False
         elif self.head not in self.GROUPS:
@@ -153,7 +140,6 @@ class Expr(SatType, tuple):
         else:
             return join(" ", [head, *tail])
         
-
     def __repr__(self):
         return f"Expr({join(', ', self, repr)})"
 
@@ -640,6 +626,10 @@ class Constraint(object):
         self._loops = loops
         self._expr = expr
         self._level = level
+
+    @property
+    def expr(self) -> Expr:
+        ...
 
     @property
     def type(self) -> str:

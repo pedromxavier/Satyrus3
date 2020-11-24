@@ -104,7 +104,7 @@ class SatCompiler:
 		self.bytecode = [(RUN_INIT,), *self.parser.parse(self.source), (RUN_SCRIPT,)]
 
 		for stmt in self.bytecode:
-			stdout[3] << f"{join(', ', stmt, repr)}"
+			stdout[3] << f"{join(', ', stmt, str)}"
 			self.exec(stmt)
 		else:
 			stdout[3] << ""
@@ -182,7 +182,7 @@ class SatCompiler:
 		"""
 		"""
 		while self.error_stack:
-			error = self.error_stack.pop()
+			error = self.error_stack.popleft()
 			stderr << error
 		else:
 			self.exit(1)

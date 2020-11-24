@@ -55,10 +55,10 @@ def run_script_constraints(compiler: SatCompiler, constraints: dict):
     ## Retrieve constraints
     all_constraints = [item for item in compiler.memory if (type(item) is Constraint)]
 
-    constraints = {
+    constraints.update({
         CONS_INT: [cons for cons in all_constraints if (cons.type == CONS_INT)],
         CONS_OPT: [cons for cons in all_constraints if (cons.type == CONS_OPT)]
-    }
+    })
 
     if len(constraints[CONS_INT]) + len(constraints[CONS_OPT]) == 0:
         compiler << SatCompilerError("No problem defined. Maybe you are just fine.", target=compiler.source.eof)
@@ -99,10 +99,11 @@ def run_script_penalties(compiler: SatCompiler, constraints: dict, penalties: di
         else:
             penalties[level_j] = penalties[level_k] * (n_k + 1)
     else: ## print penalty table
-        stdout[2] << ':    Penalty Table    :'
-        stdout[2] << '|   lvl | n | value   |'
+        stdout[2] << ""
+        stdout[2] << ':     Penalty Table     :'
+        stdout[2] << '|    lvl | n | value    |'
         for k, n in levels:
-            stdout[2] << f"|{k:6d} | {n:d} | {penalties[k]:6.3f} |"
+            stdout[2] << f"| {k:6d} | {n:d} | {penalties[k]:1.6f} |"
         stdout[2] << f"| ε={compiler.env[EPSILON]:.5f} ; α={compiler.env[ALPHA]:.5f} |"
         stdout[2] << ""
 

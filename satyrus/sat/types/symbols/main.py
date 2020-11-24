@@ -6,6 +6,7 @@ SYS_CONFIG = intern('SYS_CONFIG')
 DEF_CONSTANT  = intern('DEF_CONSTANT')
 DEF_ARRAY = intern('DEF_ARRAY')
 DEF_CONSTRAINT = intern('DEF_CONSTRAINT')
+CMD_PYTHON = intern('CMD_PYTHON')
 RUN_SCRIPT = intern('RUN_SCRIPT')
 
 ## Sys config options

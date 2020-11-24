@@ -49,6 +49,9 @@ class SatLexerError(SatError):
 class SatSyntaxError(SatError):
     'Syntax Error'
 
+class SatPythonError(SatError):
+    'Python Error'
+
 class SatExit(SatError):
     'Exit'
 

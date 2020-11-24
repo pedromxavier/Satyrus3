@@ -9,8 +9,8 @@ from functools import wraps
 import itertools as it
 
 ## Local
-from ...satlib import join, keep_type
-from .error import SatValueError, SatIndexError
+from ...satlib import join, keep_type, trackable
+from .error import SatValueError, SatIndexError, SatTypeError
 from .symbols.tokens import T_DICT, T_IDX, T_AND, T_OR, T_MUL, T_ADD, T_SUB
 
 class MetaSatType(type):
@@ -209,7 +209,7 @@ class Expr(SatType, tuple):
             
     @classmethod
     def transverse(cls, expr, func, *args, **kwargs) -> None:
-        """ Transverses expression
+        """ Transverses expression tree calling `func` on leaves
 
             >>> def func(expr, *args, **kwargs):
             ...     ...
@@ -225,9 +225,9 @@ class Expr(SatType, tuple):
     def seek(cls, expr, func, *args, **kwargs) -> list:
         """ Seeks for tree leaves who satisfy `func`
 
-            >>> def func(expr, *args, **kwargs):
+            >>> def func(expr, *args, **kwargs) -> bool:
             ...     ...
-            ...     return ...
+            ...     return bool(...)
         """
         results = []
         if type(expr) is cls:
@@ -257,7 +257,7 @@ class Expr(SatType, tuple):
 
     @classmethod
     def back_apply(cls, expr, func, *args, **kwargs):
-        """ Back-applies function `func` to `expr`.
+        """ Backward-applies function `func` to `expr`.
 
             >>> def func(expr, *args, **kwargs):
             ...    new_expr = ...
@@ -297,9 +297,6 @@ class Expr(SatType, tuple):
         """
         setattr(cls, func.__name__, classmethod(func))
         return getattr(cls, func.__name__)
-
-
-
 
 class Number(SatType, decimal.Decimal, metaclass=MetaSatType):
     """ :: Number ::
@@ -365,6 +362,7 @@ class Number(SatType, decimal.Decimal, metaclass=MetaSatType):
         else:
             return NotImplemented
 
+    ## Arithmetic
     def __add__(self, other):
         if self.numeric(other):
             return Number(decimal.Decimal.__add__(self, other))
@@ -541,17 +539,6 @@ class Var(SatType, str):
         else:
             return Expr(T_IDX, self, idx)
 
-class String(SatType, str):
-    """ :: STRING ::
-        ============
-    """
-
-    def __new__(cls, *args, **kwargs):
-        return str.__new__(cls, *args, **kwargs)
-
-    def __init__(self, *args, **kwargs):
-        SatType.__init__(self)
-
 class Array(SatType):
     """ :: Array ::
         ===========
@@ -616,12 +603,52 @@ class Array(SatType):
             subarray[Number(idx[-1])] = buffer[idx]
         return array
 
+    @classmethod
+    def from_dict(cls, name: Var, shape: tuple, buffer: dict):
+        """
+        """
+        return cls.from_buffer(name, shape, buffer)
+
+    @classmethod
+    def from_list(cls, name: Var, shape: tuple, buffer: dict):
+        """
+        """
+        return cls.from_buffer(name, shape, { idx : val for (idx, val) in buffer })
+
+@trackable
+class String(str):
+    """ :: STRING ::
+        ============
+    """
+    def __new__(cls, *args, **kwargs):
+        return str.__new__(cls, *args, **kwargs)
+
+@trackable
+class PythonObject(object):
+    """ :: PYTHON_OBJECT ::
+        ===================
+    """
+
+    def __init__(self, obj: object):
+        self.obj = obj
+
 class Constraint(object):
 
     def __init__(self, cons_type: String, name: Var, loops: list, expr: Expr, level: int):
-        self.type = cons_type
-        self.name = name
-        self.loops = loops
-        self.expr = expr
-        self.level = level
+        self._type = cons_type
+        self._name = name
+        self._loops = loops
+        self._expr = expr
+        self._level = level
 
+    @property
+    def type(self) -> str:
+        return str(self._type)
+
+    @property
+    def name(self) -> Var:
+        return self._name
+
+    @property
+    def level(self) -> int:
+        return int(self._level)

@@ -6,11 +6,17 @@ class Stack:
     def __init__(self, buffer=None, limit=None):
         self.__stack = deque([] if buffer is None else buffer, limit)
 
+    def clear(self):
+        self.__stack.clear()
+
     def push(self, x):
         self.__stack.append(x)
 
     def pop(self):
         return self.__stack.pop()
+
+    def popleft(self):
+        return self.__stack.popleft()
 
     def __getitem__(self, index):
         return self.__stack.__getitem__(index)

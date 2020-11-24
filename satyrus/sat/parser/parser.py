@@ -7,10 +7,10 @@ import itertools as it
 from ply import lex, yacc
 
 ## Local
-from ...satlib import stderr, stdout, Source, Stack
-from ..types.error import SatParserError, SatLexerError, SatSyntaxError, SatExit
-from ..types import Expr, Var, Number, String, SatType
-from ..types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
+from ...satlib import stderr, stdout, Source, Stack, PythonShell, PythonError, track
+from ..types.error import SatParserError, SatLexerError, SatTypeError, SatSyntaxError, SatValueError, SatPythonError, SatExit
+from ..types import Expr, Var, Number, String, SatType, PythonObject
+from ..types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, CMD_PYTHON
 from ..types.symbols.tokens import T_IDX
 
 def regex(pattern: str):
@@ -20,6 +20,7 @@ def regex(pattern: str):
     return decor
 
 class SatLexer(object):
+
     ## List of token names.
     tokens = (
         'FORALL', 'EXISTS', 'EXISTS_ONE', # quantifiers
@@ -52,7 +53,38 @@ class SatLexer(object):
         'LBRA', 'RBRA', 'LPAR', 'RPAR', 'LCUR', 'RCUR',
 
         'NAME', 'NUMBER', 'STRING',
+
+        'PYTHON'
         )
+
+    def __init__(self, source, **kwargs):
+        self.lexer = lex.lex(object=self, **kwargs)
+        self.source = source
+
+        self.error_stack = Stack()
+
+        ## Separate python shell
+        self.python_shell = PythonShell()
+
+    def __lshift__(self, error: SatParserError):
+        self.error_stack.push(error)
+
+    def exit(self, code: int):
+        raise SatExit(code)
+
+    def interrupt(self):
+        """
+        """
+        while self.error_stack:
+            error = self.error_stack.popleft()
+            stderr << error
+        else:
+            self.exit(1)
+
+    def checkpoint(self):
+        """
+        """
+        if self.error_stack: self.interrupt()
 
     # Regular expression rules for tokens
     t_DOTS = r'\:'
@@ -111,9 +143,14 @@ class SatLexer(object):
 
     t_CONFIG = r'\?'
 
-    @regex(r'\".*\"')
+    @regex(r'\"(\\.|[^\"])*\"')
     def t_STRING(self, t):
         t.value = String(t.value[1:-1])
+        return t
+
+    @regex(r'\`(\\.|[^\`])*\`')
+    def t_PYTHON(self, t):
+        t.value = str(t.value[1:-1])
         return t
 
     @regex(r"\n")
@@ -149,10 +186,6 @@ class SatLexer(object):
         else:
             stderr << "Unexpected End Of File."
 
-    def __init__(self, source, **kwargs):
-        self.lexer = lex.lex(object=self, **kwargs)
-        self.source = source
-
     def chrpos(self, lineno, lexpos):
         return (lexpos - self.source.table[lineno - 1] + 1)
 
@@ -175,12 +208,11 @@ class SatParser(object):
 
         ('left', 'FORALL', 'EXISTS', 'EXISTS_ONE'),
 
-        ('left', 'LBRA', 'RBRA'),
+        ('left', 'DOTS'),
 
+        ('left', 'LBRA', 'RBRA'),
         ('left', 'LCUR', 'RCUR'),
         ('left', 'LPAR', 'RPAR'),
-        
-        ('left', 'DOTS'),
 
         ('left', 'CONFIG'),
 
@@ -189,6 +221,8 @@ class SatParser(object):
         ('left', 'STRING', 'NUMBER'),
 
         ('left', 'ENDL'),
+
+        ('left', 'PYTHON')
     )
 
     def __init__(self):
@@ -203,6 +237,9 @@ class SatParser(object):
 
         self.error_stack = Stack()
 
+        ## Python Shell
+        self.python_shell = PythonShell()
+
     def __lshift__(self, error: SatParserError):
         self.error_stack.push(error)
 
@@ -213,7 +250,7 @@ class SatParser(object):
         """
         """
         while self.error_stack:
-            error = self.error_stack.pop()
+            error = self.error_stack.popleft()
             stderr << error
         else:
             self.exit(1)
@@ -243,7 +280,7 @@ class SatParser(object):
         return self.bytecode
             
     def run(self, code : list):
-        self.bytecode = code
+        self.bytecode = [cmd for cmd in code if cmd is not None]
 
     def get_arg(self, p, index: int=None, track: bool=True):
         if index is None:
@@ -268,6 +305,18 @@ class SatParser(object):
                 }
         return value
 
+    def cast_type(self, x: object, type_caster: type):
+        """ Casts type according to `type_caster(x: object) -> y: object`
+            copying `lexinfo` data, if available.
+        """
+        if hasattr(x, 'lexinfo'):
+            lexinfo = getattr(x, 'lexinfo')
+            y = type_caster(x)
+            setattr(y, 'lexinfo', lexinfo)
+            return y
+        else:
+            return type_caster(x)
+
     def p_start(self, p):
         """ start : code
         """
@@ -287,8 +336,15 @@ class SatParser(object):
                  | def_constant ENDL
                  | def_array ENDL
                  | def_constraint ENDL
+                 | cmd_python ENDL
         """
         p[0] = p[1]
+
+    def p_cmd_python(self, p):
+        """ cmd_python : PYTHON
+        """
+        self.python_shell(p[1], evaluate=False)
+        p[0] = None
 
     def p_sys_config(self, p):
         """ sys_config : CONFIG NAME DOTS sys_config_args
@@ -313,22 +369,45 @@ class SatParser(object):
         p[0] = p[1]
 
     def p_def_constant(self, p):
-        """ def_constant : varname ASSIGN expr
+        """ def_constant : varname ASSIGN constant
         """
         name = self.get_arg(p, 1)
         value = self.get_arg(p, 3)
         p[0] = (DEF_CONSTANT, name, value)
 
+    def p_constant(self, p):
+        """ constant : expr
+                     | python_literal
+        """
+
+
     def p_literal(self, p):
         """ literal : NUMBER
                     | varname
+                    | python_literal
         """
-        p[0] = self.get_arg(p, 1)
+        p[0] = p[1]
 
     def p_varname(self, p):
         """ varname : NAME
         """
-        p[0] = 
+        p[0] = self.cast_type(self.get_arg(p, 1), Var)
+
+    def p_python_literal(self, p):
+        """ python_literal : PYTHON
+        """
+        py_code = self.get_arg(p, 1)
+
+        try:
+            py_object = PythonObject(self.python_shell(str(py_code), evaluate=True))
+        except PythonError as error:
+            self << SatPythonError(*error.args)
+        finally:
+            self.checkpoint()
+        
+        track(py_code, py_object)
+
+        p[0] = py_object
 
     def p_def_array(self, p):
         """ def_array : varname shape ASSIGN array_buffer
@@ -341,7 +420,7 @@ class SatParser(object):
             buffer = p[4]
         else: # implicit array
             buffer = None
-        
+
         p[0] = (DEF_ARRAY, name, shape, buffer)
 
     def p_shape(self, p):
@@ -360,8 +439,12 @@ class SatParser(object):
 
     def p_array_buffer(self, p):
         """ array_buffer : LCUR array RCUR
+                         | python_literal
         """
-        p[0] = p[2]
+        if len(p) == 4: ## default buffer
+            p[0] = p[2]
+        else: ## python literal
+            p[1]
 
     def p_array(self, p):
         """ array : array COMMA array_item
@@ -529,4 +612,4 @@ class SatParser(object):
         return None
 
     def chrpos(self, lineno: int, lexpos: int):
-        return (lexpos - self.source.table[lineno - 1] + 1)
+        return (lexpos - self.source.table[lineno - 1] + 1)        

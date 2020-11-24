@@ -609,6 +609,9 @@ class String(str):
     def __new__(cls, *args, **kwargs):
         return str.__new__(cls, *args, **kwargs)
 
+    def __init__(self, *args, **kwargs):
+        str.__init__(self)
+
 @trackable
 class PythonObject(object):
     """ :: PYTHON_OBJECT ::

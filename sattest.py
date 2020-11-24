@@ -1,4 +1,4 @@
-from satyrus import Satyrus, Expr, Var, Number
+from satyrus import Satyrus, Expr, Var, Number, String
 from satyrus.satlib import stdout, stdwar, stream
 
 import sys

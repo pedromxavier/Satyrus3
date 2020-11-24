@@ -58,6 +58,17 @@ class SatCompiler:
 		## Errors
 		self.error_stack = Stack()
 
+	def __enter__(self, *args, **kwargs):
+		"""
+		"""
+		## Instantiate subcompiler
+		subcomp = self.__class__(self.instructions, self.parser)
+		subcomp.memory = self.memory.copy
+		return subcomp
+
+	def __exit__(self, *args, **kwargs):
+		return None
+
 	def __lshift__(self, error: SatError):
 		self.error_stack.push(error)
 
@@ -143,31 +154,33 @@ class SatCompiler:
 		finally:
 			self.checkpoint()
 
-	def eval(self, item: SatType):
-		if type(item) is Var:
-			## Get value from memory
-			value = self.memget(item)
-
-			## Copy error tracking information
-			value.lexinfo = item.lexinfo
-			
-			return value
-
-		elif type(item) is Expr:				
-			## Return own expression
+	def evaluate(self, item: SatType, miss: bool=True):
+		""" :: EVALUATE ::
+			==============
+			>>> n = Var('n')
+			>>> Expr.memset(n, Number('0.5'))
+			>>> Expr.evaluate(n)
+			Number('0.5')
+			>>> Expr.evaluate(Number('7.4'))
+			Number('7.4')
+		"""
+		if type(item) is Expr: ## go deeper
+			return Expr.calc(Expr(item.head, *(self.evaluate(p) for p in item.tail)))
+		elif type(item) is Number:
 			return item
-
-		elif not issubclass(type(item), SatType):
-			raise TypeError(f'{type(item)} is not a valid Satyrus type for evaluation.')
-
+		elif type(item) is Var:
+			try:
+				return self.memory.memget(item)
+			except SatReferenceError as error:
+				if miss:
+					self << error
+				else:
+					return item
+			finally:
+				self.checkpoint()
 		else:
-			return item
+			raise TypeError(f'Invalid Type: {type(item)}')
 
-	def eval_expr(self, expr: Expr, calc=False):
-		"""
-		"""
-		return Expr.back_apply(expr, (lambda item: (Expr.calc(item) if calc else item) if (type(item) is Expr) else self.eval(item)))
-	
 	def push(self):
 		""" push memory scope
 		"""

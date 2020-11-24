@@ -44,6 +44,12 @@ class Memory(object):
 	def __contains__(self, item):
 		return self[item] is not None
 
+	@property
+	def copy(self):
+		new_mem = self.__class__()
+		new_mem.__memory = [layer.copy() for layer in self.__memory]
+		return new_mem
+
 	def push(self):
 		"""
 		"""

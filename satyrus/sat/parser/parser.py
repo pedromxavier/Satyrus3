@@ -343,7 +343,9 @@ class SatParser(object):
     def p_cmd_python(self, p):
         """ cmd_python : PYTHON
         """
+        ## Executes python command
         self.python_shell(p[1], evaluate=False)
+
         p[0] = None
 
     def p_sys_config(self, p):
@@ -375,18 +377,17 @@ class SatParser(object):
         value = self.get_arg(p, 3)
         p[0] = (DEF_CONSTANT, name, value)
 
-    def p_constant(self, p):
-        """ constant : expr
-                     | python_literal
-        """
-
-
     def p_literal(self, p):
-        """ literal : NUMBER
-                    | varname
+        """ literal : constant
                     | python_literal
+                    | varname
         """
         p[0] = p[1]
+
+    def p_constant(self, p):
+        """ constant : NUMBER
+        """
+        p[0] = self.get_arg(p, 1)
 
     def p_varname(self, p):
         """ varname : NAME

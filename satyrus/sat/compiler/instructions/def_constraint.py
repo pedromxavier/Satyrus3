@@ -26,7 +26,12 @@ def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: l
 	def_constraint_type_level(compiler, cons_type, level)
 
 	## Evaluate constraint loops
-	def_constraint_loops(compiler, loops)
+	indices = []
+
+	def_constraint_loops(compiler, loops, indices)
+
+	## Evaluate constraint expr
+	def_constraint_expr(compiler, loops, indices, expr)
 
 	constraint = Constraint(cons_type, name, loops, expr, level)
 
@@ -47,9 +52,71 @@ def def_constraint_type_level(compiler: SatCompiler, cons_type: String, level: N
 
 	compiler.checkpoint()
 
-def def_constraint_loops(compiler: SatCompiler, loops: list):
+def def_constraint_loops(compiler: SatCompiler, loops: list, indices: list) -> None:
 	"""
 	"""
+
+	sub_indices = [()]
+
+	var_stack = Stack()
+
+	## temporary compiler context
+	with compiler as comp:
+
+		depth = 0
+
+		# extract loop properties
+		for (l_type, l_var, l_bounds, l_conds) in loops:
+
+			depth += 1
+
+			if l_var in comp:
+				compiler < SatWarning(f"Variable `{l_var}` redefinition.", target=l_var)
+
+			var_stack.push(l_var)
+
+			## check for boundary consistency
+			# extract loop boundaries
+			start, stop, step = l_bounds
+
+			# evaluate variables
+			start = comp.eval()
+
+			if step is None:
+				step = Number('1')
+
+			elif step == Number('0'):
+				compiler << SatValueError('Step must be non-zero.', target=step)
+
+			if ((start < stop) and (step < 0)) or ((start > stop) and (step > 0)):
+				compiler << SatValueError('Inconsistent loop definition', target=start)
+			
+			compiler.checkpoint()
+
+			## define condition
+			if l_conds is None:
+				def condition(index: tuple):
+					return True
+			else:
+				## Compile condition expressions
+				def condition(index: tuple):
+					table = { i : v for i, v in enumerate(var_stack) }
+
+					for i in range(depth): comp.memset(table[i], index[i])
+
+					return all([comp.eval(cond) for cond in l_conds])
+					
+
+			sub_indices = [(*J, i) for J in sub_indices for i in arange(start, stop, step)]
+			sub_indices = [I for I in sub_indices if condition(I)]
+
+	
+			
+	
+def def_constraint_expr(compiler: SatCompiler, loops: list, indices: list, expr: Expr) -> None:
+	"""
+	"""
+	...
 
 def def_constraint_name(compiler: SatCompiler, name: Var, constraint: Constraint):
 	if name in compiler:

@@ -6,17 +6,52 @@ from collections import defaultdict
 from ...satlib import join, compose
 from .main import Expr, Number, Var
 
+@Expr.classmethod
+def _simplify(cls: type, args: tuple, token: str, op: callable, e: Number):
+    number = []
+    others = []
+    for arg in args:
+        if type(arg) is Number:
+            number.append(arg)
+        else:
+            others.append(arg)
+    else:
+        if number:
+            x = reduce(op, number, e)
+        else:
+            x = None
+
+        if others:
+            y = Expr(token, *others)
+        else:
+            y = None
+
+        if x is None and y is None:
+            return e
+        elif x is None:
+            return y
+        elif y is None:
+            return x
+        else:
+            return Expr.associate(op(x, y))
+
 ## :: Rule Definition ::
 ## :: Logical ::
 from .symbols.tokens import T_AND, T_OR, T_XOR, T_NOT, T_IFF, T_IMP, T_RIMP
 
+Expr.LOGICAL = {
+    T_AND, T_OR, T_XOR, T_NOT, T_IFF, T_IMP, T_RIMP
+}
+
 @Expr.rule(T_AND)
 def AND(*args):
-    return reduce(lambda x, y : x.__and__(y), args, Number.T) ## Empty product
+    #pylint: disable=no-member
+    return Expr._simplify(args, T_AND, lambda x, y: x.__and__(y), Number.T)
 
 @Expr.rule(T_OR)
 def OR(*args):
-    return reduce(lambda x, y : x.__or__(y), args, Number.F) ## Empty Sum
+    #pylint: disable=no-member
+    return Expr._simplify(args, T_OR, lambda x, y: x.__or__(y), Number.F)
 
 @Expr.rule(T_XOR)
 def XOR(x, y):
@@ -41,6 +76,10 @@ def IFF(x, y):
 ## :: Indexing ::
 from .symbols.tokens import T_IDX
 
+Expr.EXTRA = {
+    T_IDX
+}
+
 @Expr.rule(T_IDX)
 def IDX(x, i):
     return x.__idx__(i)
@@ -48,34 +87,14 @@ def IDX(x, i):
 ## :: Aritmetic ::
 from .symbols.tokens import T_ADD, T_SUB, T_MUL, T_DIV, T_MOD
 
+Expr.ARITHMETIC = {
+    T_ADD, T_SUB, T_MUL, T_DIV, T_MOD
+}
+
 @Expr.rule(T_ADD)
 def ADD(*args):
-    if len(args) >= 2:
-        number = []
-        others = []
-        for arg in args:
-            if type(arg) is Number:
-                number.append(arg)
-            else:
-                others.append(arg)
-        else:
-            if number:
-                x = reduce(lambda x, y : x.__add__(y), number)
-            else:
-                x = None
-            if others:
-                y = Expr(T_ADD, *others)
-            else:
-                y = None
-
-            if y is None:
-                return x
-            if x is None:
-                return y
-            else:
-                return Expr.associate(x + y)
-    else:
-        args[0].__pos__()
+    #pylint: disable=no-member
+    return Expr._simplify(args, T_ADD, lambda x, y: x.__add__(y), Number('0'))
 
 @Expr.rule(T_SUB)
 def SUB(x, y=None):
@@ -86,29 +105,8 @@ def SUB(x, y=None):
 
 @Expr.rule(T_MUL)
 def MUL(*args):
-    number = []
-    others = []
-    for arg in args:
-        if type(arg) is Number:
-            number.append(arg)
-        else:
-            others.append(arg)
-    else:
-        if number:
-            x = reduce(lambda x, y : x.__mul__(y), number)
-        else:
-            x = None
-        if others:
-            y = Expr(T_MUL, *others)
-        else:
-            y = None
-
-        if x is None:
-            return y
-        if y is None:
-            return x
-        else:
-            return Expr.associate(x * y)
+    #pylint: disable=no-member
+    return Expr._simplify(args, T_MUL, lambda x, y: x.__mul__(y), Number('1'))
 
 @Expr.rule(T_DIV)
 def DIV(x, y):
@@ -121,6 +119,10 @@ def MOD(x, y):
 ## :: Comparison ::
 from .symbols.tokens import T_GE, T_GT, T_EQ, T_LT, T_LE, T_NE
 
+Expr.COMPARISON = {
+    T_GE, T_GT, T_EQ, T_LT, T_LE, T_NE
+}
+
 @Expr.rule(T_GT)
 def GT(x, y):
     return x.__gt__(y)
@@ -128,6 +130,10 @@ def GT(x, y):
 @Expr.rule(T_GE)
 def GE(x, y):
     return x.__ge__(y)
+
+@Expr.rule(T_EQ)
+def EQ(x, y):
+    return x.__eq__(y)
 
 @Expr.rule(T_LT)
 def LT(x, y):
@@ -139,7 +145,7 @@ def LE(x, y):
 
 @Expr.rule(T_NE)
 def NE(x, y):
-    return (~ x.__ge__(y))
+    return (x.__eq__(y)).__invert__()
 
 Expr.ASSOCIATIVE.update({
     ## Logical
@@ -358,3 +364,19 @@ def anf(cls: type, expr: Expr):
     """
     expr = cls.associate(cls.apply(expr, compose(cls._move_neg_inwards, cls._remove_subtractions)))
     return cls.associate(cls.back_apply(expr, cls._distribute_add_over_mul))
+
+@Expr.classmethod
+def _logical(cls: type, item: object):
+    return (type(item) is not cls) or (item.head in cls.LOGICAL) or (item.head in cls.EXTRA)
+
+@Expr.classmethod
+def logical(cls: type, expr: Expr):
+    return cls.tell(expr, all, cls._logical)
+
+@Expr.classmethod
+def _arithmetic(cls: type, item: object):
+    return (type(item) is not cls) or (item.head in cls.ARITHMETIC) or (item.head in cls.EXTRA)
+
+@Expr.classmethod
+def arithmetic(cls: type, expr: Expr):
+    return cls.tell(expr, all, cls._arithmetic)

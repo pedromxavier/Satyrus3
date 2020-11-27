@@ -13,12 +13,17 @@ class SatError(Exception):
 
     def __str__(self):
         if self.target is not None and hasattr(self.target, 'lexinfo'):
-            return (
-                f"In '{os.path.abspath(self.target.source.fname)}' at line {self.target.lineno}:\n"
-                f"{self.target.source.lines[self.target.lineno]}\n"
-                f"{' ' * self.target.chrpos}^\n"
-                f"{self.__class__.__doc__}: {self.msg}\n"
-            )
+            if self.target.source is None:
+                return (
+                    f"{self.__class__.__doc__}: {self.msg}\n"
+                )
+            else:
+                return (
+                    f"In '{os.path.abspath(self.target.source.fname)}' at line {self.target.lineno}:\n"
+                    f"{self.target.source.lines[self.target.lineno]}\n"
+                    f"{' ' * self.target.chrpos}^\n"
+                    f"{self.__class__.__doc__}: {self.msg}\n"
+                )
         else:
             return self.msg
 
@@ -27,7 +32,10 @@ class SatWarning(SatError):
 ##
 class SatIndexError(SatError):
     'Index Error'
-    
+
+class SatExprError(SatError):
+    'Expression Error'
+
 class SatCompilerError(SatError):
 	'Compiler Error'
 

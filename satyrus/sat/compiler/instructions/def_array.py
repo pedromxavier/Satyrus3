@@ -17,7 +17,7 @@ def def_array(compiler: SatCompiler, name: Var, shape: tuple, buffer: list):
         3. Set Array to memory
     """
     ## Evaluates shape values and variables
-    shape = tuple(compiler.eval_expr(n, calc=True) for n in shape)
+    shape = tuple(compiler.evaluate(n, miss=True, calc=True) for n in shape)
 
     compiler.checkpoint()
     
@@ -33,12 +33,12 @@ def def_array(compiler: SatCompiler, name: Var, shape: tuple, buffer: list):
 
     compiler.checkpoint()
 
-def def_array_shape(compiler: SatCompiler, shape: tuple):
+def def_array_shape(compiler: SatCompiler, shape: tuple):   
     """ DEF_ARRAY_SHAPE
         ===============
     """
     for n in shape:
-        if type(n) is not Number or not (n.is_int and int(n) > 0):
+        if type(n) is not Number or not (n.is_int and n > 0):
             compiler << SatTypeError(f'Array dimensions must be positive integers.', target=n)
 
 def def_python_buffer(compiler: SatCompiler, name: Var, shape: tuple, buffer: PythonObject):
@@ -64,7 +64,7 @@ def def_array_buffer(compiler: SatCompiler, name: Var, shape: tuple, buffer: lis
         pass
     else:
         for idx, val in buffer:
-            idx = tuple(compiler.eval_expr(i, calc=True) for i in idx)
+            idx = tuple(compiler.evaluate(i, miss=True, calc=True) for i in idx)
 
             if len(idx) > len(shape):
                 compiler << SatValueError(f'Too much indices for {len(shape)}-dimensional array', target=idx[len(shape)])
@@ -73,10 +73,10 @@ def def_array_buffer(compiler: SatCompiler, name: Var, shape: tuple, buffer: lis
                 if not i.is_int:
                     compiler << SatTypeError(f'Array indices must be integers.', target=i)
                     
-                if not (1 <= int(i) <= int(n)):
+                if not (1 <= i <= n):
                     compiler << SatValueError(f'Indexing ´{i}´ is out of bounds [1, {n}]', target=i)
 
-            val = compiler.eval_expr(val, calc=True)
+            val = compiler.evaluate(val, miss=True, calc=True)
 
             if type(val) is not Number:
                 compiler << SatValueError(f'Array elements must be numbers.', target=val)

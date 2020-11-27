@@ -108,10 +108,12 @@ def arange(start, stop=None, step=None):
         x = float(start)
         stop = float(stop)
         step = float(step)
-    else:
+    elif any(type(s) is int for s in {start, stop, step}):
         x = int(start)
         stop = int(stop)
         step = int(step)
+    else:
+        x = start
 
     ## Iterator Loop
     if step > 0:

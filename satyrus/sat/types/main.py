@@ -91,6 +91,10 @@ class SatType(metaclass=MetaSatType):
     def is_int(self):
         return False
 
+    @property
+    def copy(self):
+        return self
+
 class Expr(SatType, tuple):
     """ :: Expr ::
         ==========
@@ -150,8 +154,15 @@ class Expr(SatType, tuple):
         return decor
 
     @classmethod
-    def calc(cls, expr):
-        """
+    def calculate(cls, expr) -> SatType:
+        """ :: CALCULATE ::
+            ===============
+
+            Applies rules as described in `cls.RULES` for each
+            expression, in a backward fashion i.e. from leaves
+            to root.
+
+            As result, may yield Var, Number or Expr.
         """
         return cls.back_apply(expr, (lambda item: cls.RULES[item.head](*item.tail) if (type(item) is cls) else item))
 
@@ -165,10 +176,14 @@ class Expr(SatType, tuple):
 
     @property
     def copy(self):
+        """
+        """
         return Expr(self.head, *[p.copy for p in self.tail])
 
     @classmethod
     def associate(cls, expr):
+        """
+        """
         if type(expr) is cls:
             return cls.back_apply(expr, cls._associate)
         else:
@@ -176,22 +191,28 @@ class Expr(SatType, tuple):
 
     @classmethod
     def _associate(cls, expr):
-        if type(expr) is Expr and expr.head in cls.ASSOCIATIVE:
+        """
+        """
+        if (type(expr) is cls) and (expr.head in cls.ASSOCIATIVE):
             if len(expr.tail) == 0:
                 return cls.NULL[expr.head]
             elif len(expr.tail) == 1:
                 return expr.tail[0]
-            tail = []
-            for p in expr.tail:
-                if type(p) is cls: ## is an expression
-                    if p.head == expr.head:
-                        tail.extend(p.tail)
-                        continue
-                tail.append(p)
             else:
-                return cls(expr.head, *tail)
+                tail = []
+                for p in expr.tail:
+                    if (type(p) is cls) and (p.head == expr.head):
+                        tail.extend(p.tail)
+                    else:
+                        tail.append(p)
+                else:
+                    return cls(expr.head, *tail)
         else:
             return expr
+
+    @classmethod
+    def simplify(cls: type, expr):
+        return cls.associate(cls.calculate(expr))
             
     @classmethod
     def transverse(cls, expr, func, *args, **kwargs) -> None:
@@ -223,6 +244,18 @@ class Expr(SatType, tuple):
             if func(expr, *args, **kwargs):
                 results.append(expr)
         return results
+
+    @classmethod
+    def tell(cls, expr, choice: callable, func: callable, *args, **kwargs) -> bool:
+        """ Returns either `True` or `False` if `choice` subtrees
+            satisfies `func`.
+        """
+        if type(expr) is cls:
+            head = (func(expr, *args, **kwargs),)
+            tail = (cls.tell(p, choice, func, *args, **kwargs) for p in expr.tail)
+            return choice(it.chain(head, tail))
+        else:
+            return func(expr, *args, **kwargs)
 
     @classmethod
     def apply(cls, expr, func, *args, **kwargs):
@@ -632,7 +665,7 @@ class Constraint(object):
 
     @property
     def expr(self) -> Expr:
-        ...
+        return self._expr
 
     @property
     def type(self) -> str:

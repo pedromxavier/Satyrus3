@@ -115,7 +115,7 @@ class SatCompiler:
 		self.bytecode = [(RUN_INIT,), *self.parser.parse(self.source), (RUN_SCRIPT,)]
 
 		for stmt in self.bytecode:
-			stdout[3] << f"{join(', ', stmt, str)}"
+			stdout[3] << f"{join(', ', stmt, repr)}"
 			self.exec(stmt)
 		else:
 			stdout[3] << ""
@@ -154,7 +154,7 @@ class SatCompiler:
 		finally:
 			self.checkpoint()
 
-	def evaluate(self, item: SatType, miss: bool=True):
+	def evaluate(self, item: SatType, miss: bool=True, calc: bool=True, null: bool=False) -> SatType:
 		""" :: EVALUATE ::
 			==============
 			>>> n = Var('n')
@@ -164,8 +164,16 @@ class SatCompiler:
 			>>> Expr.evaluate(Number('7.4'))
 			Number('7.4')
 		"""
-		if type(item) is Expr: ## go deeper
-			return Expr.calc(Expr(item.head, *(self.evaluate(p) for p in item.tail)))
+		if item is None:
+			if null:
+				return None
+			else:
+				raise ValueError("Invalid None appearance in compiler `evaluate`.")
+		elif type(item) is Expr:
+			if calc:
+				return Expr.calculate(Expr(item.head, *(self.evaluate(p, miss, calc) for p in item.tail)))
+			else:
+				return Expr(item.head, *(self.evaluate(p, miss, calc) for p in item.tail))
 		elif type(item) is Number:
 			return item
 		elif type(item) is Var:
@@ -179,12 +187,16 @@ class SatCompiler:
 			finally:
 				self.checkpoint()
 		else:
-			raise TypeError(f'Invalid Type: {type(item)}')
+			raise TypeError(f'Invalid Type `{type(item)}` in compiler `evaluate`.')
 
-	def push(self):
+	def push(self, scope: dict=None):
 		""" push memory scope
 		"""
 		self.memory.push()
+		
+		if scope is not None:
+			for k, v in scope.items():
+				self.memset(k, v)
 
 	def pop(self, depth: int=1):
 		""" pop memory scope

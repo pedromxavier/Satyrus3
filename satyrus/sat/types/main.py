@@ -80,6 +80,9 @@ class SatType(metaclass=MetaSatType):
     def source(self):
         return self.lexinfo['source']
 
+    def __idx__(self, i: tuple):
+        return Expr(T_IDX, self, *i)
+
     ## Alias for __not__.
     def __not__(self):
         return NotImplemented
@@ -549,30 +552,41 @@ class Var(SatType, str):
     def __repr__(self):
         return f"Var('{self}')"
 
-    def __idx__(self, idx):
-        if type(idx) is Number:
-            if idx.is_int:
-                return Var(f"{self}_{idx}")
+    def __idx__(self, idx: tuple):
+        subvarname = str(self)
+        while idx:
+            i, *idx = idx
+            if type(i) is Number:
+                if i > 0 and i.is_int:
+                    subvarname = f"{subvarname}_{i}"
+                else:
+                    raise SatValueError(f"Index must be a positive integer, not `{i}`.", target=i)
             else:
-                raise SatValueError(f"Invalid non-integer index {idx}", target=idx)
+                return Expr(T_IDX, Var(subvarname), i, *idx)
         else:
-            return Expr(T_IDX, self, idx)
+            return Var(subvarname)
 
 class Array(SatType):
     """ :: Array ::
         ===========
     """
-    def __init__(self, name, shape):
+    def __init__(self, var: Var, shape: tuple):
         SatType.__init__(self)
         
         self.array = {}
 
-        self.name = name
+        self.var = var
         self.shape = shape
         self.dim = len(shape)
 
-    def __idx__(self, idx: Number):
-        return self[idx]
+    def __idx__(self, idx: tuple):
+        if len(idx) > self.dim:
+            raise SatIndexError(f"Too much indices for {self.dim}-dimensional array.", target=idx[-1])
+        elif len(idx) == 1:
+            return self[idx[0]]
+        else:
+            i, *idx = idx
+            return self[i].__idx__(idx)
 
     def __getitem__(self, idx: Number):
         if type(idx) is Number and idx.is_int:
@@ -583,12 +597,14 @@ class Array(SatType):
                 n = int(self.shape[0])
                 if 1 <= i <= n:
                     if len(self.shape) > 1:
-                        self.array[i] = Array(self.name.__idx__(idx), self.shape[1:])
+                        self.array[i] = Array(self.var.__idx__((idx,)), self.shape[1:])
                         return self.array[i]
                     else:
-                        return self.name.__idx__(idx)
+                        return self.var.__idx__((idx,))
                 else:
                     raise SatIndexError(f"Index {idx} is out of bounds [1, {n}].", target=idx)
+        elif type(idx) is Var:
+            return Expr(T_IDX, self, idx)
         else:
             raise SatIndexError(f"Invalid index {idx}.", target=idx)
 
@@ -607,10 +623,10 @@ class Array(SatType):
             raise SatIndexError(f"Invalid index {idx}.", target=idx)
 
     def __str__(self):
-        return f"{self.name}"
+        return f"{self.var}"
 
     def __repr__(self):
-        return f"{self.name}" + "".join([f"[{n}]" for n in self.shape])
+        return f"{self.var}" + "".join([f"[{n}]" for n in self.shape])
         
     @classmethod
     def from_buffer(cls, name, shape, buffer: dict):
@@ -656,17 +672,20 @@ class PythonObject(object):
 
 class Constraint(object):
 
-    def __init__(self, cons_type: String, name: Var, loops: list, expr: Expr, level: int):
+    def __init__(self, cons_type: String, name: Var, level: Number):
         self._type = cons_type
         self._name = name
-        self._loops = loops
-        self._expr = expr
         self._level = level
 
-    @property
-    def expr(self) -> Expr:
-        return self._expr
+        self._expr: Expr = None
+        self._indices: list = None
 
+    def set_expr(self, expr: Expr):
+        self._expr = expr
+
+    def set_indices(self, indices: list):
+        self._indices = indices
+        
     @property
     def type(self) -> str:
         return str(self._type)

@@ -176,6 +176,8 @@ class SatCompiler:
 				return Expr(item.head, *(self.evaluate(p, miss, calc) for p in item.tail))
 		elif type(item) is Number:
 			return item
+		elif type(item) is Array:
+			return item
 		elif type(item) is Var:
 			try:
 				return self.memory.memget(item)

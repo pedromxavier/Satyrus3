@@ -4,7 +4,8 @@ from collections import defaultdict
 
 ## Local
 from ...satlib import join, compose
-from .main import Expr, Number, Var
+from .error import SatValueError
+from .main import Expr, Number, Var, Array
 
 @Expr.classmethod
 def _simplify(cls: type, args: tuple, token: str, op: callable, e: Number):
@@ -81,9 +82,9 @@ Expr.EXTRA = {
 }
 
 @Expr.rule(T_IDX)
-def IDX(x, i):
+def IDX(x: Array, *i: tuple):
     return x.__idx__(i)
-
+    
 ## :: Aritmetic ::
 from .symbols.tokens import T_ADD, T_SUB, T_MUL, T_DIV, T_MOD
 
@@ -110,7 +111,10 @@ def MUL(*args):
 
 @Expr.rule(T_DIV)
 def DIV(x, y):
-    return x.__truediv__(y)
+    if y == Number('0'):
+        raise SatValueError("Division by zero.", target=y)
+    else:
+        return x.__truediv__(y)
 
 @Expr.rule(T_MOD)
 def MOD(x, y):
@@ -153,6 +157,9 @@ Expr.ASSOCIATIVE.update({
 
     ## Arithmetic
     T_ADD, T_MUL,
+
+    ## Indexing
+    T_IDX
 })
 
 Expr.NULL.update({
@@ -212,17 +219,28 @@ Expr.FORMAT_PATTERNS.update({
     T_DIV : "{1} {0} {2}",
     T_MOD : "{1} {0} {2}",
 
-    ## Indexing
-    T_IDX: "{1}[{2}]",
+    ## Comparison
+    T_EQ : "{1} {0} {2}",
+    T_LE : "{1} {0} {2}",
+    T_GE : "{1} {0} {2}",
+    T_LT : "{1} {0} {2}",
+    T_GT : "{1} {0} {2}",
+    T_NE : "{1} {0} {2}",
+
     })
 
 Expr.FORMAT_FUNCS.update({
+    ## Arithmetic
     T_ADD : (lambda head, *tail: (join(f' {head} ', tail) if (len(tail) > 1) else f'{head}{tail[0]}')),
     T_SUB : (lambda head, *tail: (join(f' {head} ', tail) if (len(tail) > 1) else f'{head}{tail[0]}')),
     T_MUL : (lambda head, *tail: (join(f' {head} ', tail))),
 
+    ## Logical
     T_AND : (lambda head, *tail: (join(f' {head} ', tail))),
     T_OR  : (lambda head, *tail: (join(f' {head} ', tail))),
+
+    ## Indexing
+    T_IDX : (lambda head, *tail: f"{tail[0]}{join('', [f'[{x}]' for x in tail[1:]])}")
 })
 
 ## Expression  Tables
@@ -279,7 +297,7 @@ def _move_not_inwards(cls, expr):
             if expr.head in cls.TABLE['NOT']:
                 return cls.TABLE['NOT'][expr.head](*expr.tail)
             else:
-                return expr
+                return cls(T_NOT, expr)
         else:
             return cls(T_NOT, expr)
     else:
@@ -333,7 +351,7 @@ def _move_neg_inwards(cls: type, expr: Expr):
             if expr.head in cls.TABLE['NEG']:
                 return cls.TABLE['NEG'][expr.head](*expr.tail)
             else:
-                return expr
+                return cls(T_SUB, expr)
         else:
             return cls(T_SUB, expr)
     else:

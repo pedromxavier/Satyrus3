@@ -43,7 +43,7 @@ neigh[n][n] = {
 (int) int1B[2]:
     @{i = [1:n]}
     @{k = [1:n]}
-    @{l = [1:n], l != k}
+    @{l = [1:n], k != l}
     ~(vc[i][k] & vc[i][l]);
 
 (int) int0B[1]:

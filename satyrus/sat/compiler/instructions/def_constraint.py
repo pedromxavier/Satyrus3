@@ -8,7 +8,7 @@ import itertools as it
 from functools import reduce
 
 ## Local
-from ....satlib import arange, Stack, stdout, join
+from ....satlib import arange, Stack, stdout, stdwar, join
 from ..compiler import SatCompiler
 from ...types.error import SatValueError, SatTypeError, SatReferenceError, SatExprError, SatWarning
 from ...types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL, T_IDX
@@ -26,23 +26,19 @@ def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: l
 	## Check constraint type and level
 	def_constraint_type_level(compiler, cons_type, level)
 
+	## Creates Constraint object
+	constraint = Constraint(cons_type, name, level)
+
 	## Evaluate constraint loops
-	indices = [] # loop indexing
-	variables = {} # var bounds
+	variables = set() ## holds loop variables
 
-	def_constraint_loops(compiler, loops, variables, indices)
-
-	return
+	def_constraint_loops(compiler, loops, variables, constraint)
 
 	## Evaluate constraint expr
-	def_constraint_expr(compiler, cons_type, variables, indices, expr)
+	def_constraint_expr(compiler, cons_type, variables, expr, constraint)
 
-	return
-
-	## constraint = Constraint()
-
-	## Register constraint to compiler memory
-	## def_constraint_name(compiler, name, constraint)
+	## Register final constraint definition
+	def_constraint_name(compiler, name, constraint)
 
 def def_constraint_type_level(compiler: SatCompiler, cons_type: String, level: Number):
 	"""
@@ -58,11 +54,11 @@ def def_constraint_type_level(compiler: SatCompiler, cons_type: String, level: N
 
 	compiler.checkpoint()
 
-def def_constraint_loops(compiler: SatCompiler, loops: list, variables: dict, indices: list) -> None:
+def def_constraint_loops(compiler: SatCompiler, loops: list, variables: set, constraint: Constraint):
 	"""
 	"""
 
-	sub_indices = [{}]
+	indices = [{}]
 
 	## temporary compiler context
 	with compiler as comp:
@@ -78,7 +74,8 @@ def def_constraint_loops(compiler: SatCompiler, loops: list, variables: dict, in
 			if l_var in comp:
 				compiler < SatWarning(f"Variable `{l_var}` redefinition.", target=l_var)
 
-			variables[l_var] = [None, None]
+			## account variable
+			variables.add(l_var)
 
 			## check for boundary consistency
 			# extract loop boundaries
@@ -104,7 +101,7 @@ def def_constraint_loops(compiler: SatCompiler, loops: list, variables: dict, in
 			compiler.checkpoint()
 
 			## Run through all indices
-			sub_indices = [{**J, l_var: i} for J in sub_indices for i in arange(start, stop, step)]
+			indices = [{**J, l_var: i} for J in indices for i in arange(start, stop, step)]
 
 			## define condition
 			if l_conds is not None:
@@ -118,52 +115,45 @@ def def_constraint_loops(compiler: SatCompiler, loops: list, variables: dict, in
 					return bool(ans)
 
 				## filter indices
-				sub_indices = [I for I in sub_indices if condition(comp, I)]
-		else:
-			indices.extend(sub_indices)
+				indices = [I for I in indices if condition(comp, I)]
 
-		for index in indices:
-			for var, value in index.items():
-				## Updates minimum for this variable
-				if variables[var][0] is None or value < variables[var][0]:
-					variables[var][0] = value
-				## Updates maximum for this variable					
-				if variables[var][1] is None or value > variables[var][1]:
-					variables[var][1] = value
+	constraint.set_indices(indices)
 
 	compiler.checkpoint()			
 	
-def def_constraint_expr(compiler: SatCompiler, cons_type: String, variables: set, indices: list, expr: Expr):
+def def_constraint_expr(compiler: SatCompiler, cons_type: String, variables: set, raw_expr: Expr, constraint: Constraint):
 	"""
 	"""
 	## Reduces expression to simplest form
-	subexpr = Expr.simplify(expr)
+	expr = Expr.simplify(raw_expr)
 
 	# pylint: disable=no-member
-	if str(cons_type) == CONS_INT and not Expr.logical(subexpr):
-		compiler << SatExprError("Integrity constraint expressions must be purely logical.", target=expr)
-	
+	if str(cons_type) == CONS_INT and not Expr.logical(expr):
+		compiler << SatExprError("Integrity constraint expressions must be purely logical i.e. no arithmetic operations allowed.", target=raw_expr)
+
+	compiler.checkpoint()
+
 	## Checks for undefined variables + evaluate constants
-	
+
 	## Adds inner scope where inside-loop variables
 	## point to themselves. This prevents both older
 	## variables from interfering in evaluation and
 	## also undefined loop variables.
 	compiler.push({var: var for var in variables})
 	## evaluation
-	subexpr = compiler.evaluate(subexpr, miss=True, calc=True, null=False)
+	expr = compiler.evaluate(expr, miss=True, calc=True, null=False)
 	## Last but not least, removes this artificial scope
 	compiler.pop()
 
+	## sets expression for this constraint in the conjunctive normal form
+	if str(cons_type) == CONS_INT: ## negation
+		constraint.set_expr(Expr.cnf(~expr))
+	elif str(cons_type) == CONS_OPT:
+		constraint.set_expr(Expr.cnf(expr))
+	else:
+		raise NotImplementedError('There are no extra constraint types yet.')
 
-	# find all indexings
-	idx_func = (lambda p: (type(p) is Expr) and (p.head == T_IDX))
-
-	for indexing in Expr.seek(subexpr, idx_func):
-		array, index = indexing.tail
-		if type(array) is not Array:
-			compiler << SatTypeError(f"Invalid indexing to non-array of type {type(array)}.", target=indexing)
-		
+	compiler.checkpoint()
 
 def def_constraint_name(compiler: SatCompiler, name: Var, constraint: Constraint):
 	if name in compiler:

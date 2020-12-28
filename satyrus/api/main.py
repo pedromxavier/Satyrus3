@@ -36,11 +36,11 @@ class MetaSatAPI(type):
         if name == cls.name:
             cls.base_class = new_class = type.__new__(cls, name, bases, {**attrs, 'subclasses': cls.subclasses, 'options' : cls.options})
         else:
-            if attrs['key'] not in cls.options:
-                cls.subclasses[attrs['key']] = new_class = type.__new__(cls, name, bases, attrs)
-                cls.options.append(attrs['key'])
+            if name not in cls.options:
+                cls.subclasses[name] = new_class = type.__new__(cls, name, bases, attrs)
+                cls.options.append(name)
             else:
-                raise ValueError(f"Key {attrs['key']} defined twice.")
+                raise ValueError(f"Method `{name}` defined twice.")
 
         return new_class
 
@@ -66,15 +66,16 @@ class SatAPI(metaclass=MetaSatAPI):
 
     options = []
 
-    def __init__(self, source_path: str=None):
+    def __init__(self, source_path: str, legacy: bool=False, solve: bool=True):
         """
         """
-        self.source_path = source_path
+        self.source_path: str = str(source_path)
+        self.legacy: bool = bool(legacy)
 
         ## Regular usage
-        if source_path is not None:
+        if solve:
             from ..sat import Satyrus
-            self.satyrus = Satyrus(self.source_path)
+            self.satyrus = Satyrus(self.source_path, self.legacy)
         
             ## Gather results
             self.results = self.satyrus.results
@@ -83,7 +84,7 @@ class SatAPI(metaclass=MetaSatAPI):
             self.code = self.satyrus.compiler.code
 
     def __getitem__(self, key: str):
-        subclass = self.subclasses[key](None)
+        subclass = self.subclasses[key](source_path=self.source_path, legacy=self.legacy, solve=False)
         subclass.results = self.results
         subclass.code = self.code
         return subclass
@@ -93,39 +94,28 @@ class SatAPI(metaclass=MetaSatAPI):
 
 ## NOTE: DO NOT EDIT ABOVE THIS LINE
 ## ---------------------------------
-## 
 
 ## Text Output
-class Text(SatAPI):
-
-    key = 'text'
+class text(SatAPI):
 
     def solve(self) -> str:
-        x = [((v, *k) if k is not None else (v,)) for (k, v) in self.results.items()]
-        return " + ".join([" * ".join([str(y) for y in z]) for z in x])
+        raise NotImplementedError
 
 ## CSV Output
-class CSV(SatAPI):
-
-    key = 'csv'
+class csv(SatAPI):
 
     def solve(self):
-        x = [((v, *k) if k is not None else (v,)) for (k, v) in self.results.items()]
-        return "\n".join([",".join([str(y) for y in z]) for z in x])
+        raise NotImplementedError
 
 ## cvxpy
-## https://www.cvxpy.org/tutorial/advanced/index.html#mixed-integer-programs
-## import cvxpy as cp
 class cvxpy(SatAPI):
-
-    key = 'cvxpy'
+    ## https://www.cvxpy.org/tutorial/advanced/index.html#mixed-integer-programs
+    ## import cvxpy as cp
 
     def solve(self):
-        ...
+        raise NotImplementedError
 
 class dwave(SatAPI):
 
-    key = 'dwave'
-
     def solve(self):
-       ...
+       raise NotImplementedError

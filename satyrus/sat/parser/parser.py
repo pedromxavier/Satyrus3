@@ -271,7 +271,10 @@ class SatParser(object):
         self.parser = yacc.yacc(module=self)
         
         ## Run Parser
-        self.parser.parse(self.source)
+        if not self.source:
+            self << SatSyntaxError("Empty File.", target=self.source.eof)
+        else:
+            self.parser.parse(self.source)
 
         ## Checkpoint
         self.checkpoint()

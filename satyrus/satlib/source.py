@@ -1,19 +1,46 @@
 ## Standard Library
 from functools import wraps
 import itertools as it
+import os
 
 ## Local
 from .main import load
 
+class EOFType(object):
+
+    def __init__(self, lexinfo: dict):
+        ## Add tracking information
+        self.lineno = lexinfo['lineno']
+        self.lexpos = lexinfo['lexpos']
+        self.chrpos = lexinfo['chrpos']
+        self.source = lexinfo['source']
+
+        self.lexinfo = lexinfo
+
 class Source(str):
+    """ This source code object aids the tracking of tokens in order to
+        indicate error position on exception handling.
+    """
 
     def __new__(self, fname : str):
+        """ This object is a string itself with additional features for
+            position tracking.
+        """
         return str.__new__(self, load(fname))
 
     def __repr__(self):
-        return f"<source @ {self.fname}>"
+        return f"<source @ {os.path.abspath(self.fname)}>"
+
+    def __bool__(self):
+        """ Truth-value for emptiness checking.
+        """
+        return (str(self) != "")
 
     def __init__(self, fname : str):
+        """ Separates the source code in multiple lines. First line is discarded for
+            the indexing to start at 1 instead of 0. `self.table` keeps track of the
+            (cumulative) character count.
+        """
         self.fname = fname
         self.lines = [''] + str.split(self, '\n')
         self.table = list(it.accumulate([len(line) + 1 for line in self.lines]))
@@ -24,6 +51,10 @@ class Source(str):
 
     @property
     def eof(self):
+        """ Virtual object to represent the End-of-File for the given source
+            object. It's an anonymously created 
+        """
+
         ## SatType lexinfo interface
         lineno = len(self.lines) - 1
         lexpos = len(self.lines[lineno]) - 1
@@ -37,11 +68,7 @@ class Source(str):
         }
 
         ## Anonymous object
-        name = 'SAT_EOF'
-        bases = (object,)
-        attrs = {**lexinfo, 'lexinfo': lexinfo}
-
-        return type(name, bases, attrs)()
+        return EOFType(lexinfo)
 
 def trackable(cls: type):
 

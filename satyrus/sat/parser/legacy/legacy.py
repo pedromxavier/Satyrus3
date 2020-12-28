@@ -151,8 +151,8 @@ class SatLegacyLexer(object):
 
     @regex(r"[a-zA-Z_][a-zA-Z0-9_]*")
     def t_NAME(self, t):
+        t.type = self.reserved.get(str(t.value),'NAME')
         t.value = String(t.value)
-        t.type = self.reserved.get(t.value,'NAME')
         return t
 
     @regex(r"[-+]?[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
@@ -268,7 +268,10 @@ class SatLegacyParser(object):
         self.parser = yacc.yacc(module=self)
         
         ## Run Parser
-        self.parser.parse(self.source)
+        if not self.source:
+            self << SatSyntaxError("Empty File.", target=self.source.eof)
+        else:
+            self.parser.parse(self.source)
 
         ## Checkpoint
         self.checkpoint()

@@ -10,6 +10,7 @@ import math
 from satyrus.satlib import log, system, stderr, stdout, stdwar, Source, Stack, join
 
 from ..parser import SatParser
+from ..parser.legacy import SatLegacyParser
 from ..types.error import SatValueError, SatTypeError, SatCompilerError, SatReferenceError
 from ..types.error import SatError, SatExit, SatWarning
 from ..types import SatType, String, Number, Var, Array, Constraint
@@ -38,8 +39,8 @@ class SatCompiler:
 		## Initialize parser
 		if parser is None:
 			self.parser = SatParser()
-		elif type(parser) is not SatParser:
-			raise TypeError("`parser` must be of type `SatParser`.")
+		elif type(parser) is not SatParser and type(parser) is not SatLegacyParser:
+			raise TypeError(f"`parser` must be of type `SatParser` or `SatLegacyParser, not {type(parser)}`.")
 		else:
 			self.parser = parser
 
@@ -189,7 +190,7 @@ class SatCompiler:
 			finally:
 				self.checkpoint()
 		else:
-			raise TypeError(f'Invalid Type `{type(item)}` in compiler `evaluate`.')
+			raise TypeError(f'Invalid Type `{type(item)}` for `{item!r}` in `compiler.evaluate`.')
 
 	def push(self, scope: dict=None):
 		""" push memory scope

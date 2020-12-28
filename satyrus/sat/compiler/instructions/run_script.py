@@ -72,18 +72,20 @@ def run_script_constraints(compiler: SatCompiler, constraints: dict):
 
 def run_script_penalties(compiler: SatCompiler, constraints: dict, penalties: dict):
     ## Penalties
-    penalties[0] = compiler.env[ALPHA]
+    penalties.update({
+        0 : compiler.env[ALPHA]
+    })
 
     levels = {
-        0: len(constraints[CONS_OPT])
+        0 : sum(len(cons.clauses) for cons in constraints[CONS_OPT])
     }
 
     for cons in constraints[CONS_INT]:
         cons: Constraint
         if cons.level not in levels:
-            levels[cons.level] = 1
+            levels[cons.level] = len(cons.clauses)
         else:
-            levels[cons.level] += 1
+            levels[cons.level] += len(cons.clauses)
     else:
         levels = sorted(levels.items())
 

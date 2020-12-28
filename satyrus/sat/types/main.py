@@ -679,12 +679,28 @@ class Constraint(object):
 
         self._expr: Expr = None
         self._indices: list = None
+        self._clauses: list = None
 
     def set_expr(self, expr: Expr):
         self._expr = expr
 
     def set_indices(self, indices: list):
         self._indices = indices
+
+
+    @property
+    def clauses(self) -> list:
+        if self._clauses is None:
+            if self._expr is None:
+                raise AttributeError(f'Expression not defined for constraint {self.name}.')
+            if self._indices is None:
+                raise AttributeError(f'Indexing not defined for constraint {self.name}.')
+            
+            self._clauses = []
+            ...
+
+        else:
+            return self._clauses
         
     @property
     def type(self) -> str:

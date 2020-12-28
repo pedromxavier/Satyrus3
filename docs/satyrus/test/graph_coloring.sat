@@ -30,7 +30,7 @@ intgroup int0:
   forall{i} where i in (1,n); exists{k} where k in (1,n):
     vc[i][k];
 
-intgroup int1:
+intgroup int1:  
   forall{i,j,k} where i in (1,n), j in (1,n), k in (1,n) and i!=j:
     neigh[i][j] -> not (vc[i][k] and vc[j][k]);
 

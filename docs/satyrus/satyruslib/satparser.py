@@ -506,7 +506,7 @@ class SATParser(Parser):
     '''domain : listinterval
               | listinterval AND listassertion'''
     if len(p) == 2:
-      p[0] = p[1], []
+      p[0] = p[1],   []
     else:
       p[0] = p[1], p[3]
 
@@ -821,7 +821,7 @@ class SATParser(Parser):
       raise SATValueError(p.lineno(3),"levels must be non-negative intergers")
     if correlation < 1:
       raise SATValueError(p.lineno(3),"correlations must be positive intergers")
-    p[0] = level, correlation
+    p[0] = level, correlationp
 
   # Empty rule
   def p_empty(self, p):

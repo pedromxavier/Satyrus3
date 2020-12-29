@@ -155,7 +155,7 @@ class SatCompiler:
 		finally:
 			self.checkpoint()
 
-	def evaluate(self, item: SatType, miss: bool=True, calc: bool=True, null: bool=False) -> SatType:
+	def evaluate(self, item: SatType, miss: bool=True, calc: bool=True, null: bool=False, context: dict=None) -> SatType:
 		""" :: EVALUATE ::
 			==============
 			>>> n = Var('n')
@@ -165,6 +165,18 @@ class SatCompiler:
 			>>> Expr.evaluate(Number('7.4'))
 			Number('7.4')
 		"""
+		if context is not None:
+			self.push(context)
+			result = self._evaluate(item, miss, calc, null)
+			self.pop()
+		else:
+			result = self._evaluate(item, miss, calc, null)
+
+		return result
+
+	def _evaluate(self, item: SatType, miss: bool=True, calc: bool=True, null: bool=False) -> SatType:
+		"""
+		"""
 		if item is None:
 			if null:
 				return None
@@ -172,9 +184,9 @@ class SatCompiler:
 				raise ValueError("Invalid None appearance in compiler `evaluate`.")
 		elif type(item) is Expr:
 			if calc:
-				return Expr.calculate(Expr(item.head, *(self.evaluate(p, miss, calc) for p in item.tail)))
+				return Expr.calculate(Expr(item.head, *(self._evaluate(p, miss, calc) for p in item.tail)))
 			else:
-				return Expr(item.head, *(self.evaluate(p, miss, calc) for p in item.tail))
+				return Expr(item.head, *(self._evaluate(p, miss, calc) for p in item.tail))
 		elif type(item) is Number:
 			return item
 		elif type(item) is Array:

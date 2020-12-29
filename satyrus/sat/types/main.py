@@ -687,6 +687,11 @@ class Constraint(object):
     def set_indices(self, indices: list):
         self._indices = indices
 
+    def get_clauses(self, compiler):
+        if self._indices is None: ## Single term
+            self._clauses = [compiler.evaluate(self._expr, miss=True, calc=True, null=False, context=None)]
+        else:
+            self._clauses = [compiler.evaluate(self._expr, miss=True, calc=True, null=False, context=I) for I in self._indices]
 
     @property
     def clauses(self) -> list:
@@ -695,10 +700,8 @@ class Constraint(object):
                 raise AttributeError(f'Expression not defined for constraint {self.name}.')
             if self._indices is None:
                 raise AttributeError(f'Indexing not defined for constraint {self.name}.')
-            
-            self._clauses = []
-            ...
-
+            else:
+                raise AttributeError(f'Clauses were not computed by `Constraint.get_clauses(self, compiler)` for constraint {self.name}.')
         else:
             return self._clauses
         

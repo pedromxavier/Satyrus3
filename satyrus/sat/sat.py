@@ -9,7 +9,7 @@ from .compiler.instructions import instructions
 
 class Satyrus:
 
-    def __init__(self, source_path: str, legacy: bool=False):
+    def __init__(self, source_path: str, legacy: bool=False, O: int=0):
         """
         """
         
@@ -20,9 +20,11 @@ class Satyrus:
         else:
             from .parser import SatParser as Parser
 
+        self.O = O
+
         self.parser = Parser()
 
-        self.compiler = SatCompiler(instructions, parser=self.parser)
+        self.compiler = SatCompiler(instructions, parser=self.parser, O=O)
 
         self.source = Source(source_path)
 

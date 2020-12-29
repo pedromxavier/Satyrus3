@@ -497,8 +497,17 @@ class SatParser(object):
         p[0] = (DEF_CONSTRAINT, type_, name, loops, expr, level)
 
     def p_loops(self, p):
-        """ loops : loops loop
-                  | loop
+        """ loops : loop_stack
+                  |
+        """
+        if len(p) == 2:
+            p[0] = p[1]
+        else:
+            p[0] = []
+
+    def p_loop_stack(self, p):
+        """ loop_stack : loop_stack loop
+                       | loop
         """
         if len(p) == 3:
             p[0] = [*p[1], p[2]]

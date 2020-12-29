@@ -24,10 +24,7 @@ from .memory import Memory
 class SatCompiler:
 	"""
 	"""
-	## Optimization Level
-	O = 0
-
-	def __init__(self, instructions: dict, parser : SatParser = None):
+	def __init__(self, instructions: dict, parser : SatParser = None, O: int=0):
 		## Build Instruction Set
 		if type(instructions) is not dict:
 			raise TypeError("`instructions` must be of type `dict`.")
@@ -43,6 +40,9 @@ class SatCompiler:
 			raise TypeError(f"`parser` must be of type `SatParser` or `SatLegacyParser, not {type(parser)}`.")
 		else:
 			self.parser = parser
+
+		## Optimization degree
+		self.O = O
 
 		## Memory
 		self.memory = Memory()

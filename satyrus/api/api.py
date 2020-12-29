@@ -66,16 +66,16 @@ class SatAPI(metaclass=MetaSatAPI):
 
     options = []
 
-    def __init__(self, source_path: str, legacy: bool=False, solve: bool=True):
+    def __init__(self, source_path: str, solve: bool=True, **kwargs: dict):
         """
         """
-        self.source_path: str = str(source_path)
-        self.legacy: bool = bool(legacy)
+        self.source_path: str = source_path
+        self.kwargs: dict = kwargs
 
         ## Regular usage
         if solve:
             from ..sat import Satyrus
-            self.satyrus = Satyrus(self.source_path, self.legacy)
+            self.satyrus = Satyrus(self.source_path, **self.kwargs)
         
             ## Gather results
             self.results = self.satyrus.results
@@ -84,7 +84,7 @@ class SatAPI(metaclass=MetaSatAPI):
             self.code = self.satyrus.compiler.code
 
     def __getitem__(self, key: str):
-        subclass = self.subclasses[key](source_path=self.source_path, legacy=self.legacy, solve=False)
+        subclass = self.subclasses[key](source_path=self.source_path, solve=False, **self.kwargs)
         subclass.results = self.results
         subclass.code = self.code
         return subclass

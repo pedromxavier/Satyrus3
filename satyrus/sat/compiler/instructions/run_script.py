@@ -6,7 +6,7 @@
 
 ## Local
 from ....satlib import stdout
-from ...types.error import SatValueError, SatCompilerError
+from ...types.error import SatValueError, SatCompilerError, SatWarning
 from ...types import Number, Constraint
 from ...types.expr import Expr
 from ...types.symbols import PREC, EPSILON, ALPHA
@@ -63,7 +63,7 @@ def run_script_constraints(compiler: SatCompiler, constraints: dict):
     if len(constraints[CONS_INT]) + len(constraints[CONS_OPT]) == 0:
         compiler << SatCompilerError("No problem defined. Maybe you are just fine.", target=compiler.source.eof)
     elif len(constraints[CONS_INT]) == 0:
-        compiler << SatCompilerError("No Integrity condition defined.", target=compiler.source.eof)
+        compiler < SatWarning("No Integrity condition defined.", target=compiler.source.eof)
     elif len(constraints[CONS_OPT]) == 0:
         compiler << SatCompilerError("No Optmization condition defined.", target=compiler.source.eof)
 

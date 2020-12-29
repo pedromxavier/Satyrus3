@@ -1,1 +1,1 @@
-from .main import SatAPI
+from .api import SatAPI

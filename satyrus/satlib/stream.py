@@ -86,6 +86,20 @@ class _stream(object):
     def __call__(self, **kwargs):
         return self.__class__(self.lvl, **kwargs)
 
+    ## File interface
+    def __enter__(self):
+        raise NotImplementedError
+
+    def __exit__(self, *args):
+        raise NotImplementedError
+
+    def read(self):
+        raise NotImplementedError
+
+    def write(self, s: str, *args, **kwargs):
+        self.printf(s, **kwargs)
+    ## File interface
+
     @property
     def echo(self):
         return (self.__lvl__ is None) or (self.__lvl__ >= self.lvl)

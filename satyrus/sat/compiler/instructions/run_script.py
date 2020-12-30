@@ -4,6 +4,9 @@
 	STATUS: INCOMPLETE
 """
 
+## Third-Party
+from tabulate import tabulate
+
 ## Local
 from ....satlib import stdout
 from ...types.error import SatValueError, SatCompilerError, SatWarning
@@ -101,16 +104,19 @@ def run_script_penalties(compiler: SatCompiler, constraints: dict, penalties: di
         else:
             penalties[level_j] = penalties[level_k] * (n_k + 1)
     else: ## print penalty table
-        stdout[2] << ""
-        stdout[2] << ':     Penalty Table     :'
-        stdout[2] << '|    lvl | n | value    |'
-        for k, n in levels:
-            stdout[2] << f"| {k:6d} | {n:d} | {penalties[k]:1.6f} |"
-        stdout[2] << f"| ε={compiler.env[EPSILON]:.5f} ; α={compiler.env[ALPHA]:.5f} |"
-        stdout[2] << ""
+        stdout[2] << tabulate([(f"{k:6d}", f"{n:d}", penalties[k]) for k, n in levels], headers=["lvl", "n", "value"], tablefmt="pretty")
+        stdout[2] << tabulate([[compiler.env[EPSILON], compiler.env[ALPHA]]], headers =["ε", "α"], tablefmt="pretty")
 
 
 def run_script_energy(compiler: SatCompiler, constraints: dict, penalties: dict):
     """
     """
-    
+    print("CLAUSES:")
+    print("\tINTEGRITY:")
+    for cons in constraints[CONS_INT]:
+        print(f'\texpr: {cons.expr}')
+        print(f"\t{cons.clauses}")
+    print("\tOPTMITY:")
+    for cons in constraints[CONS_OPT]:
+        print(f'\texpr: {cons.expr}')
+        print(f"\t{cons.clauses}")

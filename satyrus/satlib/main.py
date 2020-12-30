@@ -71,6 +71,8 @@ def keep_type(callbacks : set):
     return class_decor
 
 def compose(*funcs):
+    """ `compose(f, g, h)` is equivalent to `lambda x, ...: f(g(h(x, ...)))`
+    """
     return reduce(lambda f, g: (lambda *x, **kw: f(g(*x, **kw))), funcs)
 
 def join(glue : str, args : list, func : callable=str):

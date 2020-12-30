@@ -1,7 +1,7 @@
 """ :: DEF_CONSTRAINT ::
 	====================
 
-	STATUS: INCOMPLETE
+	STATUS: COMPLETE
 """
 ## Standard Library
 import itertools as it
@@ -30,12 +30,15 @@ def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: l
 	constraint = Constraint(cons_type, name, level)
 
 	## Evaluate constraint loops
-	variables = set() ## holds loop variables
+	variables = {} ## holds loop variables and respective loop type (quantifier)
 
 	def_constraint_loops(compiler, loops, variables, constraint)
 
 	## Evaluate constraint expr
 	def_constraint_expr(compiler, cons_type, variables, expr, constraint)
+
+	## Retrieve clauses
+	def_constraint_clauses(compiler, constraint)
 
 	## Register final constraint definition
 	def_constraint_name(compiler, name, constraint)
@@ -54,10 +57,9 @@ def def_constraint_type_level(compiler: SatCompiler, cons_type: String, level: N
 
 	compiler.checkpoint()
 
-def def_constraint_loops(compiler: SatCompiler, loops: list, variables: set, constraint: Constraint):
+def def_constraint_loops(compiler: SatCompiler, loops: list, variables: dict, constraint: Constraint):
 	"""
 	"""
-
 	indices = [{}]
 
 	## temporary compiler context
@@ -66,7 +68,6 @@ def def_constraint_loops(compiler: SatCompiler, loops: list, variables: set, con
 		depth = 0
 
 		# extract loop properties
-		# pylint: disable=unused-variable
 		for (l_type, l_var, l_bounds, l_conds) in loops:
 
 			depth += 1
@@ -74,8 +75,13 @@ def def_constraint_loops(compiler: SatCompiler, loops: list, variables: set, con
 			if l_var in comp:
 				compiler < SatWarning(f"Variable `{l_var}` redefinition.", target=l_var)
 
-			## account variable
-			variables.add(l_var)
+			if l_var in variables:
+				compiler << SatExprError(f"Loop variable `{l_var}` repetition.", target=l_var)
+			else:
+				## account for variable
+				variables[l_var] = l_type
+
+			compiler.checkpoint()
 
 			## check for boundary consistency
 			# extract loop boundaries
@@ -117,11 +123,11 @@ def def_constraint_loops(compiler: SatCompiler, loops: list, variables: set, con
 				## filter indices
 				indices = [I for I in indices if condition(comp, I)]
 
-	constraint.set_indices(indices)
+	constraint.set_indices(indices, variables)
 
 	compiler.checkpoint()			
 	
-def def_constraint_expr(compiler: SatCompiler, cons_type: String, variables: set, raw_expr: Expr, constraint: Constraint):
+def def_constraint_expr(compiler: SatCompiler, cons_type: String, variables: dict, raw_expr: Expr, constraint: Constraint):
 	"""
 	"""
 	## Reduces expression to simplest form
@@ -148,12 +154,19 @@ def def_constraint_expr(compiler: SatCompiler, cons_type: String, variables: set
 	## sets expression for this constraint in the conjunctive normal form
 	if str(cons_type) == CONS_INT: ## negation
 		constraint.set_expr(Expr.cnf(~expr))
+		stdout[5] << f"Defined expression `{constraint.expr!r}` for integrity constraint `{constraint.name}`."
 	elif str(cons_type) == CONS_OPT:
 		constraint.set_expr(Expr.cnf(expr))
+		stdout[5] << f"Defined expression `{constraint.expr!r}` for optimality constraint `{constraint.name}`."
 	else:
 		raise NotImplementedError('There are no extra constraint types yet.')
 
 	compiler.checkpoint()
+
+def def_constraint_clauses(compiler: SatCompiler, constraint: Constraint):
+	"""
+	"""
+	constraint.get_clauses(compiler)
 
 def def_constraint_name(compiler: SatCompiler, name: Var, constraint: Constraint):
 	if name in compiler:

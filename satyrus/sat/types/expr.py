@@ -262,8 +262,8 @@ Expr.TABLE['NOT'] = {
     T_OR   : (lambda *X : Expr(T_AND, *[Expr(T_NOT, x) for x in X])),
     T_XOR  : (lambda A, B : A.__iff__(B)),
     # Implications:
-    T_IMP  : (lambda A, B : (~B).__imp__(~A)),
-    T_RIMP : (lambda A, B : (~B).__rimp__(~A)),
+    T_IMP  : (lambda A, B : A & ~B),
+    T_RIMP : (lambda A, B : ~A & B),
     T_IFF  : (lambda A, B : A ^ B),
     # Double NOT:
     T_NOT  : (lambda A : A)
@@ -398,3 +398,49 @@ def _arithmetic(cls: type, item: object):
 @Expr.classmethod
 def arithmetic(cls: type, expr: Expr):
     return cls.tell(expr, all, cls._arithmetic)
+
+Expr._HASH = {
+    ## Logical
+    T_OR: None,
+    T_AND: None,
+    T_NOT: T_NOT,
+    T_XOR: T_XOR,
+    T_IMP: T_IMP,
+    T_RIMP: T_IMP,
+    T_IFF: None,
+
+    ## Arithmetic
+    T_ADD: None,
+    T_SUB: T_SUB,
+    T_MUL: None,
+    T_DIV: T_DIV,
+    T_MOD: T_MOD,
+    
+    ## Comparisons
+    T_EQ: None,
+    T_NE: None,
+    T_GE: T_GE,
+    T_LE: T_GE,
+    T_GT: T_GT,
+    T_LT: T_GT,
+
+    ## Indexing
+    T_IDX: T_IDX,
+}
+
+@Expr.classmethod
+def _hash(cls: type, expr: Expr):
+    if type(expr) is cls:
+        hash_key = cls._HASH[expr.head]
+        if hash_key is None:
+            return hash((expr.head, hash(sum(cls._hash(p) for p in expr.tail))))
+        elif hash_key == expr.head:
+            return hash((hash_key, hash(tuple(cls._hash(p) for p in expr.tail))))
+        else:
+            return hash((hash_key, hash(tuple(cls._hash(p) for p in reversed(expr.tail)))))
+    else:
+        return hash(expr)
+
+@Expr.classmethod
+def cmp(cls: type, p: Expr, q: Expr) -> bool:
+    return bool(cls._hash(p) == cls._hash(q))

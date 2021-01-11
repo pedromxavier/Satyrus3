@@ -9,7 +9,8 @@ from ply import lex, yacc
 ## Local
 from ....satlib import stderr, stdout, Source, Stack, track
 from ...types.error import SatParserError, SatLexerError, SatTypeError, SatSyntaxError, SatValueError, SatWarning, SatExit
-from ...types import Expr, Var, Number, String, SatType
+from ...types import Var, Number, String, SatType
+from ...types.expr import Expr
 from ...types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, CONS_INT, CONS_OPT
 from ...types.symbols.tokens import T_IDX, T_FORALL, T_EXISTS
 
@@ -616,7 +617,7 @@ class SatLegacyParser(object):
 
         commands = []
 
-        for name, level, cor in penalties:
+        for name, level, cor in penalties: #pylint: disable=unused-variable
             if name not in self.constraint_table:
                 self < SatWarning(f'Undefined constraint group {name} to be ignored.', target=name)
             else:

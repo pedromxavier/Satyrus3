@@ -19,7 +19,7 @@
 ╚██████╔╝██║                ███████╗╚██████╔╝╚██████╔╝██║╚██████╗            ╚═╝╚██╗               
  ╚═════╝ ╚═╝                ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝                ╚═╝        
 
-   | Please send error tracebak to
-   | pedromxavier at poli.ufrj.br
+   | Please send the error log file "sat.log" to
+   | email:pedromxavier@poli.ufrj.br
    |
-   | Sorry.
+   | I'm sorry.

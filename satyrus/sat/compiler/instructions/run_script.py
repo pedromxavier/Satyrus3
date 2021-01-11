@@ -10,7 +10,7 @@ from tabulate import tabulate
 ## Local
 from ....satlib import stdout
 from ...types.error import SatValueError, SatCompilerError, SatWarning
-from ...types import Number, Constraint
+from ...types import Number
 from ...types.expr import Expr
 from ...types.symbols import PREC, EPSILON, ALPHA
 from ...types.symbols import CONS_INT, CONS_OPT
@@ -51,8 +51,7 @@ def run_script_setup(compiler: SatCompiler):
     compiler.checkpoint()
 
 def run_script_constraints(compiler: SatCompiler, constraints: dict):
-    """
-        Constraint compilation
+    """ Constraint compilation
     """
 
     ## Retrieve constraints

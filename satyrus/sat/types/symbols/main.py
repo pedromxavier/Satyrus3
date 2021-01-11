@@ -17,6 +17,8 @@ OUT = intern('out')
 EPSILON = intern('epsilon')
 ALPHA = intern('alpha')
 EXIT = intern('exit')
+MAPPING = intern('mapping')
+INDEXER = intern('indexer')
 
 ## Constraint Types
 CONS_INT = intern('int')

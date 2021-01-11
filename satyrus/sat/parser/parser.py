@@ -9,7 +9,8 @@ from ply import lex, yacc
 ## Local
 from ...satlib import stderr, stdout, Source, Stack, PythonShell, PythonError, track
 from ..types.error import SatParserError, SatLexerError, SatTypeError, SatSyntaxError, SatValueError, SatPythonError, SatExit
-from ..types import Expr, Var, Number, String, SatType, PythonObject
+from ..types import Var, Number, String, SatType, PythonObject
+from ..types.expr import Expr
 from ..types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, CMD_PYTHON
 from ..types.symbols.tokens import T_IDX
 

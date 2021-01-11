@@ -10,42 +10,37 @@ from functools import reduce
 ## Local
 from ....satlib import arange, Stack, stdout, stdwar, join
 from ..compiler import SatCompiler
+from ...types.indexer import SatIndexer
+from ...types.mapping import SatMapping
 from ...types.error import SatValueError, SatTypeError, SatReferenceError, SatExprError, SatWarning
 from ...types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL, T_IDX
-from ...types.symbols import CONS_INT, CONS_OPT
-from ...types import Var, String, Number, Constraint, Array
+from ...types.symbols import CONS_INT, CONS_OPT, INDEXER, MAPPING
+from ...types import Var, String, Number, Array
 from ...types.expr import Expr
 
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 CONST_TYPES = {CONS_INT, CONS_OPT}
 
+def condition(subcompiler: SatCompiler, cond: Expr, scope: dict) -> bool:
+	return bool(subcompiler.evaluate(cond, miss=True, calc=True, null=False, context=scope))
+
 def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: list, expr: Expr, level: Number):
 	""" DEF_CONSTRAINT
 		==============
 	"""
+	## Report process start
+	stdout[5] << f"Started `{name}` ({cons_type}) constraint definition."
+
 	## Check constraint type and level
 	def_constraint_type_level(compiler, cons_type, level)
 
-	## Creates Constraint object
-	constraint = Constraint(cons_type, name, level)
-
-	## Evaluate constraint loops
-	variables = {} ## holds loop variables and respective loop type (quantifier)
-
-	def_constraint_loops(compiler, loops, variables, constraint)
-
-	## Evaluate constraint expr
-	def_constraint_expr(compiler, cons_type, variables, expr, constraint)
-
 	## Retrieve clauses
-	def_constraint_clauses(compiler, constraint)
-
-	## Register final constraint definition
-	def_constraint_name(compiler, name, constraint)
+	def_constraint_clauses(compiler, cons_type, loops, expr)
 
 def def_constraint_type_level(compiler: SatCompiler, cons_type: String, level: Number):
 	"""
 	"""
+	
 	if str(cons_type) not in CONST_TYPES:
 		compiler << SatTypeError(f"Invalid constraint type {cons_type}. Options are: `int`, `opt`.", target=cons_type)
 
@@ -55,83 +50,88 @@ def def_constraint_type_level(compiler: SatCompiler, cons_type: String, level: N
 	if str(cons_type) == CONS_INT and (level < 0 or not level.is_int):
 		compiler << SatValueError(f"Invalid penalty level {level}. Must be positive integer.", target=level)
 
+	stdout[5] << f"Constraint type and level OK."
+
 	compiler.checkpoint()
 
-def def_constraint_loops(compiler: SatCompiler, loops: list, variables: dict, constraint: Constraint):
+def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, raw_expr: Expr):
 	"""
 	"""
-	indices = [{}]
+	## Holds loop variables
+	variables = set()
 
-	## temporary compiler context
-	with compiler as comp:
+	## Retrieve mapping mechanism
+	mapping = compiler.env[MAPPING]
 
-		depth = 0
+	## Retrieve Indexer Type
+	Indexer = compiler.env[INDEXER]
 
-		# extract loop properties
-		for (l_type, l_var, l_bounds, l_conds) in loops:
+	## Indexer
+	indexer: SatIndexer = None
 
-			depth += 1
+	# extract loop properties
+	for (l_type, l_var, l_bounds, l_conds) in loops:
 
-			if l_var in comp:
-				compiler < SatWarning(f"Variable `{l_var}` redefinition.", target=l_var)
+		# Check for earlier variable definitions
+		if l_var in variables:
+			compiler << SatExprError(f"Loop variable `{l_var}` repetition.", target=l_var)
+		elif l_var in compiler:
+			compiler < SatWarning(f"Variable `{l_var}` redefinition.", target=l_var)
 
-			if l_var in variables:
-				compiler << SatExprError(f"Loop variable `{l_var}` repetition.", target=l_var)
+		## account for variable in loop scope
+		variables.add(l_var)
+
+		compiler.checkpoint()
+
+		## check for boundary consistency
+		# extract loop boundaries
+		start, stop, step = l_bounds
+
+		# evaluate variables
+		start = compiler.evaluate(start, miss=True, calc=True)
+		stop = compiler.evaluate(stop, miss=True, calc=True)
+		step = compiler.evaluate(step, miss=True, calc=True, null=True) ## accepts null (None) as possible value
+
+		if step is None:
+			if start <= stop:
+				step = Number('1')
 			else:
-				## account for variable
-				variables[l_var] = l_type
+				step = Number('-1')
 
-			compiler.checkpoint()
+		elif step == Number('0'):
+			compiler << SatValueError('Step must be non-zero.', target=step)
 
-			## check for boundary consistency
-			# extract loop boundaries
-			start, stop, step = l_bounds
+		if ((start < stop) and (step < 0)) or ((start > stop) and (step > 0)):
+			compiler << SatValueError('Inconsistent loop definition', target=start)
+		
+		compiler.checkpoint()
 
-			# evaluate variables
-			start = comp.evaluate(start, miss=True, calc=True)
-			stop = comp.evaluate(stop, miss=True, calc=True)
-			step = comp.evaluate(step, miss=True, calc=True, null=True) ## accepts null (None) as possible value
+		stdout[5] << f"Loop boundaries are OK."
 
-			if step is None:
-				if start <= stop:
-					step = Number('1')
-				else:
-					step = Number('-1')
+		## Run through all indices
+		indices = [i for i in arange(start, stop, step)]
 
-			elif step == Number('0'):
-				compiler << SatValueError('Step must be non-zero.', target=step)
+		## define condition
+		if l_conds is not None:
+			## Compile condition expressions
+			cond = reduce(lambda x, y: x & y, [compiler.evaluate(c, miss=False, calc=True) for c in l_conds], Number.T)
+		else:
+			cond = None
 
-			if ((start < stop) and (step < 0)) or ((start > stop) and (step > 0)):
-				compiler << SatValueError('Inconsistent loop definition', target=start)
-			
-			compiler.checkpoint()
+		## Initialize Indexer for this loop
+		if indexer is None:
+			indexer: SatIndexer = Indexer(compiler, l_type, l_var, indices, cond)
+		else:
+			indexer: SatIndexer = indexer << Indexer(compiler, l_type, l_var, indices, cond)
 
-			## Run through all indices
-			indices = [{**J, l_var: i} for J in indices for i in arange(start, stop, step)]
+		compiler.checkpoint()
 
-			## define condition
-			if l_conds is not None:
-				## Compile condition expressions
-				cond = reduce(lambda x, y: x & y, l_conds, Number.T)
+		stdout[5] << f"Condition and indexing are OK."
 
-				def condition(subcompiler: SatCompiler, scope: dict) -> bool:
-					subcompiler.push(scope)
-					ans = subcompiler.evaluate(cond, miss=True, calc=True)
-					subcompiler.pop()
-					return bool(ans)
-
-				## filter indices
-				indices = [I for I in indices if condition(comp, I)]
-
-	constraint.set_indices(indices, variables)
-
-	compiler.checkpoint()			
-	
-def def_constraint_expr(compiler: SatCompiler, cons_type: String, variables: dict, raw_expr: Expr, constraint: Constraint):
-	"""
-	"""
 	## Reduces expression to simplest form
 	expr = Expr.simplify(raw_expr)
+
+	stdout[5] << f"Inner expression simplified."
 
 	# pylint: disable=no-member
 	if str(cons_type) == CONS_INT and not Expr.logical(expr):
@@ -145,31 +145,35 @@ def def_constraint_expr(compiler: SatCompiler, cons_type: String, variables: dic
 	## point to themselves. This prevents both older
 	## variables from interfering in evaluation and
 	## also undefined loop variables.
-	compiler.push({var: var for var in variables})
-	## evaluation
-	expr = compiler.evaluate(expr, miss=True, calc=True, null=False)
-	## Last but not least, removes this artificial scope
-	compiler.pop()
+	## Last but not least, automatically removes this
+	## artificial scope.
+	expr = compiler.evaluate(expr, miss=True, calc=True, null=False, context={var: var for var in variables})
+	
+	stdout[5] << f"Initial form: {indexer._root} {expr}"
 
-	## sets expression for this constraint in the conjunctive normal form
-	if str(cons_type) == CONS_INT: ## negation
-		constraint.set_expr(Expr.cnf(~expr))
-		stdout[5] << f"Defined expression `{constraint.expr!r}` for integrity constraint `{constraint.name}`."
+	## Sets expression for this constraint in the Conjunctive Normal Form (C.N.F.)
+	if str(cons_type) == CONS_INT:
+		## Negate inner expression
+		cnf_expr: Expr = Expr.cnf(~expr)
+		## Invert Indexing Loops
+		~indexer._root
 	elif str(cons_type) == CONS_OPT:
-		constraint.set_expr(Expr.cnf(expr))
-		stdout[5] << f"Defined expression `{constraint.expr!r}` for optimality constraint `{constraint.name}`."
+		cnf_expr: Expr = Expr.cnf(expr)
 	else:
-		raise NotImplementedError('There are no extra constraint types yet.')
+		raise NotImplementedError('There are no extra constraint types yet, just `int` or `opt`.')
 
 	compiler.checkpoint()
 
-def def_constraint_clauses(compiler: SatCompiler, constraint: Constraint):
-	"""
-	"""
-	constraint.get_clauses(compiler)
+	stdout[5] << f"Conversion of `{expr}` to C.N.F. OK."
 
-def def_constraint_name(compiler: SatCompiler, name: Var, constraint: Constraint):
-	if name in compiler:
-		compiler < SatWarning(f"Variable `{name}` overriden by constraint definition.", target=name)
+	stdout[5] << f"Final form: {indexer._root} {cnf_expr}"
+
+	idx_expr: Expr = indexer << cnf_expr
+
+	stdout[5] << f"Finished indexing."
+
+	compiler.checkpoint()
+
 	
-	compiler.memset(name, constraint)
+
+	print(mapping.map_expr(idx_expr))

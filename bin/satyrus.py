@@ -15,21 +15,6 @@ def main(argc: int, argv: list):
     """ :: Satyrus CLI ::
         =================
     """
-    import argparse
-    from satyrus import SatAPI
-
-    kwargs = {
-        'description' : __doc__
-    }
-
-    parser = argparse.ArgumentParser(**kwargs)
-    parser.add_argument("-o", "--out", dest="out", help="output format", choices=SatAPI.options)
-    parser.add_argument("--legacy", type=bool, action='store_true')
-    parser.add_argument("source", dest="source", help="source file")
-
-    args = parser.parse_args()
-
-    print(f'ARGS: {args}')
 
 if __name__ == '__main__':
     main(len(sys.argv), sys.argv)

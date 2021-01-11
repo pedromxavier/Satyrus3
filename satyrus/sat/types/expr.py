@@ -3,7 +3,7 @@ from functools import reduce
 from collections import defaultdict
 
 ## Local
-from ...satlib import join, compose
+from ...satlib import join, compose, stderr
 from .error import SatValueError
 from .main import Expr, Number, Var, Array
 
@@ -273,7 +273,7 @@ Expr.TABLE['NEG'] = {
     # AND, OR, XOR:
     T_ADD  : (lambda *X : Expr(T_ADD, *[Expr(T_SUB, x) for x in X])),
     T_MUL  : (lambda *x, Y : Expr(T_MUL, Expr(T_SUB, x), *Y)),
-    T_SUB  : (lambda A, B=None : A.__add__(B) if (B is not None) else A),
+    T_SUB  : (lambda A, B=None : B.__sub__(A) if (B is not None) else A),
     # Implications:
     T_DIV  : (lambda A, B : Expr(T_SUB, A) / (B)),
     }
@@ -286,6 +286,8 @@ Expr.TABLE['XOR'] = {
 def _remove_implications(cls, expr):
     if type(expr) is cls and expr.head in cls.TABLE['IMP']:
         return cls.TABLE['IMP'][expr.head](*expr.tail)
+    elif type(expr) is cls and expr.head in cls.TABLE['XOR']:
+        return cls.TABLE['XOR'][expr.head](*expr.tail)
     else:
         return expr
 
@@ -329,22 +331,12 @@ def dnf(cls: type, expr: Expr):
     expr = cls.associate(cls.apply(expr, compose(cls._move_not_inwards, cls._remove_implications)))
     return cls.associate(cls.back_apply(expr, cls._distribute_or_over_and))
 
-Expr.LMS_TABLE = {
-    T_AND : (lambda tail: Expr(T_MUL, *tail)),
-    T_OR  : (lambda tail: Expr(T_ADD, *tail)),
-    T_NOT : (lambda tail: Expr(T_SUB, Number('1'), *tail))
-}
-
-@Expr.classmethod
-def lms(cls: type, expr: Expr):
-    """ Expr is assumed to be in the c.n.f.
-    """   
-    return cls.apply(expr, lambda expr: cls.LMS_TABLE[expr.head](expr.tail) if (type(expr) is cls and expr.head in cls.LMS_TABLE) else expr)
-
 @Expr.classmethod
 def _move_neg_inwards(cls: type, expr: Expr):
     """
     """
+    #pylint: disable=unreachable
+    raise NotImplementedError
     if type(expr) is cls and (expr.head == T_SUB):
         expr = expr.tail[0]
         if type(expr) is cls:
@@ -361,6 +353,8 @@ def _move_neg_inwards(cls: type, expr: Expr):
 def _remove_subtractions(cls: type, expr: Expr):
     """
     """
+    #pylint: disable=unreachable
+    raise NotImplementedError
     if type(expr) is cls and expr.head == T_SUB and len(expr.tail) == 2:
         return cls(T_ADD, expr.tail[0], cls(T_SUB, expr.tail[1]))
     else:
@@ -370,6 +364,8 @@ def _remove_subtractions(cls: type, expr: Expr):
 def _distribute_add_over_mul(cls: type, expr: Expr):
     """
     """
+    #pylint: disable=unreachable
+    raise NotImplementedError
     if type(expr) is cls and expr.head == T_MUL:
         conjs = [(p.tail if (type(p) is cls and p.head == T_ADD) else (p,)) for p in expr.tail]
         return cls(T_ADD, *(cls(T_MUL, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
@@ -380,6 +376,8 @@ def _distribute_add_over_mul(cls: type, expr: Expr):
 def anf(cls: type, expr: Expr):
     """
     """
+    #pylint: disable=unreachable
+    raise NotImplementedError
     expr = cls.associate(cls.apply(expr, compose(cls._move_neg_inwards, cls._remove_subtractions)))
     return cls.associate(cls.back_apply(expr, cls._distribute_add_over_mul))
 

@@ -484,7 +484,7 @@ class SatParser(object):
                            | LPAR NAME RPAR varname DOTS loops expr
         """
         type_= self.get_arg(p, 2)
-        name = self.get_arg(p, 4)
+        name = self.get_arg(p, 4, track=False)
         
         if len(p) == 11:
             level = self.get_arg(p, 6, track=False)

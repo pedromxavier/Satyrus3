@@ -15,14 +15,11 @@ from ...types.mapping import SatMapping
 from ...types.error import SatValueError, SatTypeError, SatReferenceError, SatExprError, SatWarning
 from ...types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL, T_IDX
 from ...types.symbols import CONS_INT, CONS_OPT, INDEXER, MAPPING
-from ...types import Var, String, Number, Array
+from ...types import Var, String, Number, Array, Constraint
 from ...types.expr import Expr
 
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 CONST_TYPES = {CONS_INT, CONS_OPT}
-
-def condition(subcompiler: SatCompiler, cond: Expr, scope: dict) -> bool:
-	return bool(subcompiler.evaluate(cond, miss=True, calc=True, null=False, context=scope))
 
 def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: list, expr: Expr, level: Number):
 	""" DEF_CONSTRAINT
@@ -34,8 +31,11 @@ def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: l
 	## Check constraint type and level
 	def_constraint_type_level(compiler, cons_type, level)
 
+	## Create constraint object
+	constraint: Constraint = Constraint(name, cons_type, level)
+
 	## Retrieve clauses
-	def_constraint_clauses(compiler, cons_type, loops, expr)
+	def_constraint_clauses(compiler, cons_type, loops, expr, constraint)
 
 def def_constraint_type_level(compiler: SatCompiler, cons_type: String, level: Number):
 	"""
@@ -54,7 +54,7 @@ def def_constraint_type_level(compiler: SatCompiler, cons_type: String, level: N
 
 	compiler.checkpoint()
 
-def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, raw_expr: Expr):
+def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, raw_expr: Expr, constraint: Constraint):
 	"""
 	"""
 	## Holds loop variables
@@ -148,8 +148,6 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 	## Last but not least, automatically removes this
 	## artificial scope.
 	expr = compiler.evaluate(expr, miss=True, calc=True, null=False, context={var: var for var in variables})
-	
-	stdout[5] << f"Initial form: {indexer._root} {expr}"
 
 	## Sets expression for this constraint in the Conjunctive Normal Form (C.N.F.)
 	if str(cons_type) == CONS_INT:
@@ -164,16 +162,13 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 
 	compiler.checkpoint()
 
-	stdout[5] << f"Conversion of `{expr}` to C.N.F. OK."
-
-	stdout[5] << f"Final form: {indexer._root} {cnf_expr}"
-
 	idx_expr: Expr = indexer << cnf_expr
 
-	stdout[5] << f"Finished indexing."
+	if not indexer.cnf:
+		compiler < SatWarning(f'In Constraint `{constraint.name}` expression indexed by {indexer._root} {cnf_expr} is not in the C.N.F. This will require (probably many) extra steps to evaluate.\n You may press Ctrl+X/Ctrl+C to Interrupt.', target=constraint.var)
 
+		idx_expr: Expr = Expr.cnf(idx_expr)
+	
 	compiler.checkpoint()
 
-	
-
-	print(mapping.map_expr(idx_expr))
+	constraint.add_clauses(idx_expr.tail)

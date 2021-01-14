@@ -186,10 +186,26 @@ class SatLegacyParser(object):
 
     tokens = SatLegacyLexer.tokens
 
-    precedence = (
+    extra_keywords = [
+		## load
+		'from',
 
+		## constraints
+		'optgroup', 'intgroup',
+		'forall', 'exists',
+		'in', 'where',
+
+		## penalties
+		'correlation', 'penalties', 'level'
+    ]
+
+    precedence = (
         ('left', 'ADD', 'SUB'),
-        ('left', 'MUL', 'DIV', 'MOD'),
+        ('left', 'MUL', 'DIV'),
+
+        ('left', 'XOR', 'OR'),
+        ('left', 'AND'),
+        ('left', 'NOT'),
 
         ('left', 'IMP', 'RIMP', 'IFF'),
 
@@ -206,8 +222,7 @@ class SatLegacyParser(object):
         ('left', 'STRING', 'NUMBER'),
 
         ('left', 'ENDL'),
-        
-    ) + tuple(('left', kw.upper()) for kw in SatLegacyLexer.keywords)
+    )
 
     SYMBOL_TABLE = {
         'and': '&',

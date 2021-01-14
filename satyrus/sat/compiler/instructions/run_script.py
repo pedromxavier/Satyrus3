@@ -10,7 +10,7 @@ from tabulate import tabulate
 ## Local
 from ....satlib import stdout
 from ...types.error import SatValueError, SatCompilerError, SatWarning
-from ...types import Number
+from ...types import Number, Constraint
 from ...types.expr import Expr
 from ...types.symbols import PREC, EPSILON, ALPHA
 from ...types.symbols import CONS_INT, CONS_OPT
@@ -22,13 +22,13 @@ def run_script(compiler: SatCompiler, *args: tuple):
     """
     ## Setup compiler environment
     run_script_setup(compiler)
-
-    ## Retrieve constraints
+    
     constraints = {}
+    ## Retrieve constraints
     run_script_constraints(compiler, constraints)
 
+    penalties = {}    
     ## Compute penalties
-    penalties = {}
     run_script_penalties(compiler, constraints, penalties)
 
     ## Generate Energy Equations
@@ -73,6 +73,8 @@ def run_script_constraints(compiler: SatCompiler, constraints: dict):
 
 
 def run_script_penalties(compiler: SatCompiler, constraints: dict, penalties: dict):
+    """
+    """
     ## Penalties
     penalties.update({
         0 : compiler.env[ALPHA]
@@ -83,7 +85,6 @@ def run_script_penalties(compiler: SatCompiler, constraints: dict, penalties: di
     }
 
     for cons in constraints[CONS_INT]:
-        cons: Constraint
         if cons.level not in levels:
             levels[cons.level] = len(cons.clauses)
         else:
@@ -110,12 +111,3 @@ def run_script_penalties(compiler: SatCompiler, constraints: dict, penalties: di
 def run_script_energy(compiler: SatCompiler, constraints: dict, penalties: dict):
     """
     """
-    print("CLAUSES:")
-    print("\tINTEGRITY:")
-    for cons in constraints[CONS_INT]:
-        print(f'\texpr: {cons.expr}')
-        print(f"\t{cons.clauses}")
-    print("\tOPTMITY:")
-    for cons in constraints[CONS_OPT]:
-        print(f'\texpr: {cons.expr}')
-        print(f"\t{cons.clauses}")

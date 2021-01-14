@@ -30,6 +30,13 @@ class SatIndexer(metaclass=ABCMeta):
     def exists_one(self, expr: Expr, context: dict=None):
         ...
 
+    @property
+    def cnf(self) -> bool:
+        if self._next is None:
+            return (self._type == T_EXISTS)
+        else:
+            return (self._type == T_EXISTS) and self._next.cnf
+
     def __repr__(self):
         if self._next is None:
             return f"{self._type}{self._var}"
@@ -78,9 +85,7 @@ class SatIndexer(metaclass=ABCMeta):
 
     def cond(self, context: dict) -> bool:
         if self._cond is not None:
-            res = self._eval(self._cond, context)
-            assert type(res) is Number
-            return bool(res)
+            return bool(self._eval(self._cond, context))
         else:
             return True
 

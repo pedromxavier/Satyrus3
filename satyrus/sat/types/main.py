@@ -623,10 +623,10 @@ class Array(SatType):
             raise SatIndexError(f"Invalid index {idx}.", target=idx)
 
     def __str__(self):
-        return f"{self.var}"
+        return f"{self.var}" + "".join([f"[{n}]" for n in self.shape])
 
     def __repr__(self):
-        return f"{self.var}" + "".join([f"[{n}]" for n in self.shape])
+        return f"Array({self.var!r}, {self.shape!r})"
 
     def __hash__(self):
         return hash(sum(hash((k, hash(v))) for k, v in self.array.items()))
@@ -672,3 +672,31 @@ class PythonObject(object):
 
     def __init__(self, obj: object):
         self.obj = obj
+
+class Constraint(object):
+
+	def __init__(self, name: Var, cons_type: String, level: Number):
+		self._name = name
+		self._type = cons_type
+		self._level = level
+
+		self._clauses = []
+
+	def add_clauses(self, clauses: list):
+		self._clauses.extend(clauses)
+
+	@property
+	def var(self) -> Var:
+		return self._name
+
+	@property
+	def name(self) -> str:
+		return str(self._name)
+
+	@property
+	def type(self) -> str:
+		return str(self._type)
+
+	@property
+	def level(self):
+		return int(self._level)

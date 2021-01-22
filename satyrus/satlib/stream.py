@@ -67,18 +67,18 @@ class _stream(object):
         return f"{self.__class__.__name__}({self.lvl}, {params})"
 
     def printf(self, *args, **kwargs):
-        if self.echo: self._printf(*args, file=self.file, **kwargs)
+        if self.echo: self._printf(*args, **kwargs)
 
     def _printf(self, *args, **kwargs):
-        print(self.bg, self.fg, self.sty, sep="", end="")
-        print(*args, **kwargs)
-        print(self.RESET, sep="", end="")
+        print(self.bg, self.fg, self.sty, sep="", end="", file=self.file)
+        print(*args, **kwargs, file=self.file)
+        print(self.RESET, sep="", end="", file=self.file)
 
     def string(self, s: str):
         return f"{self.bg}{self.fg}{self.sty}{s}{self.RESET}"
 
     def __lshift__(self, s: str):
-        if self.echo: print(self.string(s))
+        if self.echo: print(self.string(s), file=self.file)
     
     def __getitem__(self, lvl: int):
         return self.__class__(lvl, **self.params._asdict())
@@ -115,5 +115,5 @@ stream = _stream()
 colorama.init()
 
 stderr = stream(fg='RED', file=sys.stderr)
-stdout = stream(fg='CYAN', sty='BRIGHT')
-stdwar = stream(fg='YELLOW')
+stdwar = stream(fg='YELLOW', file=sys.stderr)
+stdout = stream(fg='CYAN', sty='BRIGHT', file=sys.stdout)

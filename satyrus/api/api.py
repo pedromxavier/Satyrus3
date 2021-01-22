@@ -10,12 +10,14 @@
     >>> sat['dwave'].solve()
 """ 
 ## Standard Library
+import abc
 from functools import wraps
 
 ## Local
 from ..satlib import stdout
+from ..sat.types.expr import Expr
 
-class MetaSatAPI(type):
+class MetaSatAPI(abc.ABCMeta):
 
     name = 'SatAPI'
 
@@ -76,21 +78,25 @@ class SatAPI(metaclass=MetaSatAPI):
         if solve:
             from ..sat import Satyrus
             self.satyrus = Satyrus(self.source_path, **self.kwargs)
-        
-            ## Gather results
-            self.results = self.satyrus.results
-
-            ## Exit code
-            self.code = self.satyrus.compiler.code
+        else:
+            self.satyrus = None
 
     def __getitem__(self, key: str):
         subclass = self.subclasses[key](source_path=self.source_path, solve=False, **self.kwargs)
-        subclass.results = self.results
-        subclass.code = self.code
+        subclass.satyrus = self.satyrus
         return subclass
 
+    @property
+    def results(self):
+        return self.satyrus.results
+
+    @property
+    def code(self):
+        return self.satyrus.code
+
+    @abc.abstractmethod
     def solve(self):
-        return self.results
+        raise NotImplementedError
 
 ## NOTE: DO NOT EDIT ABOVE THIS LINE
 ## ---------------------------------
@@ -99,23 +105,17 @@ class SatAPI(metaclass=MetaSatAPI):
 class text(SatAPI):
 
     def solve(self) -> str:
-        raise NotImplementedError
+        stdout[0] << self.results
 
-## CSV Output
-class csv(SatAPI):
+# ## CSV Output
+# class csv(SatAPI):
+#     ...
 
-    def solve(self):
-        raise NotImplementedError
+# ## cvxpy
+# class cvxpy(SatAPI):
+#     ## https://www.cvxpy.org/tutorial/advanced/index.html#mixed-integer-programs
+#     ## import cvxpy as cp
+#     ...
 
-## cvxpy
-class cvxpy(SatAPI):
-    ## https://www.cvxpy.org/tutorial/advanced/index.html#mixed-integer-programs
-    ## import cvxpy as cp
-
-    def solve(self):
-        raise NotImplementedError
-
-class dwave(SatAPI):
-
-    def solve(self):
-       raise NotImplementedError
+# class dwave(SatAPI):
+#     ...

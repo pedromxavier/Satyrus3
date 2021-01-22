@@ -8,12 +8,13 @@
 from tabulate import tabulate
 
 ## Local
-from ....satlib import stdout
+from ....satlib import stdout, stdwar
 from ...types.error import SatValueError, SatCompilerError, SatWarning
 from ...types import Number, Constraint
 from ...types.expr import Expr
-from ...types.symbols import PREC, EPSILON, ALPHA
-from ...types.symbols import CONS_INT, CONS_OPT
+from ...types.mapping import SatMapping
+from ...types.symbols import CONS_INT, CONS_OPT, MAPPING, PREC, EPSILON, ALPHA
+from ...types.symbols.tokens import T_AND, T_OR
 from ..compiler import SatCompiler
 
 def run_script(compiler: SatCompiler, *args: tuple):
@@ -107,7 +108,23 @@ def run_script_penalties(compiler: SatCompiler, constraints: dict, penalties: di
         stdout[2] << tabulate([(f"{k:6d}", f"{n:d}", penalties[k]) for k, n in levels], headers=["lvl", "n", "value"], tablefmt="pretty")
         stdout[2] << tabulate([[compiler.env[EPSILON], compiler.env[ALPHA]]], headers =["ε", "α"], tablefmt="pretty")
 
+    compiler.checkpoint()
+
 
 def run_script_energy(compiler: SatCompiler, constraints: dict, penalties: dict):
     """
     """
+    ## Instantiate Mapping
+    mapping: SatMapping = compiler.env[MAPPING]()
+
+    ## Integrity
+    Ei = Expr.full_simplify(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_INT]), start=Number('0')))
+
+    ## Optimality
+    Eo = Expr.full_simplify(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_OPT]), start=Number('0')))
+
+    E = Expr.calculate(Expr.full_simplify(Expr.expand(Ei + Eo)))
+
+    stdwar[0] << E
+
+    compiler(None)

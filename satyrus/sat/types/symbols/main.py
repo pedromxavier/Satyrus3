@@ -10,13 +10,15 @@ CMD_PYTHON = intern('CMD_PYTHON')
 RUN_SCRIPT = intern('RUN_SCRIPT')
 
 ## Sys config options
-PREC = intern('prec')
+## To be used in `compiler.env` dict as keys.
 DIR = intern('dir')
-LOAD = intern('load')
 OUT = intern('out')
-EPSILON = intern('epsilon')
-ALPHA = intern('alpha')
+OPT = intern('opt')
+PREC = intern('prec')
+LOAD = intern('load')
 EXIT = intern('exit')
+ALPHA = intern('alpha')
+EPSILON = intern('epsilon')
 MAPPING = intern('mapping')
 INDEXER = intern('indexer')
 

@@ -520,9 +520,9 @@ class SatParser(object):
                  | quant LCUR varname ASSIGN domain RCUR
         """
         if len(p) == 9:
-            p[0] = (p[1], self.get_arg(p, 3), p[5], p[7])
+            p[0] = (p[1], p[3], p[5], p[7])
         else:
-            p[0] = (p[1], self.get_arg(p, 3), p[5], None)
+            p[0] = (p[1], p[3], p[5], None)
 
     def p_quant(self, p):
         """ quant : FORALL

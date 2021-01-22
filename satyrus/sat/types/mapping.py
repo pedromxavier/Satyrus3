@@ -10,62 +10,59 @@ from .symbols.tokens import T_AND, T_OR, T_XOR, T_NOT, T_ADD, T_MUL, T_SUB
 class SatMapping(metaclass=abc.ABCMeta):
     """
     """
+
+    def __init__(self):
+        ...
+
+    def __call__(self, expr: Expr) -> Expr:
+        return Expr.back_apply(expr, self._map_expr)
     
-    @abc.abstractclassmethod
-    def map_and(cls, tail: list) -> Expr:
+    @abc.abstractmethod
+    def map_and(self, tail: list) -> Expr:
         ...
 
-    @abc.abstractclassmethod
-    def map_or(cls, tail: list) -> Expr:
+    @abc.abstractmethod
+    def map_or(self, tail: list) -> Expr:
         ...
 
-    @abc.abstractclassmethod
-    def map_xor(cls, tail: list) -> Expr:
+    @abc.abstractmethod
+    def map_xor(self, tail: list) -> Expr:
         ...
 
-    @abc.abstractclassmethod
-    def map_not(cls, tail: list) -> Expr:
+    @abc.abstractmethod
+    def map_not(self, tail: list) -> Expr:
         ...
-
-    @classmethod
-    def _map_expr(cls, expr: Expr) -> Expr:
+        
+    def _map_expr(self, expr: Expr) -> Expr:
         if type(expr) is Expr:
             if expr.head == T_AND:
-                return cls.map_and(expr.tail)
+                return self.map_and(expr.tail)
             elif expr.head == T_OR:
-                return cls.map_or(expr.tail)
+                return self.map_or(expr.tail)
             elif expr.head == T_XOR:
-                return cls.map_xor(expr.tail)
+                return self.map_xor(expr.tail)
             elif expr.head == T_NOT:
-                return cls.map_not(expr.tail)
+                return self.map_not(expr.tail)
             else:
                 return expr
         else:
             return expr
 
-    @classmethod
-    def map_expr(cls, expr: Expr) -> Expr:
-        return Expr.back_apply(expr, cls._map_expr)
-
 class Strict(SatMapping):
 
-    @classmethod
-    def map_and(cls, tail: list) -> Expr:
+    def map_and(self, tail: list) -> Expr:
         """ SatMapping.map_and:
             x & y & ... & z => x * y * ... * z
         """
         return Expr(T_MUL, *tail)
 
-    @classmethod
-    def map_or(cls, tail: list) -> Expr:
+    def map_or(self, tail: list) -> Expr:
         raise NotImplementedError
 
-    @classmethod
-    def map_xor(cls, tail: list) -> Expr:
+    def map_xor(self, tail: list) -> Expr:
         raise NotImplementedError
 
-    @classmethod
-    def map_not(cls, tail: list) -> Expr:
+    def map_not(self, tail: list) -> Expr:
         """ SatMapping.map_not:
             ~x => 1 - x
         """
@@ -73,26 +70,22 @@ class Strict(SatMapping):
 
 class Relaxed(SatMapping):
 
-    @classmethod
-    def map_and(cls, tail: list) -> Expr:
+    def map_and(self, tail: list) -> Expr:
         """ SatMapping.map_and:
             x & y & ... & z => x * y * ... * z
         """
         return Expr(T_MUL, *tail)
 
-    @classmethod
-    def map_or(cls, tail: list) -> Expr:
+    def map_or(self, tail: list) -> Expr:
         """ SatMapping.map_or:
             x | y | ... | z => x + y + ... + z
         """
         return Expr(T_ADD, *tail)
 
-    @classmethod
-    def map_xor(cls, tail: list) -> Expr:
+    def map_xor(self, tail: list) -> Expr:
         raise NotImplementedError
 
-    @classmethod
-    def map_not(cls, tail: list) -> Expr:
+    def map_not(self, tail: list) -> Expr:
         """ SatMapping.map_not:
             ~x => 1 - x
         """

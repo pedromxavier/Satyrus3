@@ -1,12 +1,12 @@
 """ :: RUN_INIT ::
 	====================
 
-	STATUS: INCOMPLETE
+	STATUS: COMPLETE
 """
 
 from ..compiler import SatCompiler
 from ...types import Number, Relaxed, Default
-from ...types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA, MAPPING, INDEXER
+from ...types.symbols import PREC, DIR, LOAD, OPT, EPSILON, ALPHA, MAPPING, INDEXER
 
 def run_init(compiler: SatCompiler, *args: tuple):
     """ RUN_INIT
@@ -14,12 +14,15 @@ def run_init(compiler: SatCompiler, *args: tuple):
         
         Initializes compiler env
     """
-    compiler.env[PREC] = 16
+    default_env = [
+        (PREC, 16),
+        (OPT, 0),
+        (ALPHA, Number('1.0')),
+        (EPSILON, Number('1E-4')),
+        (MAPPING, Relaxed),
+        (INDEXER, Default)
+    ]
 
-    compiler.env[ALPHA] = Number('1.0')
-
-    compiler.env[EPSILON] = Number('1E-4')
-
-    compiler.env[MAPPING] = Relaxed
-
-    compiler.env[INDEXER] = Default
+    for key, val in default_env:
+        if key not in compiler.env:
+            compiler.env[key] = val

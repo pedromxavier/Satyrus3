@@ -15,7 +15,7 @@ from ..types.error import SatValueError, SatTypeError, SatCompilerError, SatRefe
 from ..types.error import SatError, SatExit, SatWarning
 from ..types import SatType, String, Number, Var, Array
 from ..types.expr import Expr
-from ..types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA, RUN_INIT, RUN_SCRIPT
+from ..types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA, OPT, RUN_INIT, RUN_SCRIPT
 from ..types.symbols import CONS_INT, CONS_OPT
 from ..types.symbols.tokens import T_ADD, T_MUL
 
@@ -24,7 +24,7 @@ from .memory import Memory
 class SatCompiler:
 	"""
 	"""
-	def __init__(self, instructions: dict, parser : SatParser = None, O: int=0):
+	def __init__(self, instructions: dict, parser : SatParser = None, env: dict=None):
 		## Build Instruction Set
 		if type(instructions) is not dict:
 			raise TypeError("`instructions` must be of type `dict`.")
@@ -41,14 +41,14 @@ class SatCompiler:
 		else:
 			self.parser = parser
 
-		## Optimization degree
-		self.O = O
-
 		## Memory
 		self.memory = Memory()
 
-		## Environment
-		self.env = {}
+		## Compiler Environment
+		if env is None:
+			self.env = {}
+		else:
+			self.env = dict(env)
 
 		## Results
 		self.results = None
@@ -60,11 +60,10 @@ class SatCompiler:
 		self.error_stack = Stack()
 
 	def __enter__(self, *args, **kwargs):
-		"""
-		"""
 		## Instantiate subcompiler
 		subcomp = self.__class__(self.instructions, self.parser)
 		subcomp.memory = self.memory.copy
+		subcomp.env = self.env.copy()
 		return subcomp
 
 	def __exit__(self, *args, **kwargs):
@@ -73,20 +72,25 @@ class SatCompiler:
 	def __lshift__(self, error: SatError):
 		self.error_stack.push(error)
 
-	def __getitem__(self, level: int):
-		""" Optimization Level
+	def __getitem__(self, opt_level: int) -> bool:
+		""" Optimization Level check.
+			>>> if compiler[n]: # requires optimization to be at least
+					...block... # in level `n` to execute block.
 		"""
-		return (self.O >= level)
+		return (self.env[OPT] >= opt_level)
 
-	def __lt__(self, warning: SatWarning):
+	def __lt__(self, warning: SatWarning) -> None:
 		stdwar << warning
 		
+	def __call__(self, results: object):
+		self.results = results
+
 	def compile(self, source: Source):
 		"""
 		"""
 		try:
 			self.code = 0
-			self.results = self._compile(source)
+			self._compile(source)
 		except SatExit as error:
 			self.code = error.code
 			self.results = None
@@ -94,7 +98,7 @@ class SatCompiler:
 			trace = traceback.format_exc()
 			with open('sat.log', 'w') as file:
 				file.write(trace)
-			stderr[3] << trace
+			stderr << trace
 			self.code = 1
 			self.results = None
 			raise
@@ -122,8 +126,6 @@ class SatCompiler:
 			stdout[3] << ""
 
 		self.checkpoint()
-
-		return {}
 
 	def exit(self, code: int):
 		raise SatExit(code)

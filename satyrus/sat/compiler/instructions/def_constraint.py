@@ -14,7 +14,7 @@ from ...types.indexer import SatIndexer
 from ...types.mapping import SatMapping
 from ...types.error import SatValueError, SatTypeError, SatReferenceError, SatExprError, SatWarning
 from ...types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL, T_IDX
-from ...types.symbols import CONS_INT, CONS_OPT, INDEXER, MAPPING
+from ...types.symbols import CONS_INT, CONS_OPT, INDEXER
 from ...types import Var, String, Number, Array, Constraint
 from ...types.expr import Expr
 
@@ -37,6 +37,9 @@ def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: l
 	## Retrieve clauses
 	def_constraint_clauses(compiler, cons_type, loops, expr, constraint)
 
+	## Register Constraint
+	def_constraint_register(compiler, constraint)
+
 def def_constraint_type_level(compiler: SatCompiler, cons_type: String, level: Number):
 	"""
 	"""
@@ -50,8 +53,6 @@ def def_constraint_type_level(compiler: SatCompiler, cons_type: String, level: N
 	if str(cons_type) == CONS_INT and (level < 0 or not level.is_int):
 		compiler << SatValueError(f"Invalid penalty level {level}. Must be positive integer.", target=level)
 
-	stdout[5] << f"Constraint type and level OK."
-
 	compiler.checkpoint()
 
 def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, raw_expr: Expr, constraint: Constraint):
@@ -59,9 +60,6 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 	"""
 	## Holds loop variables
 	variables = set()
-
-	## Retrieve mapping mechanism
-	mapping = compiler.env[MAPPING]
 
 	## Retrieve Indexer Type
 	Indexer = compiler.env[INDEXER]
@@ -76,7 +74,7 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 		if l_var in variables:
 			compiler << SatExprError(f"Loop variable `{l_var}` repetition.", target=l_var)
 		elif l_var in compiler:
-			compiler < SatWarning(f"Variable `{l_var}` redefinition.", target=l_var)
+			compiler < SatWarning(f"Variable `{l_var}` redefinition. Global values are set into the expression before loop variables.", target=l_var)
 
 		## account for variable in loop scope
 		variables.add(l_var)
@@ -106,8 +104,6 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 		
 		compiler.checkpoint()
 
-		stdout[5] << f"Loop boundaries are OK."
-
 		## Run through all indices
 		indices = [i for i in arange(start, stop, step)]
 
@@ -126,12 +122,8 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 
 		compiler.checkpoint()
 
-		stdout[5] << f"Condition and indexing are OK."
-
 	## Reduces expression to simplest form
 	expr = Expr.simplify(raw_expr)
-
-	stdout[5] << f"Inner expression simplified."
 
 	# pylint: disable=no-member
 	if str(cons_type) == CONS_INT and not Expr.logical(expr):
@@ -152,23 +144,34 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 	## Sets expression for this constraint in the Conjunctive Normal Form (C.N.F.)
 	if str(cons_type) == CONS_INT:
 		## Negate inner expression
-		cnf_expr: Expr = Expr.cnf(~expr)
+		dnf_expr: Expr = Expr.dnf(~expr)
 		## Invert Indexing Loops
-		~indexer._root
+		~indexer #pylint: disable=invalid-unary-operand-type
 	elif str(cons_type) == CONS_OPT:
-		cnf_expr: Expr = Expr.cnf(expr)
+		dnf_expr: Expr = Expr.dnf(expr)
 	else:
 		raise NotImplementedError('There are no extra constraint types yet, just `int` or `opt`.')
 
 	compiler.checkpoint()
 
-	idx_expr: Expr = indexer << cnf_expr
-
-	if not indexer.cnf:
-		compiler < SatWarning(f'In Constraint `{constraint.name}` expression indexed by {indexer._root} {cnf_expr} is not in the C.N.F. This will require (probably many) extra steps to evaluate.\n You may press Ctrl+X/Ctrl+C to Interrupt.', target=constraint.var)
-
-		idx_expr: Expr = Expr.cnf(idx_expr)
+	if indexer.in_dnf:
+		dnf_expr: Expr = indexer(dnf_expr)
+	else:
+		compiler < SatWarning(f'In Constraint `{constraint.name}` the expression indexed by `{indexer} {dnf_expr}` is not in the C.N.F.\nThis will require (probably many) extra steps to evaluate.\nThus, you may press Ctrl+X/Ctrl+C to interrupt compilation.', target=constraint.var)
+		dnf_expr: Expr = indexer(dnf_expr, ensure_dnf=True)
 	
 	compiler.checkpoint()
 
-	constraint.add_clauses(idx_expr.tail)
+	dnf_expr: Expr = Expr.full_simplify(dnf_expr)
+	
+	constraint.set_expr(dnf_expr)
+
+	compiler.checkpoint()
+
+def def_constraint_register(compiler: SatCompiler, constraint: Constraint):
+	"""
+	"""
+	if constraint.name in compiler:
+		compiler < SatWarning(f"Variable redefinition in constraint `{constraint.name}`.", target=constraint.name)
+	
+	compiler.memset(constraint.name, constraint)

@@ -39,14 +39,10 @@ class CLI:
         parser.add_argument("--legacy", action='store_true', help=HELP['legacy'])
 
         ## Optional - Compiler Optmization degree
-        mutex_group = parser.add_mutually_exclusive_group()
-        mutex_group.add_argument('-O0', dest='O', action='store_const', const=0)
-        mutex_group.add_argument('-O1', dest='O', action='store_const', const=1)
-        mutex_group.add_argument('-O2', dest='O', action='store_const', const=2)
-        mutex_group.add_argument('-O3', dest='O', action='store_const', const=3)
+        parser.add_argument('-O', type=int, dest='opt', choices=[0, 1, 2, 3], help=HELP['opt'])
 
         ## Optional - Compiler Verbosity
-        parser.add_argument('-v', '--verbose', type=int, dest='verbose', choices=[0, 1, 2, 3, 4, 5], help=HELP['verbose'])
+        parser.add_argument('-v', '--verbose', type=int, dest='verbose', choices=[0, 1, 2, 3], help=HELP['verbose'])
 
         args = parser.parse_args()
 
@@ -70,10 +66,10 @@ class CLI:
             output = 'text'
 
         ## Compiler Optmization
-        O: int = args.O
+        opt: int = args.opt
 
-        if O is None:
-            O = 0
+        if opt is None:
+            opt = 0
 
         ## Compiler Verbosity
         verbose: int = args.verbose
@@ -85,11 +81,11 @@ class CLI:
         stream.set_lvl(verbose)
 
         ## Exhibits Compiler Command line arguments
-        stdout[5] << f"Command line args: {vars(args)}"
+        stdout[3] << f"Command line args: {vars(args)}"
 
         sat_kwargs = {
             'legacy': legacy,
-            'O': O
+            'opt': opt
         }
 
         ## Compile Problem

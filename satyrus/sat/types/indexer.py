@@ -8,15 +8,12 @@ class SatIndexer(metaclass=ABCMeta):
 
     def __init__(self, compiler: SatCompiler, type_: str, var: Var, indices: list, cond: Expr=None):
         self._type = type_
-        self._var = var
-        self._indices = indices
-
+        self._vars = [var]
         self._cond = cond
-        
-        self._root = self
         self._next = None
-    
+        self._last = self
         self._comp = compiler
+        self._indices = [{var: i} for i in indices]
 
     @abstractmethod
     def forall(self, expr: Expr, context: dict=None):
@@ -31,29 +28,84 @@ class SatIndexer(metaclass=ABCMeta):
         ...
 
     @property
-    def cnf(self) -> bool:
+    def in_cnf(self) -> bool:
+        if self._next is None:
+            return (self._type == T_FORALL)
+        else:
+            return (self._type == T_FORALL) and self._next.in_cnf
+
+    @property
+    def in_dnf(self) -> bool:
         if self._next is None:
             return (self._type == T_EXISTS)
         else:
-            return (self._type == T_EXISTS) and self._next.cnf
+            return (self._type == T_EXISTS) and self._next.in_dnf
 
-    def __repr__(self):
+    def __str__(self):
         if self._next is None:
-            return f"{self._type}{self._var}"
+            return " ".join([f"{self._type}{var}" for var in self._vars])
         else:
-            return f"{self._type}{self._var} {self._next}"  
+            return f'{" ".join([f"{self._type}{var}" for var in self._vars])} {self._next}'
 
-    def __lshift__(self, indexer) -> Expr:
+    def __call__(self, expr: Expr, ensure_cnf:bool=False, ensure_dnf: bool=False) -> Expr:
+        """ It is assumed that this is applied first to the root of the indexing stack.
+        """
+        if ensure_cnf and ensure_dnf:
+            raise ValueError("Cannot ensure both conjunctive and disjunctive normal forms.")
+        elif ensure_cnf:
+            return self.ensure_cnf(expr)
+        elif ensure_dnf:
+            return self.ensure_dnf(expr)
+        else:
+            return self.index(expr)
+
+    def ensure_cnf(self, expr: Expr):
+        if self.in_cnf:
+            return self.index(expr)
+        elif self._next is not None:
+            expr = self.index(self._next.ensure_cnf(expr))
+        else:
+            expr = self.index(expr)
+
+        if (self._type == T_EXISTS):
+            #pylint: disable=no-member
+            return Expr.cnf(expr)
+        elif (self._type == T_FORALL):
+            return expr
+        else:
+            raise NotImplementedError(f'C.N.F. Indexing not implemented for quantifier `{self._type}`.')
+
+    def ensure_dnf(self, expr: Expr):
+        if self.in_dnf:
+            return self.index(expr)
+        elif self._next is not None:
+            expr = self.index(self._next.ensure_dnf(expr))
+        else:
+            expr = self.index(expr)
+
+        if (self._type == T_FORALL):
+            #pylint: disable=no-member
+            return Expr.dnf(expr)
+        elif (self._type == T_EXISTS):
+            return expr
+        else:
+            raise NotImplementedError(f'D.N.F. Indexing not implemented for quantifier `{self._type}`.')
+        
+    def __lshift__(self, other):
         """ SatIndexer(...) << SatIndexer(...) << ... << SatIndexer() << Expr
         """
-        if isinstance(indexer, SatIndexer):
-            self._next = indexer
-            self._next._root = self._root
-            return self._next
-        elif isinstance(indexer, Expr):
-            return self._root.index(indexer)
+        if isinstance(other, SatIndexer):
+            if self._last._type == other._type:
+                ## Consume next Indexer
+                self._last._vars.extend(other._vars)
+                self._last._indices = [{**I, **J} for I in self._last._indices for J in other._indices]
+            else:
+                self._last._next = other
+                self._last._last = other
+                self._last = other
+            return self
         else:
-            raise TypeError(f'Invalid type for indexer: {type(indexer)}.')
+            raise TypeError(f'Invalid type for indexer: {type(other)}.')
 
     def __invert__(self):
         if self._type == T_FORALL:
@@ -79,9 +131,9 @@ class SatIndexer(metaclass=ABCMeta):
         if context is None: context = {}
 
         if self._next is None:
-            return self._index([self._eval(expr, context) for i in self._indices if self.cond(context := {**context, self._var: i})])
+            return self._index([self._eval(expr, context) for I in self._indices if self.cond(context := {**context, **I})])
         else:
-            return self._index([self._next.index(expr, context) for i in self._indices if self.cond(context := {**context, self._var: i})])
+            return self._index([self._next.index(expr, context) for I in self._indices if self.cond(context := {**context, **I})])
 
     def cond(self, context: dict) -> bool:
         if self._cond is not None:
@@ -90,7 +142,12 @@ class SatIndexer(metaclass=ABCMeta):
             return True
 
     def _eval(self, expr: Expr, context: dict) -> Number:
-        return self._comp.evaluate(expr, miss=True, calc=True, null=False, context=context)
+        """ SatIndexer._eval(expr: Expr, context: dict) -> Number
+            Here, `miss=False` supposes that all variables (`SatType::Var`) are
+            verified before, during previous compilation i.e. it is not in the
+            goals of this module to assert that condition.
+        """
+        return self._comp.evaluate(expr, miss=False, calc=True, null=False, context=context)
 
 class Default(SatIndexer):
 

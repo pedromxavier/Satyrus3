@@ -1,4 +1,5 @@
 ## Standard Library
+from itertools import combinations
 from functools import reduce
 from collections import defaultdict
 
@@ -47,32 +48,32 @@ Expr.LOGICAL = {
 @Expr.rule(T_AND)
 def AND(*args):
     #pylint: disable=no-member
-    return Expr._simplify(args, T_AND, lambda x, y: x.__and__(y), Number.T)
+    return Expr._simplify(args, T_AND, lambda x, y: x._AND_(y), Number.T)
 
 @Expr.rule(T_OR)
 def OR(*args):
     #pylint: disable=no-member
-    return Expr._simplify(args, T_OR, lambda x, y: x.__or__(y), Number.F)
+    return Expr._simplify(args, T_OR, lambda x, y: x._OR_(y), Number.F)
 
 @Expr.rule(T_XOR)
 def XOR(x, y):
-    return x.__xor__(y)
+    return x._XOR_(y)
 
 @Expr.rule(T_NOT)
 def NOT(x):
-    return x.__not__()
+    return x._NOT_()
 
 @Expr.rule(T_IMP)
 def IMP(x, y):
-    return x.__imp__(y)
+    return x._IMP_(y)
 
 @Expr.rule(T_RIMP)
 def RIMP(x, y):
-    return x.__rimp__(y)
+    return x._RIMP_(y)
 
 @Expr.rule(T_IFF)
 def IFF(x, y):
-    return x.__iff__(y)
+    return x._IFF_(y)
 
 ## :: Indexing ::
 from .symbols.tokens import T_IDX
@@ -83,7 +84,7 @@ Expr.EXTRA = {
 
 @Expr.rule(T_IDX)
 def IDX(x: Array, *i: tuple):
-    return x.__idx__(i)
+    return x._IDX_(i)
     
 ## :: Aritmetic ::
 from .symbols.tokens import T_ADD, T_SUB, T_MUL, T_DIV, T_MOD
@@ -95,30 +96,27 @@ Expr.ARITHMETIC = {
 @Expr.rule(T_ADD)
 def ADD(*args):
     #pylint: disable=no-member
-    return Expr._simplify(args, T_ADD, lambda x, y: x.__add__(y), Number('0'))
+    return Expr._simplify(args, T_ADD, lambda x, y: x._ADD_(y), Number('0'))
 
 @Expr.rule(T_SUB)
 def SUB(x, y=None):
     if y is not None:
-        return x.__sub__(y)
+        return x._SUB_(y)
     else:
-        return x.__neg__()
+        return x._NEG_()
 
 @Expr.rule(T_MUL)
 def MUL(*args):
     #pylint: disable=no-member
-    return Expr._simplify(args, T_MUL, lambda x, y: x.__mul__(y), Number('1'))
+    return Expr._simplify(args, T_MUL, lambda x, y: x._MUL_(y), Number('1'))
 
 @Expr.rule(T_DIV)
 def DIV(x, y):
-    if y == Number('0'):
-        raise SatValueError("Division by zero.", target=y)
-    else:
-        return x.__truediv__(y)
+    return x._DIV_(y)
 
 @Expr.rule(T_MOD)
 def MOD(x, y):
-    return x.__mod__(y)
+    return x._MOD_(y)
 
 ## :: Comparison ::
 from .symbols.tokens import T_GE, T_GT, T_EQ, T_LT, T_LE, T_NE
@@ -335,8 +333,6 @@ def dnf(cls: type, expr: Expr):
 def _move_neg_inwards(cls: type, expr: Expr):
     """
     """
-    #pylint: disable=unreachable
-    raise NotImplementedError
     if type(expr) is cls and (expr.head == T_SUB):
         expr = expr.tail[0]
         if type(expr) is cls:
@@ -353,8 +349,6 @@ def _move_neg_inwards(cls: type, expr: Expr):
 def _remove_subtractions(cls: type, expr: Expr):
     """
     """
-    #pylint: disable=unreachable
-    raise NotImplementedError
     if type(expr) is cls and expr.head == T_SUB and len(expr.tail) == 2:
         return cls(T_ADD, expr.tail[0], cls(T_SUB, expr.tail[1]))
     else:
@@ -364,8 +358,6 @@ def _remove_subtractions(cls: type, expr: Expr):
 def _distribute_add_over_mul(cls: type, expr: Expr):
     """
     """
-    #pylint: disable=unreachable
-    raise NotImplementedError
     if type(expr) is cls and expr.head == T_MUL:
         conjs = [(p.tail if (type(p) is cls and p.head == T_ADD) else (p,)) for p in expr.tail]
         return cls(T_ADD, *(cls(T_MUL, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
@@ -376,8 +368,6 @@ def _distribute_add_over_mul(cls: type, expr: Expr):
 def anf(cls: type, expr: Expr):
     """
     """
-    #pylint: disable=unreachable
-    raise NotImplementedError
     expr = cls.associate(cls.apply(expr, compose(cls._move_neg_inwards, cls._remove_subtractions)))
     return cls.associate(cls.back_apply(expr, cls._distribute_add_over_mul))
 
@@ -397,7 +387,7 @@ def _arithmetic(cls: type, item: object):
 def arithmetic(cls: type, expr: Expr):
     return cls.tell(expr, all, cls._arithmetic)
 
-Expr._HASH = {
+Expr.HASH.update({
     ## Logical
     T_OR: None,
     T_AND: None,
@@ -424,21 +414,87 @@ Expr._HASH = {
 
     ## Indexing
     T_IDX: T_IDX,
-}
+})
 
-@Expr.classmethod
-def _hash(cls: type, expr: Expr):
-    if type(expr) is cls:
-        hash_key = cls._HASH[expr.head]
-        if hash_key is None:
-            return hash((expr.head, hash(sum(cls._hash(p) for p in expr.tail))))
-        elif hash_key == expr.head:
-            return hash((hash_key, hash(tuple(cls._hash(p) for p in expr.tail))))
+## Expand
+def E_MUL(tail: list):
+    ...
+
+## Full Simplify
+def S_MUL(tail: list):
+    ## Separate constants from variables
+    var = []
+    con = []
+    for p in tail:
+        if type(p) is Number:
+            con.append(p)
         else:
-            return hash((hash_key, hash(tuple(cls._hash(p) for p in reversed(expr.tail)))))
-    else:
-        return hash(expr)
+            var.append(p)
+    
+    c = reduce(lambda x, y: x._MUL_(y), con, Number('1'))
 
-@Expr.classmethod
-def cmp(cls: type, p: Expr, q: Expr) -> bool:
-    return bool(cls._hash(p) == cls._hash(q))
+    if c == Number('1'):
+        if len(var) >= 2:
+            return Expr(T_MUL, *var)
+        elif len(var) == 1:
+            return var[0]
+        else:
+            return Number('1')
+    elif c == Number('0'):
+        return Number('0')
+    else:
+        if len(var) >= 2:
+            return Expr(T_MUL, c, *var)
+        elif len(var) == 1:
+            return Expr(T_MUL, c, var[0])
+        else:
+            return c
+
+def S_AND(tail: list):
+    ## Remove duplicates O(n)
+    tail = set(tail)
+
+    ## Resolve constants O(1)
+    if Number.F in tail: return False
+    if Number.T in tail: tail.remove(Number.T)
+
+    ## Resolve opposite expressions O(n log n)
+    for p in list(tail): # O(n)
+        q = Expr.simplify(~p) # O(log n)
+        if q in tail:
+            return Number.F
+
+    if len(tail) >= 2:
+        return Expr(T_AND, *tail)
+    elif len(tail) == 1:
+        return tail.pop()
+    else:
+        return Number.T
+
+def S_OR(tail: list):
+    ## Remove duplicates O(n)
+    tail = set(tail)
+
+    ## Resolve constants O(1)
+    if Number.T in tail: return True
+    if Number.F in tail: tail.remove(Number.F)
+
+    ## Resolve opposite expressions O(n log n)
+    for p in list(tail): # O(n)
+        q = Expr.simplify(~p) # O(log n)
+        if q in tail: 
+            tail.discard(p)
+            tail.discard(q)
+
+    if len(tail) >= 2:
+        return Expr(T_OR, *tail)
+    elif len(tail) == 1:
+        return tail.pop()
+    else:
+        return Number.F
+
+Expr.SIMPLIFY.update({
+    T_AND : S_AND, T_OR : S_OR, 
+
+    T_MUL : S_MUL
+})

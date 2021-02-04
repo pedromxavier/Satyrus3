@@ -12,7 +12,7 @@ from ...types.error import SatParserError, SatLexerError, SatTypeError, SatSynta
 from ...types import Var, Number, String, SatType
 from ...types.expr import Expr
 from ...types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, CONS_INT, CONS_OPT
-from ...types.symbols.tokens import T_IDX, T_FORALL, T_EXISTS
+from ...types.symbols.tokens import T_ADD, T_NEG, T_IDX, T_FORALL, T_EXISTS
 
 def regex(pattern: str):
     def decor(callback):
@@ -613,7 +613,11 @@ class SatLegacyParser(object):
                  | expr RIMP expr
                  | expr IFF expr
         """
-        p[0] = Expr(self.symbol_table(p[2]), p[1], p[3])
+        symbol = self.symbol_table(p[2])
+        if symbol == T_NEG:
+            p[0] = Expr(T_ADD, p[1], Expr(T_NEG, p[3]))
+        else:
+            p[0] = Expr(symbol, p[1], p[3])
 
     def p_expr_index(self, p):
         """ expr : expr LBRA expr RBRA

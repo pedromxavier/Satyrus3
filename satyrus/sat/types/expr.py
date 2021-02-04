@@ -6,258 +6,288 @@ from collections import defaultdict
 ## Local
 from ...satlib import join, compose, stderr
 from .error import SatValueError
-from .main import Expr, Number, Var, Array
+from .main import Expr, Number, Var, Array, SatType, MetaSatType
 
-@Expr.classmethod
-def _simplify(cls: type, args: tuple, token: str, op: callable, e: Number):
-    number = []
-    others = []
-    for arg in args:
-        if type(arg) is Number:
-            number.append(arg)
-        else:
-            others.append(arg)
-    else:
-        if number:
-            x = reduce(op, number, e)
-        else:
-            x = None
-
-        if others:
-            y = Expr(token, *others)
-        else:
-            y = None
-
-        if x is None and y is None:
-            return e
-        elif x is None:
-            return y
-        elif y is None:
-            return x
-        else:
-            return Expr.associate(op(x, y))
-
-## :: Rule Definition ::
-## :: Logical ::
-from .symbols.tokens import T_AND, T_OR, T_XOR, T_NOT, T_IFF, T_IMP, T_RIMP
-
-Expr.LOGICAL = {
-    T_AND, T_OR, T_XOR, T_NOT, T_IFF, T_IMP, T_RIMP
-}
-
-@Expr.rule(T_AND)
-def AND(*args):
-    #pylint: disable=no-member
-    return Expr._simplify(args, T_AND, lambda x, y: x._AND_(y), Number.T)
-
-@Expr.rule(T_OR)
-def OR(*args):
-    #pylint: disable=no-member
-    return Expr._simplify(args, T_OR, lambda x, y: x._OR_(y), Number.F)
-
-@Expr.rule(T_XOR)
-def XOR(x, y):
-    return x._XOR_(y)
-
-@Expr.rule(T_NOT)
-def NOT(x):
-    return x._NOT_()
-
-@Expr.rule(T_IMP)
-def IMP(x, y):
-    return x._IMP_(y)
-
-@Expr.rule(T_RIMP)
-def RIMP(x, y):
-    return x._RIMP_(y)
-
-@Expr.rule(T_IFF)
-def IFF(x, y):
-    return x._IFF_(y)
-
-## :: Indexing ::
+## Tokens
+from .symbols.tokens import T_ADD, T_NEG, T_MUL, T_DIV, T_MOD
+from .symbols.tokens import T_AND, T_XOR, T_NOT, T_OR
+from .symbols.tokens import T_IMP, T_IFF, T_RIMP
+from .symbols.tokens import T_EQ, T_NE, T_LE, T_GE, T_LT, T_GT
 from .symbols.tokens import T_IDX
+from .symbols.tokens import T_LOGICAL, T_ARITHMETIC, T_EXTRA
 
-Expr.EXTRA = {
-    T_IDX
-}
+## Special Format
+def F_ADD(cls: type, head: str, tail: list):
+    def glue(i: int, e: Expr):
+        if i:
+            if (isinstance(e, Expr) and e.head == T_NEG) or (type(e) is Number and e < 0):
+                return f" {T_NEG} "
+            else:
+                return f" {T_ADD} "
+        else:
+            return ""
 
-@Expr.rule(T_IDX)
-def IDX(x: Array, *i: tuple):
-    return x._IDX_(i)
-    
-## :: Aritmetic ::
-from .symbols.tokens import T_ADD, T_SUB, T_MUL, T_DIV, T_MOD
+    def func(i: int, e: Expr):
+        if i:
+            if isinstance(e, Expr):
+                if e.head == T_NEG:
+                    x = e.tail[0]
+                    if isinstance(x, Expr) and cls._parenthesise(head, x.head):
+                        return f"({x})"
+                    else:
+                        return str(x)
+                else:
+                    if isinstance(e, Expr) and cls._parenthesise(head, e.head):
+                        return f"({e})"
+                    else:
+                        return str(e)
+            else:
+                return str(e)
+        else:
+            if isinstance(e, Expr) and cls._parenthesise(head, e.head):
+                return f"({e})"
+            else:
+                return str(e)
 
-Expr.ARITHMETIC = {
-    T_ADD, T_SUB, T_MUL, T_DIV, T_MOD
-}
+    return join(glue, tail, func, enum=True)
 
-@Expr.rule(T_ADD)
-def ADD(*args):
-    #pylint: disable=no-member
-    return Expr._simplify(args, T_ADD, lambda x, y: x._ADD_(y), Number('0'))
+class SatExpr(Expr, metaclass=MetaSatType):
 
-@Expr.rule(T_SUB)
-def SUB(x, y=None):
-    if y is not None:
-        return x._SUB_(y)
-    else:
-        return x._NEG_()
+    FLAT = {
+        ## Logical
+        T_AND, T_OR,
 
-@Expr.rule(T_MUL)
-def MUL(*args):
-    #pylint: disable=no-member
-    return Expr._simplify(args, T_MUL, lambda x, y: x._MUL_(y), Number('1'))
+        ## Arithmetic
+        T_ADD, T_MUL,
 
-@Expr.rule(T_DIV)
-def DIV(x, y):
-    return x._DIV_(y)
+        ## Indexing
+        T_IDX
+    }
 
-@Expr.rule(T_MOD)
-def MOD(x, y):
-    return x._MOD_(y)
+    SORTABLE = {
+        T_AND, T_OR, T_ADD, T_MUL, T_IFF
+    }
 
-## :: Comparison ::
-from .symbols.tokens import T_GE, T_GT, T_EQ, T_LT, T_LE, T_NE
+    HASH_SUM = lambda h: (lambda *X : hash((h, hash(sum(map(hash, X))))))
+    HASH_DIR = lambda h: (lambda *X : hash((h, hash(tuple(map(hash, X))))))
+    HASH_REV = lambda h: (lambda *X : hash((h, hash(tuple(map(hash, reversed(X)))))))
+    HASH_IDP = lambda h: (lambda x : (ord(h) - hash(x)))
 
-Expr.COMPARISON = {
-    T_GE, T_GT, T_EQ, T_LT, T_LE, T_NE
-}
+    HASH = {
+        ## Logical
+        T_OR  : HASH_SUM(T_OR),
+        T_AND : HASH_SUM(T_AND),
+        T_NOT : HASH_IDP(T_NOT),
+        T_XOR : HASH_DIR(T_XOR),
+        T_IMP : HASH_DIR(T_IMP),
+        T_RIMP: HASH_REV(T_IMP),
+        T_IFF : HASH_SUM(T_IFF),
 
-@Expr.rule(T_GT)
-def GT(x, y):
-    return x.__gt__(y)
+        ## Arithmetic
+        T_ADD: HASH_SUM(T_ADD),
+        T_NEG: HASH_IDP(T_NEG),
+        T_MUL: HASH_SUM(T_MUL),
+        T_DIV: HASH_DIR(T_DIV),
+        T_MOD: HASH_DIR(T_MOD),
+        
+        ## Comparisons
+        T_EQ: None,
+        T_NE: None,
+        T_GE: T_GE,
+        T_LE: T_GE,
+        T_GT: T_GT,
+        T_LT: T_GT,
 
-@Expr.rule(T_GE)
-def GE(x, y):
-    return x.__ge__(y)
+        ## Indexing
+        T_IDX: T_IDX,
+    }
 
-@Expr.rule(T_EQ)
-def EQ(x, y):
-    return x.__eq__(y)
+    GROUPS = { ## precedence groups
+        ## Logical
+        ## 1
+        T_IMP : 1,
+        T_RIMP : 1,
+        T_IFF : 1,
 
-@Expr.rule(T_LT)
-def LT(x, y):
-    return x.__lt__(y)
+        ## 2
+        T_OR : 2,
 
-@Expr.rule(T_LE)
-def LE(x, y):
-    return x.__le__(y)
+        ## 3
+        T_AND : 3,
 
-@Expr.rule(T_NE)
-def NE(x, y):
-    return (x.__eq__(y)).__invert__()
+        ## 4
+        T_NOT : 4,
 
-Expr.ASSOCIATIVE.update({
-    ## Logical
-    T_AND, T_OR,
+        T_ADD : 5,
 
-    ## Arithmetic
-    T_ADD, T_MUL,
+        T_NEG : 4.5,
 
-    ## Indexing
-    T_IDX
-})
+        T_MUL : 6,
+    }
 
-Expr.NULL.update({
-    ## Logical
-    T_AND : Number.F,
-    T_OR : Number.T,
+    FORMAT_PATTERNS = {
+        ## Logical
+        T_XOR : "{1} {0} {2}",
+        T_NOT : "{0}{1}",
 
-    ## Arithmetic
-    T_ADD : None,
-    T_MUL : Number('0'),
-})
+        T_IMP : "{1} {0} {2}",
+        T_RIMP: "{1} {0} {2}",
+        T_IFF : "{1} {0} {2}",
 
-Expr.NEUTRAL.update({
-    ## Logical
-    T_AND : Number.T,
-    T_OR : Number.F,
+        ## Arithmetic
+        T_NEG : "{0}{1}",
+        T_DIV : "{1} {0} {2}",
+        T_MOD : "{1} {0} {2}",
 
-    ## Arithmetic
-    T_ADD : Number('0'),
-    T_MUL : Number('1'),
-})
+        ## Comparison
+        T_EQ : "{1} {0} {2}",
+        T_LE : "{1} {0} {2}",
+        T_GE : "{1} {0} {2}",
+        T_LT : "{1} {0} {2}",
+        T_GT : "{1} {0} {2}",
+        T_NE : "{1} {0} {2}"
+    }
 
-Expr.GROUPS.update({ ## precedence groups
-    ## Logical
-    ## 1
-    T_IMP : 1,
-    T_RIMP : 1,
-    T_IFF : 1,
+    FORMAT_SPECIAL = {
+        T_ADD : F_ADD
+    }
 
-    ## 2
-    T_OR : 2,
+    FORMAT_FUNCTIONS = {
+        ## Arithmetic
+        T_MUL : (lambda head, *tail: (join(f' {head} ', tail))),
 
-    ## 3
-    T_AND : 3,
+        ## Logical
+        T_AND : (lambda head, *tail: (join(f' {head} ', tail))),
+        T_OR  : (lambda head, *tail: (join(f' {head} ', tail))),
 
-    ## 4
-    T_NOT : 4,
+        ## Indexing
+        T_IDX : (lambda head, *tail: f"{tail[0]}{join('', [f'[{x}]' for x in tail[1:]])}")
+    }
 
-    T_ADD : 5,
+    TABLE = {}
 
-    T_SUB : 5,
+    TABLE['IMP'] = {
+        T_IMP  : (lambda A, B : A._NOT_()._OR_(B)),
+        T_RIMP : (lambda A, B : A._OR_(B._NOT_())),
+        T_IFF  : (lambda A, B : (A._NOT_()._AND_(B._NOT_())._OR_(A._AND_(B)))),
+    }
 
-    T_MUL : 6,
-})
+    TABLE['XOR'] = {
+        T_XOR : (lambda A, B : (~A & B) | (A & ~B)),
+    }
 
-Expr.FORMAT_PATTERNS.update({
-    
-    ## Logical
-    T_XOR : "{1} {0} {2}",
-    T_NOT : "{0}{1}",
+    @classmethod
+    def _remove_implications(cls, expr):
+        if type(expr) is cls and expr.head in cls.TABLE['IMP']:
+            return cls.TABLE['IMP'][expr.head](*expr.tail)
+        elif type(expr) is cls and expr.head in cls.TABLE['XOR']:
+            return cls.TABLE['XOR'][expr.head](*expr.tail)
+        else:
+            return expr
 
-    T_IMP : "{1} {0} {2}",
-    T_RIMP: "{1} {0} {2}",
-    T_IFF : "{1} {0} {2}",
+    @classmethod
+    def _move_not_inwards(cls, expr):
+        if type(expr) is cls and expr.head == T_NOT:
+            expr = expr.tail[0]
+            if type(expr) is Expr:
+                if expr.head in cls.TABLE['NOT']:
+                    return cls.TABLE['NOT'][expr.head](*expr.tail)
+                else:
+                    return cls(T_NOT, expr)
+            else:
+                return cls(T_NOT, expr)
+        else:
+            return expr
 
-    ## Arithmetical
-    T_DIV : "{1} {0} {2}",
-    T_MOD : "{1} {0} {2}",
+    @classmethod
+    def _distribute_and_over_or(cls, expr):
+        if type(expr) is cls and expr.head == T_OR:
+            conjs = [(p.tail if (type(p) is cls and p.head == T_AND) else (p,)) for p in expr.tail]
+            return cls(T_AND, *(cls(T_OR, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
+        else:
+            return expr
 
-    ## Comparison
-    T_EQ : "{1} {0} {2}",
-    T_LE : "{1} {0} {2}",
-    T_GE : "{1} {0} {2}",
-    T_LT : "{1} {0} {2}",
-    T_GT : "{1} {0} {2}",
-    T_NE : "{1} {0} {2}",
+    @classmethod
+    def _distribute_or_over_and(cls, expr):
+        if type(expr) is cls and expr.head == T_AND:
+            conjs = [(p.tail if (type(p) is cls and p.head == T_OR) else (p,)) for p in expr.tail]
+            return cls(T_OR, *(cls(T_AND, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
+        else:
+            return expr
 
-    })
+    @classmethod
+    def cnf(cls: type, expr: Expr):
+        expr = cls.apply(expr, compose(cls._move_not_inwards, cls._remove_implications))
+        return cls.back_apply(expr, cls._distribute_and_over_or)
 
-Expr.FORMAT_FUNCS.update({
-    ## Arithmetic
-    T_ADD : (lambda head, *tail: (join(f' {head} ', tail) if (len(tail) > 1) else f'{head}{tail[0]}')),
-    T_SUB : (lambda head, *tail: (join(f' {head} ', tail) if (len(tail) > 1) else f'{head}{tail[0]}')),
-    T_MUL : (lambda head, *tail: (join(f' {head} ', tail))),
+    @classmethod
+    def dnf(cls: type, expr: Expr):
+        expr = cls.apply(expr, compose(cls._move_not_inwards, cls._remove_implications))
+        return cls.back_apply(expr, cls._distribute_or_over_and)
 
-    ## Logical
-    T_AND : (lambda head, *tail: (join(f' {head} ', tail))),
-    T_OR  : (lambda head, *tail: (join(f' {head} ', tail))),
+    @classmethod
+    def _move_neg_inwards(cls: type, expr: Expr):
+        """
+        """
+        if type(expr) is cls and (expr.head == T_NEG):
+            expr = expr.tail[0]
+            if type(expr) is cls:
+                if expr.head in cls.TABLE['NEG']:
+                    return cls.TABLE['NEG'][expr.head](*expr.tail)
+                else:
+                    return cls(T_NEG, expr)
+            else:
+                return cls(T_NEG, expr)
+        else:
+            return expr
 
-    ## Indexing
-    T_IDX : (lambda head, *tail: f"{tail[0]}{join('', [f'[{x}]' for x in tail[1:]])}")
-})
+    @classmethod
+    def _remove_subtractions(cls: type, expr: Expr):
+        """
+        """
+        if type(expr) is cls and expr.head == T_NEG and len(expr.tail) == 2:
+            return cls(T_ADD, expr.tail[0], cls(T_NEG, expr.tail[1]))
+        else:
+            return expr
+
+    @classmethod
+    def _distribute_add_over_mul(cls: type, expr: Expr):
+        """
+        """
+        if type(expr) is cls and expr.head == T_MUL:
+            conjs = [(p.tail if (type(p) is cls and p.head == T_ADD) else (p,)) for p in expr.tail]
+            return cls(T_ADD, *(cls(T_MUL, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
+        else:
+            return expr
+
+    @classmethod
+    def anf(cls: type, expr: Expr):
+        """
+        """
+        expr = cls.apply(expr, compose(cls._move_neg_inwards, cls._remove_subtractions))
+        return cls.back_apply(expr, cls._distribute_add_over_mul)
+
+    @classmethod
+    def _logical(cls: type, item: object):
+        return (type(item) is not cls) or (item.head in T_LOGICAL) or (item.head in T_EXTRA)
+
+    @classmethod
+    def logical(cls: type, expr: Expr):
+        return cls.tell(expr, all, cls._logical)
+
+    @classmethod
+    def _arithmetic(cls: type, item: object):
+        return (type(item) is not cls) or (item.head in T_ARITHMETIC) or (item.head in T_EXTRA)
+
+    @classmethod
+    def arithmetic(cls: type, expr: Expr):
+        return cls.tell(expr, all, cls._arithmetic)
 
 ## Expression  Tables
-Expr.TABLE['IMP'] = {
-    T_IMP  : (lambda A, B : ~A | B),
-    T_RIMP : (lambda A, B : A | ~B),
-    T_IFF  : (lambda A, B : (~A & ~B) | (A & B)),
-    }
-
-Expr.TABLE['LMS'] = {
-    T_AND : (lambda x, y : x * y),
-    T_OR  : (lambda x, y : x + y - x * y),
-    T_NOT : (lambda x : Number('1') - x),
-    }
-
-Expr.TABLE['NOT'] = {
+SatExpr.TABLE['NOT'] = {
     # AND, OR, XOR:
-    T_AND  : (lambda *X : Expr(T_OR, *[Expr(T_NOT, x) for x in X])),
-    T_OR   : (lambda *X : Expr(T_AND, *[Expr(T_NOT, x) for x in X])),
+    T_AND  : (lambda *X : SatExpr(T_OR, *[x._NOT_() for x in X])),
+    T_OR   : (lambda *X : SatExpr(T_AND, *[x._NOT_() for x in X])),
     T_XOR  : (lambda A, B : A.__iff__(B)),
     # Implications:
     T_IMP  : (lambda A, B : A & ~B),
@@ -265,236 +295,224 @@ Expr.TABLE['NOT'] = {
     T_IFF  : (lambda A, B : A ^ B),
     # Double NOT:
     T_NOT  : (lambda A : A)
-    }
+}
 
-Expr.TABLE['NEG'] = {
+SatExpr.TABLE['NEG'] = {
     # AND, OR, XOR:
-    T_ADD  : (lambda *X : Expr(T_ADD, *[Expr(T_SUB, x) for x in X])),
-    T_MUL  : (lambda *x, Y : Expr(T_MUL, Expr(T_SUB, x), *Y)),
-    T_SUB  : (lambda A, B=None : B.__sub__(A) if (B is not None) else A),
+    T_ADD  : (lambda *X : SatExpr(T_ADD, *[x._NEG_() for x in X])),
+    T_MUL  : (lambda x, *Y : SatExpr(T_MUL, x._NEG_(), *Y)),
+    T_NEG  : (lambda x : x),
     # Implications:
-    T_DIV  : (lambda A, B : Expr(T_SUB, A) / (B)),
-    }
+    T_DIV  : (lambda x, y : x._NEG_()._DIV_(y)),
+}
 
-Expr.TABLE['XOR'] = {
-    T_XOR : (lambda A, B : (~A & B) | (A & ~B)),
-    }
-
-@Expr.classmethod
-def _remove_implications(cls, expr):
-    if type(expr) is cls and expr.head in cls.TABLE['IMP']:
-        return cls.TABLE['IMP'][expr.head](*expr.tail)
-    elif type(expr) is cls and expr.head in cls.TABLE['XOR']:
-        return cls.TABLE['XOR'][expr.head](*expr.tail)
+@SatExpr.sorting
+def sorting(p: SatType):
+    if type(p) is Number:
+        return (0, float(p))
+    elif type(p) is Var:
+        return (1, str(p))
+    elif type(p) is Array:
+        return (2, str(p.var))
+    elif type(p) is SatExpr:
+        return (3, hash(p))
     else:
-        return expr
+        raise TypeError(f'Invalid type for comparison {type(p)}')
 
-@Expr.classmethod
-def _move_not_inwards(cls, expr):
-    if type(expr) is cls and expr.head == T_NOT:
-        expr = expr.tail[0]
-        if type(expr) is Expr:
-            if expr.head in cls.TABLE['NOT']:
-                return cls.TABLE['NOT'][expr.head](*expr.tail)
-            else:
-                return cls(T_NOT, expr)
-        else:
-            return cls(T_NOT, expr)
-    else:
-        return expr
+@SatExpr.rule(T_AND)
+def R_AND(cls: type, *tail: tuple):
+    expr_table = {}
+    cons_table = []
 
-@Expr.classmethod
-def _distribute_and_over_or(cls, expr):
-    if type(expr) is cls and expr.head == T_OR:
-        conjs = [(p.tail if (type(p) is cls and p.head == T_AND) else (p,)) for p in expr.tail]
-        return cls(T_AND, *(cls(T_OR, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
-    else:
-        return expr
-
-@Expr.classmethod
-def _distribute_or_over_and(cls, expr):
-    if type(expr) is cls and expr.head == T_AND:
-        conjs = [(p.tail if (type(p) is cls and p.head == T_OR) else (p,)) for p in expr.tail]
-        return cls(T_OR, *(cls(T_AND, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
-    else:
-        return expr
-
-@Expr.classmethod
-def cnf(cls: type, expr: Expr):
-    expr = cls.associate(cls.apply(expr, compose(cls._move_not_inwards, cls._remove_implications)))
-    return cls.associate(cls.back_apply(expr, cls._distribute_and_over_or))
-
-@Expr.classmethod
-def dnf(cls: type, expr: Expr):
-    expr = cls.associate(cls.apply(expr, compose(cls._move_not_inwards, cls._remove_implications)))
-    return cls.associate(cls.back_apply(expr, cls._distribute_or_over_and))
-
-@Expr.classmethod
-def _move_neg_inwards(cls: type, expr: Expr):
-    """
-    """
-    if type(expr) is cls and (expr.head == T_SUB):
-        expr = expr.tail[0]
-        if type(expr) is cls:
-            if expr.head in cls.TABLE['NEG']:
-                return cls.TABLE['NEG'][expr.head](*expr.tail)
-            else:
-                return cls(T_SUB, expr)
-        else:
-            return cls(T_SUB, expr)
-    else:
-        return expr
-
-@Expr.classmethod
-def _remove_subtractions(cls: type, expr: Expr):
-    """
-    """
-    if type(expr) is cls and expr.head == T_SUB and len(expr.tail) == 2:
-        return cls(T_ADD, expr.tail[0], cls(T_SUB, expr.tail[1]))
-    else:
-        return expr
-
-@Expr.classmethod
-def _distribute_add_over_mul(cls: type, expr: Expr):
-    """
-    """
-    if type(expr) is cls and expr.head == T_MUL:
-        conjs = [(p.tail if (type(p) is cls and p.head == T_ADD) else (p,)) for p in expr.tail]
-        return cls(T_ADD, *(cls(T_MUL, *z) for z in reduce(lambda X, Y: [(*x, y) for x in X for y in Y], conjs, [()])))
-    else:
-        return expr
-
-@Expr.classmethod
-def anf(cls: type, expr: Expr):
-    """
-    """
-    expr = cls.associate(cls.apply(expr, compose(cls._move_neg_inwards, cls._remove_subtractions)))
-    return cls.associate(cls.back_apply(expr, cls._distribute_add_over_mul))
-
-@Expr.classmethod
-def _logical(cls: type, item: object):
-    return (type(item) is not cls) or (item.head in cls.LOGICAL) or (item.head in cls.EXTRA)
-
-@Expr.classmethod
-def logical(cls: type, expr: Expr):
-    return cls.tell(expr, all, cls._logical)
-
-@Expr.classmethod
-def _arithmetic(cls: type, item: object):
-    return (type(item) is not cls) or (item.head in cls.ARITHMETIC) or (item.head in cls.EXTRA)
-
-@Expr.classmethod
-def arithmetic(cls: type, expr: Expr):
-    return cls.tell(expr, all, cls._arithmetic)
-
-Expr.HASH.update({
-    ## Logical
-    T_OR: None,
-    T_AND: None,
-    T_NOT: T_NOT,
-    T_XOR: T_XOR,
-    T_IMP: T_IMP,
-    T_RIMP: T_IMP,
-    T_IFF: None,
-
-    ## Arithmetic
-    T_ADD: None,
-    T_SUB: T_SUB,
-    T_MUL: None,
-    T_DIV: T_DIV,
-    T_MOD: T_MOD,
-    
-    ## Comparisons
-    T_EQ: None,
-    T_NE: None,
-    T_GE: T_GE,
-    T_LE: T_GE,
-    T_GT: T_GT,
-    T_LT: T_GT,
-
-    ## Indexing
-    T_IDX: T_IDX,
-})
-
-## Expand
-def E_MUL(tail: list):
-    ...
-
-## Full Simplify
-def S_MUL(tail: list):
-    ## Separate constants from variables
-    var = []
-    con = []
     for p in tail:
         if type(p) is Number:
-            con.append(p)
+            if p == Number.T:
+                continue
+            elif p == Number.F:
+                return Number.F
+            else:
+                cons_table.append(p)
         else:
-            var.append(p)
-    
-    c = reduce(lambda x, y: x._MUL_(y), con, Number('1'))
+            expr_table[hash(p)] = p
 
-    if c == Number('1'):
-        if len(var) >= 2:
-            return Expr(T_MUL, *var)
-        elif len(var) == 1:
-            return var[0]
-        else:
-            return Number('1')
-    elif c == Number('0'):
-        return Number('0')
-    else:
-        if len(var) >= 2:
-            return Expr(T_MUL, c, *var)
-        elif len(var) == 1:
-            return Expr(T_MUL, c, var[0])
-        else:
-            return c
+    cons = reduce(lambda x, y: x._AND_(y), cons_table, Number('1'))
 
-def S_AND(tail: list):
-    ## Remove duplicates O(n)
-    tail = set(tail)
-
-    ## Resolve constants O(1)
-    if Number.F in tail: return False
-    if Number.T in tail: tail.remove(Number.T)
-
-    ## Resolve opposite expressions O(n log n)
-    for p in list(tail): # O(n)
-        q = Expr.simplify(~p) # O(log n)
-        if q in tail:
-            return Number.F
-
-    if len(tail) >= 2:
-        return Expr(T_AND, *tail)
-    elif len(tail) == 1:
-        return tail.pop()
-    else:
-        return Number.T
-
-def S_OR(tail: list):
-    ## Remove duplicates O(n)
-    tail = set(tail)
-
-    ## Resolve constants O(1)
-    if Number.T in tail: return True
-    if Number.F in tail: tail.remove(Number.F)
-
-    ## Resolve opposite expressions O(n log n)
-    for p in list(tail): # O(n)
-        q = Expr.simplify(~p) # O(log n)
-        if q in tail: 
-            tail.discard(p)
-            tail.discard(q)
-
-    if len(tail) >= 2:
-        return Expr(T_OR, *tail)
-    elif len(tail) == 1:
-        return tail.pop()
-    else:
+    if cons == Number.F:
         return Number.F
+    elif cons == Number.T:
+        if len(expr_table) == 0:
+            return Number.T
+        elif len(expr_table) == 1:
+            return expr_table.pop()
+        else:
+            return cls(T_AND, *expr_table.values())
+    else:
+        if len(expr_table) == 0:
+            return cons
+        else:
+            return cls(T_AND, cons, *expr_table.values())
 
-Expr.SIMPLIFY.update({
-    T_AND : S_AND, T_OR : S_OR, 
 
-    T_MUL : S_MUL
-})
+@SatExpr.rule(T_OR)
+def R_OR(cls: type, *tail: tuple):
+    expr_table = {}
+    cons_table = []
+
+    for p in tail:
+        if type(p) is Number:
+            if p == Number.F:
+                continue
+            elif p == Number.T:
+                return Number.T
+            else:
+                cons_table.append(p)
+        else:
+            expr_table[hash(p)] = p
+
+    cons = reduce(lambda x, y: x._OR_(y), cons_table, Number('0'))
+
+    if cons == Number.T:
+        return Number.T
+    elif cons == Number.F:
+        if len(expr_table) == 0:
+            return Number.F
+        elif len(expr_table) == 1:
+            return expr_table.pop()
+        else:
+            return cls(T_OR, *expr_table.values())
+    else:
+        if len(expr_table) == 0:
+            return cons
+        else:
+            return cls(T_OR, cons, *expr_table.values())
+
+@SatExpr.rule(T_NOT)
+def R_NOT(cls: type, x: SatType):
+    return x._NOT_()
+
+@SatExpr.rule(T_XOR)
+def R_XOR(cls: type, x: SatType, y: SatType):
+    return x._XOR_(y)
+
+@SatExpr.rule(T_IMP)
+def R_IMP(cls: type, x: SatType, y: SatType):
+    return x._IMP_(y)
+
+@SatExpr.rule(T_RIMP)
+def R_RIMP(cls: type, x: SatType, y: SatType):
+    return x._RIMP_(y)
+
+@SatExpr.rule(T_IFF)
+def R_IFF(cls: type, x: SatType, y: SatType):
+    return x._IFF_(y)    
+
+## ADD
+@SatExpr.rule(T_ADD)
+def R_ADD(cls: type, *tail: tuple):
+    hash_table = {}
+    expr_table = {}
+    cons_table = []
+
+    for p in tail:
+        if type(p) is Number:
+            cons_table.append(p)
+        elif hash(p) in hash_table:
+            expr_table[hash(p)] += Number('1.0')
+        else:
+            hash_table[hash(p)] = p
+            expr_table[hash(p)] = Number('1.0')
+    
+    cons = reduce(lambda x, y: x._ADD_(y), cons_table, Number('0.0'))
+
+    tail = [(hash_table[h] if (c == Number('1.0')) else cls(T_MUL, c, hash_table[h])) for h, c in expr_table.items()]
+
+    if cons != Number('0.0'):
+        if len(tail) == 0:
+            return cons
+        else:
+            return cls(T_ADD, cons, *tail)
+    else:
+        if len(tail) == 0:
+            return Number('0.0')
+        elif len(tail) == 1:
+            return tail[0]
+        else:
+            return cls(T_ADD, *tail)
+
+@SatExpr.rule(T_MUL)
+def R_MUL(cls: type, *tail: tuple):
+    cons_table = []
+    expr_table = []
+
+    for p in tail:
+        if type(p) is Number:
+            cons_table.append(p)
+        else:
+            expr_table.append(p)
+    
+    cons = reduce(lambda x, y: x._MUL_(y), cons_table, Number('1.0'))
+
+    if cons != Number('1.0'):
+        if len(expr_table) == 0:
+            return cons
+        else:
+            return cls(T_MUL, cons, *expr_table)
+    else:
+        if len(expr_table) == 0:
+            return Number('1.0')
+        elif len(expr_table) == 1:
+            return expr_table[0]
+        else:
+            return cls(T_MUL, *expr_table)
+
+@SatExpr.rule(T_MUL)
+def R_MUL_EXPAND(cls: type, *tail: tuple):
+    fulltail = []
+
+    if not any([(type(p) is cls) and (p.head == T_ADD) for p in tail]):
+        return cls(T_MUL, *tail)
+
+    for p in tail:
+        if (type(p) is cls) and (p.head == T_ADD):
+            if fulltail:
+                fulltail = [[*x, y] for x in fulltail for y in p.tail]
+            else:
+                fulltail = [[y] for y in p.tail]
+        else:
+            if fulltail:
+                fulltail = [[*x, p] for x in fulltail]
+            else:
+                fulltail = [[p]]
+    
+    fulltail = [q[0] if (len(q) == 1) else cls(T_MUL, *q) for q in fulltail]
+
+    if len(fulltail) == 0:
+        return Number('1.0')
+    elif len(fulltail) == 1:
+        return fulltail[0]
+    else:
+        return cls(T_ADD, *fulltail)
+
+@SatExpr.rule(T_NEG)
+def R_NEG(cls: type, x: SatType):
+    return x._NEG_()
+
+@SatExpr.rule(T_DIV)
+def R_DIV(cls: type, x: SatType, y: SatType):
+    return x._DIV_(y)
+
+@SatExpr.rule(T_MOD)
+def R_MOD(cls: type, x: SatType, y: SatType):
+    return x._MOD_(y)
+
+@SatExpr.rule(T_IDX)
+def R_IDX(cls: type, x: SatType, i: tuple):
+    raise NotImplementedError
+
+
+
+
+
+
+
+

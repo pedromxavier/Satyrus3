@@ -123,7 +123,7 @@ def run_script_energy(compiler: SatCompiler, constraints: dict, penalties: dict)
     ## Optimality
     Eo = Expr.full_simplify(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_OPT]), start=Number('0')))
 
-    E = Expr.calculate(Expr.full_simplify(Expr.expand(Ei + Eo)))
+    E = Expr.full_simplify(Expr.expand(Ei + Eo))
 
     stdwar[0] << E
 

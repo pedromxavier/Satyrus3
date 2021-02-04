@@ -22,28 +22,36 @@ class Source(str):
         indicate error position on exception handling.
     """
 
-    def __new__(self, fname : str):
+    def __new__(cls, fname :str, buffer: str=None):
         """ This object is a string itself with additional features for
             position tracking.
         """
-        return str.__new__(self, load(fname))
+        if fname is not None:
+            return str.__new__(cls, load(fname))
+        else:
+            return str.__new__(cls, buffer)
+
 
     def __repr__(self):
-        return f"<source @ {os.path.abspath(self.fname)}>"
+        return f"<source @ {self.fname}>"
 
     def __bool__(self):
         """ Truth-value for emptiness checking.
         """
         return (str(self) != "")
 
-    def __init__(self, fname : str):
+    def __init__(self, fname : str, buffer: str=None):
         """ Separates the source code in multiple lines. First line is discarded for
             the indexing to start at 1 instead of 0. `self.table` keeps track of the
             (cumulative) character count.
         """
-        self.fname = fname
-        self.lines = [''] + str.split(self, '\n')
-        self.table = list(it.accumulate([len(line) + 1 for line in self.lines]))
+        self.fname = os.path.abspath(self.fname) if (fname is not None) else "string"
+        self.lines = ['', *str.split(self, '\n')]
+        self.table = list(it.accumulate([(len(line) + 1) for line in self.lines]))
+
+    @classmethod
+    def from_str(cls, buffer: str):
+        return cls(None, buffer=buffer)
 
     @staticmethod
     def load(fname : str):

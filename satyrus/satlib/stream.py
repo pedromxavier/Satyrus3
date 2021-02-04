@@ -75,7 +75,7 @@ class _stream(object):
         print(self.RESET, sep="", end="", file=self.file)
 
     def string(self, s: str):
-        return f"{self.bg}{self.fg}{self.sty}{s}{self.RESET}"
+        return f"{self.RESET}{self.bg}{self.fg}{self.sty}{s}{self.RESET}"
 
     def __lshift__(self, s: str):
         if self.echo: print(self.string(s), file=self.file)

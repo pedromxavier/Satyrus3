@@ -39,13 +39,25 @@ T_LOGICAL = {
 
 ## Arithmetic
 T_ADD = intern('+')
-T_SUB = intern('-')
+T_NEG = intern('-')
 T_MUL = intern('*')
 T_DIV = intern('/')
 T_MOD = intern('%')
 
+T_ARITHMETIC = {
+  T_ADD,
+  T_NEG,
+  T_MUL,
+  T_DIV,
+  T_MOD
+}
+
 ## Indexing
 T_IDX = intern('[]')
+
+T_EXTRA = {
+  T_IDX
+}
 
 ## Comparison
 T_GT = intern('>')
@@ -66,7 +78,7 @@ T_DICT = {
   'RIMP' : T_RIMP,
 
   'ADD' : T_ADD, 'RADD' : T_ADD, 'POS' : T_ADD,
-  'SUB' : T_SUB, 'RSUB' : T_SUB, 'NEG' : T_SUB,
+  'SUB' : T_NEG, 'RSUB' : T_NEG, 'NEG' : T_NEG,
   'MUL' : T_MUL, 'RMUL' : T_MUL,
   'DIV' : T_DIV, 'RDIV' : T_DIV, 'TRUEDIV' : T_DIV, 'RTRUEDIV' : T_DIV,
   'MOD' : T_MOD, 'RMOD' : T_MOD,

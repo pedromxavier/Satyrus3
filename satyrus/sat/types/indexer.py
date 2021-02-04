@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from .main import Var, Number
-from .expr import Expr
+from .expr import SatExpr as Expr
 from .symbols.tokens import T_FORALL, T_EXISTS, T_EXISTS_ONE, T_AND, T_OR
 from ..compiler import SatCompiler
 

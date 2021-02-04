@@ -4,34 +4,41 @@
 ## Standard Library
 import decimal
 import re
-from sys import intern
-from functools import wraps
 import itertools as it
+from functools import wraps, cmp_to_key
+from sys import intern
 
 ## Local
 from ...satlib import join, keep_type, trackable
 from .error import SatValueError, SatIndexError, SatTypeError
-from .symbols.tokens import T_DICT, T_IDX, T_AND, T_OR, T_MUL, T_ADD, T_SUB
+from .symbols.tokens import T_DICT, T_IDX, T_AND, T_OR, T_MUL, T_ADD, T_NEG
 
 class MetaSatType(type):
 
     ATTRS = {f"_{name.upper()}_" : T_DICT[name] for name in T_DICT}
     REGEX = re.compile(r"_r[A-Z]+_")
 
+    ExprType = lambda *x: x
+
     @staticmethod
     def null_func(*args):
         return NotImplemented
 
     def __new__(cls, name, bases, attrs):
-        for name, token in cls.ATTRS.items():
-            if name in attrs:
-                callback = attrs[name]
+        for attr_name, token in cls.ATTRS.items():
+            if attr_name in attrs:
+                callback = attrs[attr_name]
             else:
                 callback = cls.null_func
 
-            attrs[name] = cls.magic(token, callback, swap=(cls.REGEX.match(name) is not None))
+            attrs[attr_name] = cls.magic(token, callback, swap=(cls.REGEX.match(attr_name) is not None))
 
-        return type(name, bases, attrs)
+        sattype = type(name, bases, attrs)
+
+        if 'Expr' in name: cls.ExprType = sattype
+
+        return sattype
+        
 
     @classmethod
     def magic(cls, token, callback, swap=False):
@@ -42,9 +49,9 @@ class MetaSatType(type):
             answer = callback(*args)
             if answer is NotImplemented:
                 if swap:
-                    return Expr(token, *reversed(args))
+                    return cls.ExprType(token, *reversed(args))
                 else:
-                    return Expr(token, *args)
+                    return cls.ExprType(token, *args)
             else:
                 return answer
         return new_callback
@@ -93,7 +100,7 @@ class SatType(metaclass=MetaSatType):
     def copy(self):
         return self
 
-class Expr(SatType, tuple):
+class Expr(SatType, tuple, metaclass=MetaSatType):
     """ :: Expr ::
         ==========
 
@@ -101,73 +108,122 @@ class Expr(SatType, tuple):
 
         Only basic functionality is implemented here. Context is implemented in `expr.py`
     """
-    RULES = {}
-    TABLE = {}
 
-    GROUPS = {}
-
-    EXPAND = {}
-    SIMPLIFY = {}
-
-    ASSOCIATIVE = set()
-    COMMUTATIVE = set()
-
-    NEUTRAL = {}
-    NULL = {}
-
+    SORT = MetaSatType.null_func
+    SORTABLE = set()
+    FLAT = set()
     HASH = {}
-
-    FORMAT_FUNCS = {}
+    RULES = {}
+    GROUPS = {}
+    FORMAT_SPECIAL = {}
     FORMAT_PATTERNS = {}
+    FORMAT_FUNCTIONS = {}
 
-    def __new__(cls, head, *tail):
-        return tuple.__new__(cls, (head, *tail))
+    def __new__(cls, head: str, *tail: tuple, sort: bool=True, flat:bool=True):
+        if sort and flat:
+            return tuple.__new__(cls, (head, *cls.sort(head, cls.flat(head, tail))))
+        elif sort:
+            return tuple.__new__(cls, (head, *cls.sort(head, tail)))
+        elif flat:
+            return tuple.__new__(cls, (head, *cls.flat(head, tail)))
+        else:
+            return tuple.__new__(cls, (head, *tail))
 
-    def __init__(self, head, *tail):
+    def __init__(self, head: str, *tail: tuple, sort: bool=True, flat:bool=True):
         SatType.__init__(self)
+        self._flat_ = flat
+        self._sort_ = sort
         self._hash_ = None
+    
+    @classmethod
+    def sort(cls, head: str, tail: list) -> list:
+        if head in cls.SORTABLE:
+            return sorted([(p if (type(p) is not cls) else (p if p._sort_ else cls(p.head, *p.tail))) for p in tail], key=cls.SORT)
+        else:
+            return tail
 
-    def parenthesise(self, child: object) -> bool:
-        if type(child) is not type(self):
+    @classmethod
+    def flat(cls, head: str, tail: list) -> list:
+        if head in cls.FLAT:
+            flattail = []
+            for p in tail:
+                if type(p) is cls and (p.head == head):
+                    if p._flat_:
+                        tail = p.tail
+                    else:
+                        tail = cls.flat(p.head, p.tail)
+                    flattail.extend(tail)
+                else:
+                    flattail.append(p)
+            return flattail
+        else:
+            return tail
+
+    @classmethod
+    def sorting(cls, sort: callable):
+        cls.SORT = sort
+
+    @classmethod
+    def parenthesise(cls, root: object, child: object) -> bool:
+        if type(root) is cls and type(child) is cls:
+            return cls._parenthesise(root.head, child.head)
+        else:
             return False
-        elif self.head not in self.GROUPS:
+
+    @classmethod
+    def _parenthesise(cls, from_head: str, to_head: str):
+        if from_head not in cls.GROUPS:
             return False
-        elif child.head not in self.GROUPS:
+        elif to_head not in cls.GROUPS:
             return False
-        elif self.GROUPS[self.head] > self.GROUPS[child.head]:
+        elif cls.GROUPS[from_head] > cls.GROUPS[to_head]:
             return True
         else:
             return False
 
     def __str__(self):
-        head = self.head
-        tail = [(f"({p})" if self.parenthesise(p) else str(p)) for p in self.tail]
-        if head in self.FORMAT_PATTERNS:
-            return self.FORMAT_PATTERNS[head].format(head, *tail)
-        elif head in self.FORMAT_FUNCS:
-            return self.FORMAT_FUNCS[head](head, *tail)
+        tail = [(f"({p})" if self.parenthesise(self, p) else str(p)) for p in self.tail]
+        if self.head in self.FORMAT_PATTERNS:
+            return self.FORMAT_PATTERNS[self.head].format(self.head, *tail)
+        elif self.head in self.FORMAT_FUNCTIONS:
+            return self.FORMAT_FUNCTIONS[self.head](self.head, *tail)
+        elif self.head in self.FORMAT_SPECIAL:
+            return self.FORMAT_SPECIAL[self.head](type(self), self.head, self.tail)
         else:
-            return join(" ", [head, *tail])
+            return join(" ", [self.head, *tail])
         
     def __repr__(self):
         return f"Expr({join(', ', self, repr)})"
 
     def __hash__(self):
         if self._hash_ is None:
-            hash_key = self.HASH[self.head]
-            if hash_key is None:
-                self._hash_ = hash((self.head, hash(sum(hash(p) for p in self.tail))))
-            elif hash_key == self.head:
-                self._hash_ = hash((hash_key, hash(tuple(hash(p) for p in self.tail))))
-            else:
-                self._hash_ = hash((hash_key, hash(tuple(hash(p) for p in reversed(self.tail)))))
+            return self.HASH[self.head](*self.tail)
         return self._hash_
 
     @classmethod
     def rule(cls, token: str):
-        def decor(callback):
-            cls.RULES[token] = callback
+        def decor(callback: callable):
+            if token in cls.RULES:
+                cls.RULES[token].append(callback)
+            else:
+                cls.RULES[token] = [callback]
         return decor
+
+    @classmethod
+    def apply_rule(cls, expr):
+        if type(expr) is cls:
+            if expr.head in cls.RULES:
+                e = expr
+                for rule in cls.RULES[expr.head]:
+                    if (type(e) is cls) and (e.head == expr.head):
+                        e = rule(cls, *e.tail)
+                    else:
+                        break
+                return e
+            else:
+                return expr
+        else:
+            return expr
 
     @classmethod
     def calculate(cls, expr) -> SatType:
@@ -180,7 +236,7 @@ class Expr(SatType, tuple):
 
             As result, may yield Var, Number or Expr.
         """
-        return cls.back_apply(expr, (lambda item: cls.RULES[item.head](*item.tail) if (type(item) is cls) else item))
+        return cls.back_apply(expr, cls.apply_rule)
 
     @property
     def head(self):
@@ -194,63 +250,12 @@ class Expr(SatType, tuple):
     def copy(self):
         """
         """
-        return Expr(self.head, *[p.copy for p in self.tail])
-
-    @classmethod
-    def expand(cls, expr):
-        """
-        """
-        if type(expr) is cls and expr.head in cls.EXPAND:
-            return cls.EXPAND[expr.head](expr.tail)
-        else:
-            return expr
-
-    @classmethod
-    def associate(cls, expr):
-        """
-        """
-        if type(expr) is cls:
-            return cls.back_apply(expr, cls._associate)
-        else:
-            return expr
-
-    @classmethod
-    def _associate(cls, expr):
-        """
-        """
-        if (type(expr) is cls) and (expr.head in cls.ASSOCIATIVE):
-            if len(expr.tail) == 0:
-                return cls.NULL[expr.head]
-            elif len(expr.tail) == 1:
-                return expr.tail[0]
-            else:
-                tail = []
-                for p in expr.tail:
-                    if (type(p) is cls) and (p.head == expr.head):
-                        tail.extend(p.tail)
-                    else:
-                        tail.append(p)
-                else:
-                    return cls(expr.head, *tail)
-        else:
-            return expr
+        return self.__class__(self.head, *(p.copy for p in self.tail))
 
     @classmethod
     def simplify(cls: type, expr):
-        return cls.associate(cls.calculate(expr))
-
-    @classmethod
-    def full_simplify(cls: type, expr):
-        expr = cls.simplify(expr)
-        return cls.back_apply(expr, cls._full_simplify)
-
-    @classmethod
-    def _full_simplify(cls: type, expr):
-        if (type(expr) is cls) and (expr.head in cls.SIMPLIFY):
-            return cls.SIMPLIFY[expr.head](expr.tail)
-        else:
-            return expr
-            
+        raise NotImplementedError
+   
     @classmethod
     def transverse(cls, expr, func, *args, **kwargs) -> None:
         """ Transverses expression tree calling `func` on leaves
@@ -418,6 +423,12 @@ class Number(SatType, decimal.Decimal, metaclass=MetaSatType):
     def _EQ_(self, other):
         if self.numeric(other):
             return Number(decimal.Decimal.__eq__(self, other))
+        else:
+            return NotImplemented
+
+    def _NE_(self, other):
+        if self.numeric(other):
+            return Number(decimal.Decimal.__ne__(self, other))
         else:
             return NotImplemented
 
@@ -601,6 +612,25 @@ class Number(SatType, decimal.Decimal, metaclass=MetaSatType):
 
     def _NEG_(self):
         return Number(decimal.Decimal.__neg__(self))
+
+    ## Aliases
+    def __eq__(self, other):
+        return self._EQ_(other)
+
+    def __ne__(self, other):
+        return self._NE_(other)
+
+    def __lt__(self, other):
+        return self._LT_(other)
+
+    def __le__(self, other):
+        return self._LE_(other)
+
+    def __gt__(self, other):
+        return self._GT_(other)
+
+    def __ge__(self, other):
+        return self._GE_(other)
 
     @classmethod
     def prec(cls, value : int = None) -> int:

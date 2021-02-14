@@ -15,7 +15,7 @@ from functools import wraps
 
 ## Local
 from ..satlib import stdout
-from ..sat.types.expr import Expr
+from ..sat.types import Expr
 
 class MetaSatAPI(abc.ABCMeta):
 

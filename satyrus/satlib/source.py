@@ -45,7 +45,7 @@ class Source(str):
             the indexing to start at 1 instead of 0. `self.table` keeps track of the
             (cumulative) character count.
         """
-        self.fname = os.path.abspath(self.fname) if (fname is not None) else "string"
+        self.fname = os.path.abspath(fname) if (fname is not None) else "string"
         self.lines = ['', *str.split(self, '\n')]
         self.table = list(it.accumulate([(len(line) + 1) for line in self.lines]))
 

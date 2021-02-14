@@ -11,7 +11,7 @@ from tabulate import tabulate
 from ....satlib import stdout, stdwar
 from ...types.error import SatValueError, SatCompilerError, SatWarning
 from ...types import Number, Constraint
-from ...types.expr import Expr
+from ...types.expr import SatExpr as Expr
 from ...types.mapping import SatMapping
 from ...types.symbols import CONS_INT, CONS_OPT, MAPPING, PREC, EPSILON, ALPHA
 from ...types.symbols.tokens import T_AND, T_OR
@@ -118,12 +118,12 @@ def run_script_energy(compiler: SatCompiler, constraints: dict, penalties: dict)
     mapping: SatMapping = compiler.env[MAPPING]()
 
     ## Integrity
-    Ei = Expr.full_simplify(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_INT]), start=Number('0')))
+    Ei = Expr.calculate(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_INT]), start=Number('0')))
 
     ## Optimality
-    Eo = Expr.full_simplify(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_OPT]), start=Number('0')))
+    Eo = Expr.calculate(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_OPT]), start=Number('0')))
 
-    E = Expr.full_simplify(Expr.expand(Ei + Eo))
+    E = Expr.calculate(Ei + Eo)
 
     stdwar[0] << E
 

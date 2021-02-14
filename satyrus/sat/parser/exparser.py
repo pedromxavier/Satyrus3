@@ -130,7 +130,7 @@ class ExprLexer(object):
         t.value = String(t.value)
         return t
 
-    @regex(r"[-+]?[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
+    @regex(r"[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
     def t_NUMBER(self, t):
         t.value = Number(t.value)
         return t

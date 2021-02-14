@@ -91,15 +91,15 @@ class SatExpr(Expr, metaclass=MetaSatType):
         T_MOD: HASH_DIR(T_MOD),
         
         ## Comparisons
-        T_EQ: None,
-        T_NE: None,
-        T_GE: T_GE,
-        T_LE: T_GE,
-        T_GT: T_GT,
-        T_LT: T_GT,
+        T_EQ: HASH_SUM(T_EQ),
+        T_NE: HASH_SUM(T_NE),
+        T_GE: HASH_DIR(T_GE),
+        T_LE: HASH_DIR(T_GE),
+        T_GT: HASH_DIR(T_GT),
+        T_LT: HASH_DIR(T_GT),
 
         ## Indexing
-        T_IDX: T_IDX,
+        T_IDX: HASH_DIR(T_IDX),
     }
 
     GROUPS = { ## precedence groups
@@ -176,6 +176,15 @@ class SatExpr(Expr, metaclass=MetaSatType):
         T_XOR : (lambda A, B : (~A & B) | (A & ~B)),
     }
 
+    TABLE[T_NEG] = {
+        # AND, OR, XOR:
+        T_ADD  : (lambda cls, *X : cls(T_ADD, *(x._NEG_() for x in X))),
+        T_MUL  : (lambda cls, x, *Y : cls(T_MUL, x._NEG_(), *Y)),
+        T_NEG  : (lambda cls, x : x),
+        # Implications:
+        T_DIV  : (lambda cls, x, y : x._NEG_()._DIV_(y)),
+    }
+
     @classmethod
     def _remove_implications(cls, expr):
         if type(expr) is cls and expr.head in cls.TABLE['IMP']:
@@ -232,8 +241,8 @@ class SatExpr(Expr, metaclass=MetaSatType):
         if type(expr) is cls and (expr.head == T_NEG):
             expr = expr.tail[0]
             if type(expr) is cls:
-                if expr.head in cls.TABLE['NEG']:
-                    return cls.TABLE['NEG'][expr.head](*expr.tail)
+                if expr.head in cls.TABLE[T_NEG]:
+                    return cls.TABLE[T_NEG][expr.head](cls, *expr.tail)
                 else:
                     return cls(T_NEG, expr)
             else:
@@ -271,23 +280,39 @@ class SatExpr(Expr, metaclass=MetaSatType):
     def _logical(cls: type, item: object):
         return (type(item) is not cls) or (item.head in T_LOGICAL) or (item.head in T_EXTRA)
 
-    @classmethod
-    def logical(cls: type, expr: Expr):
-        return cls.tell(expr, all, cls._logical)
+    @property
+    def logical(self) -> bool:
+        return self.tell(self, all, self._logical)
 
     @classmethod
     def _arithmetic(cls: type, item: object):
         return (type(item) is not cls) or (item.head in T_ARITHMETIC) or (item.head in T_EXTRA)
 
+    @property
+    def arithmetic(self) -> bool:
+        return self.tell(self, all, self._arithmetic)
+
     @classmethod
-    def arithmetic(cls: type, expr: Expr):
-        return cls.tell(expr, all, cls._arithmetic)
+    def posiform(cls, x: SatType) -> dict:
+        raise NotImplementedError
+        if type(x) is type(self):
+            y = {}
+            for p in x:
+                if type(p) is type(self): ## Expr
+                    y = {**y, **p.posiform}
+
+        elif type(x) is Number:
+            return {None: x}
+        elif type(x) is Var:
+            return {x: Number('1')}
+        else:
+            raise TypeError(f'Invalid type `{type(x)}` for posiform.')
 
 ## Expression  Tables
 SatExpr.TABLE['NOT'] = {
     # AND, OR, XOR:
-    T_AND  : (lambda *X : SatExpr(T_OR, *[x._NOT_() for x in X])),
-    T_OR   : (lambda *X : SatExpr(T_AND, *[x._NOT_() for x in X])),
+    T_AND  : (lambda *X : SatExpr(T_OR, *(x._NOT_() for x in X))),
+    T_OR   : (lambda *X : SatExpr(T_AND, *(x._NOT_() for x in X))),
     T_XOR  : (lambda A, B : A.__iff__(B)),
     # Implications:
     T_IMP  : (lambda A, B : A & ~B),
@@ -295,15 +320,6 @@ SatExpr.TABLE['NOT'] = {
     T_IFF  : (lambda A, B : A ^ B),
     # Double NOT:
     T_NOT  : (lambda A : A)
-}
-
-SatExpr.TABLE['NEG'] = {
-    # AND, OR, XOR:
-    T_ADD  : (lambda *X : SatExpr(T_ADD, *[x._NEG_() for x in X])),
-    T_MUL  : (lambda x, *Y : SatExpr(T_MUL, x._NEG_(), *Y)),
-    T_NEG  : (lambda x : x),
-    # Implications:
-    T_DIV  : (lambda x, y : x._NEG_()._DIV_(y)),
 }
 
 @SatExpr.sorting
@@ -317,7 +333,7 @@ def sorting(p: SatType):
     elif type(p) is SatExpr:
         return (3, hash(p))
     else:
-        raise TypeError(f'Invalid type for comparison {type(p)}')
+        raise TypeError(f'Invalid type for comparison {type(p)} in `{p}`.')
 
 @SatExpr.rule(T_AND)
 def R_AND(cls: type, *tail: tuple):
@@ -343,7 +359,7 @@ def R_AND(cls: type, *tail: tuple):
         if len(expr_table) == 0:
             return Number.T
         elif len(expr_table) == 1:
-            return expr_table.pop()
+            return expr_table.pop(next(iter(expr_table.keys())))
         else:
             return cls(T_AND, *expr_table.values())
     else:
@@ -377,7 +393,7 @@ def R_OR(cls: type, *tail: tuple):
         if len(expr_table) == 0:
             return Number.F
         elif len(expr_table) == 1:
-            return expr_table.pop()
+            return expr_table.pop(next(iter(expr_table.keys())))
         else:
             return cls(T_OR, *expr_table.values())
     else:
@@ -416,24 +432,36 @@ def R_ADD(cls: type, *tail: tuple):
     for p in tail:
         if type(p) is Number:
             cons_table.append(p)
+        elif (type(p) is cls) and (p.head == T_MUL) and (type(p[1]) is Number):
+            c, *t = p[1:]
+            if len(t) == 1:
+                q = t[0]
+            else:
+                q = cls(T_MUL, *t)
+
+            if hash(q) in hash_table:
+                expr_table[hash(q)] += c
+            else:
+                hash_table[hash(q)] = q
+                expr_table[hash(q)] = c
         elif hash(p) in hash_table:
-            expr_table[hash(p)] += Number('1.0')
+            expr_table[hash(p)] += Number('1')
         else:
             hash_table[hash(p)] = p
-            expr_table[hash(p)] = Number('1.0')
+            expr_table[hash(p)] = Number('1')
     
-    cons = reduce(lambda x, y: x._ADD_(y), cons_table, Number('0.0'))
+    cons = reduce(lambda x, y: x._ADD_(y), cons_table, Number('0'))
 
-    tail = [(hash_table[h] if (c == Number('1.0')) else cls(T_MUL, c, hash_table[h])) for h, c in expr_table.items()]
+    tail = [(hash_table[h] if (c == Number('1')) else cls(T_MUL, c, hash_table[h])) for h, c in expr_table.items()]
 
-    if cons != Number('0.0'):
+    if cons != Number('0'):
         if len(tail) == 0:
             return cons
         else:
             return cls(T_ADD, cons, *tail)
     else:
         if len(tail) == 0:
-            return Number('0.0')
+            return Number('0')
         elif len(tail) == 1:
             return tail[0]
         else:
@@ -444,26 +472,35 @@ def R_MUL(cls: type, *tail: tuple):
     cons_table = []
     expr_table = []
 
+    even = True
+
     for p in tail:
         if type(p) is Number:
-            cons_table.append(p)
+            if p < 0:
+                even = not even
+                cons_table.append(abs(p))
+            else:
+                cons_table.append(p)
+        elif type(p) is cls and p.head == T_NEG:
+            even = not even
+            expr_table.append(p[1])
         else:
             expr_table.append(p)
     
-    cons = reduce(lambda x, y: x._MUL_(y), cons_table, Number('1.0'))
+    cons = reduce(lambda x, y: x._MUL_(y), cons_table, Number('1'))
 
-    if cons != Number('1.0'):
+    if cons != Number('1'):
         if len(expr_table) == 0:
-            return cons
+            return cons if even else -cons
         else:
-            return cls(T_MUL, cons, *expr_table)
+            return cls(T_MUL, cons, *expr_table) if even else cls(T_MUL, -cons, *expr_table)
     else:
         if len(expr_table) == 0:
-            return Number('1.0')
+            return Number('1') if even else Number('-1')
         elif len(expr_table) == 1:
-            return expr_table[0]
+            return expr_table[0] if even else cls(T_NEG, expr_table[0])
         else:
-            return cls(T_MUL, *expr_table)
+            return cls(T_MUL, *expr_table) if even else cls(T_MUL, cls(T_NEG, expr_table[0]), *expr_table[1:])
 
 @SatExpr.rule(T_MUL)
 def R_MUL_EXPAND(cls: type, *tail: tuple):
@@ -487,7 +524,7 @@ def R_MUL_EXPAND(cls: type, *tail: tuple):
     fulltail = [q[0] if (len(q) == 1) else cls(T_MUL, *q) for q in fulltail]
 
     if len(fulltail) == 0:
-        return Number('1.0')
+        return Number('1')
     elif len(fulltail) == 1:
         return fulltail[0]
     else:
@@ -495,7 +532,10 @@ def R_MUL_EXPAND(cls: type, *tail: tuple):
 
 @SatExpr.rule(T_NEG)
 def R_NEG(cls: type, x: SatType):
-    return x._NEG_()
+    if type(x) is cls and x.head in cls.TABLE[T_NEG]:
+        return cls.TABLE[T_NEG][x.head](cls, *x.tail)
+    else:
+        return x._NEG_()
 
 @SatExpr.rule(T_DIV)
 def R_DIV(cls: type, x: SatType, y: SatType):
@@ -506,13 +546,30 @@ def R_MOD(cls: type, x: SatType, y: SatType):
     return x._MOD_(y)
 
 @SatExpr.rule(T_IDX)
-def R_IDX(cls: type, x: SatType, i: tuple):
-    raise NotImplementedError
+def R_IDX(cls: type, x: SatType, *i: tuple):
+    return x._IDX_(i)
 
+## Comparisons
+@SatExpr.rule(T_EQ)
+def R_EQ(cls: type, x: SatType, y: SatType):
+    return x._EQ_(y)
 
+@SatExpr.rule(T_NE)
+def R_NE(cls: type, x: SatType, y: SatType):
+    return x._NE_(y)
 
+@SatExpr.rule(T_LE)
+def R_LE(cls: type, x: SatType, y: SatType):
+    return x._LE_(y)
 
+@SatExpr.rule(T_GE)
+def R_GE(cls: type, x: SatType, y: SatType):
+    return x._GE_(y)
 
+@SatExpr.rule(T_LT)
+def R_LT(cls: type, x: SatType, y: SatType):
+    return x._LT_(y)
 
-
-
+@SatExpr.rule(T_GT)
+def R_GT(cls: type, x: SatType, y: SatType):
+    return x._GT_(y)

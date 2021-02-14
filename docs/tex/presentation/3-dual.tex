@@ -8,8 +8,8 @@
 
 \author[Pedro]
 {Pedro Maciel Xavier}
-\title{II - QUBO}
-\subtitle{\small Programação não-linear \textbullet{} Otimização Inteira}
+\title{III - Dualidade}
+\subtitle{\small Otimização \textbullet{} Teoria dos Jogos \textbullet{} Lógica Proposicional}
 
 \begin{document}
 % Use
@@ -30,23 +30,8 @@
 
     Compreender melhor:
     \begin{enumerate}%%[<+-|alert@+>]
-        \item O princípio da dualidade (e suas demonstrações).
-
-        \item A relação entre o lagrangeano de um sistema e seu hamiltoniano.
-        
-        \item Modelagem QUBO
+        \item 
     \end{enumerate}
-\end{frame}
-
-\section{\emph{Ising Model}}
-
-\begin{frame}{\emph{Ising Model}}
-    \begin{definition}[\emph{Ising Model}]
-        O modelo de Ising descreve a energia do sistema através da função hamiltoniana $\mathbb{H}$ para uma determinada configuração $\pmb{\sigma}$.
-        \begin{align*}
-            \mathbb{H}(\pmb{\sigma}) = - \sum_{i} \vet{h}_{i} \cdot \pmb{\sigma}_i - \sum_{i < j} \vet{J}_{i, j} \cdot \pmb{\sigma}_i\,\pmb{\sigma}_j
-        \end{align*}
-    \end{definition}  
 \end{frame}
 
 \section{\emph{Quadratic Unconstrained Binary Optimization}}
@@ -113,34 +98,13 @@
 \end{frame}
 
 \section{Redução do grau}
-\SectionPage
+\begin{frame}{Redução do grau}
 
-\subsection{Redução por seleção mínima}
-\begin{frame}{Redução por seleção mínima\cite{dwave:2016}}
-
-    \begin{align*}
-        x y z &= \max_{w} \set{w (x + y + z - 2)}
-    \end{align*}
-
-    Seja $a \in \R$.
-
-    \begin{align*}
-        a x y z &= \left\{ \begin{array}{@{}c l@{}}
-            a w (x + y + z - 2) & a < 0\\
-            a [ (1 - w) (1 - x - y - z) +%%
-            x y + y z + x z] & a > 0
-        \end{array} \right.
-    \end{align*}
-\end{frame}
-
-\subsection{Redução por substituição}
-\begin{frame}{Redução por substituição\cite{dwave:2016}}
-    A técnica consiste em escrever a restrição $z \iff x \wedge y$ como
-    $$P(x, y; w) = x y - 2 ( x + y ) w + 3w$$
-
-    Em seguida, escrevemos
-    $$x y z = \min_{w} \set{w z + \alpha P(x, y, w)}$$
-    onde $\alpha > 1$ é uma constante de penalidade.
+    Compreender melhor:
+    \begin{enumerate}%%[<+-|alert@+>]
+        \item Redução do grau
+        \item Topologia \emph{D-Wave}
+    \end{enumerate}
 \end{frame}
 
 \section{Referências}
@@ -166,19 +130,13 @@
         % \newblock Springer-Verlag, 2008.
 
 
-        \setbeamertemplate{bibliography item}[online]
+        \setbeamertemplate{bibliography item}[link]
 
         \bibitem{dwave:2016}
         D-Wave Systems
         \newblock \emph{Problem-Solving Handbook}
         \newblock \url{https://docs.dwavesys.com/docs/latest/c_handbook_3.html}
 
-        \setbeamertemplate{bibliography item}[article]
-
-        \bibitem{boros:2002}
-        Endre Boros, Peter L. Hammer
-        \newblock \emph{Pseudo-Boolean optimization}
-        \newblock Elsevier, Discrete Applied Mathematics, 2002.
     \end{thebibliography}
 \end{frame}
 

@@ -3,7 +3,7 @@ import pytest
 
 ## Local
 from ..sat.types import Var, Array, Number
-from ..sat.types.expr import Expr
+from ..sat.types import Expr
 
 
 ## Fixtures

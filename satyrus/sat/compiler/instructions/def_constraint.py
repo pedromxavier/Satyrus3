@@ -8,15 +8,14 @@ import itertools as it
 from functools import reduce
 
 ## Local
-from ....satlib import arange, Stack, stdout, stdwar, join
+from ....satlib import arange, Stack, stdout, stdwar, stderr, join
 from ..compiler import SatCompiler
 from ...types.indexer import SatIndexer
 from ...types.mapping import SatMapping
 from ...types.error import SatValueError, SatTypeError, SatReferenceError, SatExprError, SatWarning
 from ...types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL, T_IDX
 from ...types.symbols import CONS_INT, CONS_OPT, INDEXER
-from ...types import Var, String, Number, Array, Constraint
-from ...types.expr import Expr
+from ...types import Expr, Var, String, Number, Array, Constraint	
 
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 CONST_TYPES = {CONS_INT, CONS_OPT}
@@ -123,7 +122,9 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 		compiler.checkpoint()
 
 	## Reduces expression to simplest form
-	expr = Expr.simplify(raw_expr)
+	expr = Expr.calculate(raw_expr)
+
+	stdwar << repr(expr)
 
 	# pylint: disable=no-member
 	if str(cons_type) == CONS_INT and not Expr.logical(expr):
@@ -152,9 +153,15 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 	else:
 		raise NotImplementedError('There are no extra constraint types yet, just `int` or `opt`.')
 
+	stdwar << repr(dnf_expr)
+
 	compiler.checkpoint()
 
+	## Simplify another time
+	dnf_expr: Expr = Expr.calculate(dnf_expr)
+
 	if indexer.in_dnf:
+		stdwar << repr(dnf_expr)
 		dnf_expr: Expr = indexer(dnf_expr)
 	else:
 		compiler < SatWarning(f'In Constraint `{constraint.name}` the expression indexed by `{indexer} {dnf_expr}` is not in the C.N.F.\nThis will require (probably many) extra steps to evaluate.\nThus, you may press Ctrl+X/Ctrl+C to interrupt compilation.', target=constraint.var)
@@ -162,7 +169,8 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 	
 	compiler.checkpoint()
 
-	dnf_expr: Expr = Expr.full_simplify(dnf_expr)
+	## One last time after indexing
+	dnf_expr: Expr = Expr.calculate(dnf_expr)
 	
 	constraint.set_expr(dnf_expr)
 

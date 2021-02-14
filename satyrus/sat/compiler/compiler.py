@@ -13,8 +13,7 @@ from ..parser import SatParser
 from ..parser.legacy import SatLegacyParser
 from ..types.error import SatValueError, SatTypeError, SatCompilerError, SatReferenceError
 from ..types.error import SatError, SatExit, SatWarning
-from ..types import SatType, String, Number, Var, Array
-from ..types.expr import Expr
+from ..types import Expr, SatType, String, Number, Var, Array
 from ..types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA, OPT, RUN_INIT, RUN_SCRIPT
 from ..types.symbols import CONS_INT, CONS_OPT
 from ..types.symbols.tokens import T_ADD, T_MUL

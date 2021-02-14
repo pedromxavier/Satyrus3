@@ -9,10 +9,9 @@ from ply import lex, yacc
 ## Local
 from ...satlib import stderr, stdout, Source, Stack, PythonShell, PythonError, track
 from ..types.error import SatParserError, SatLexerError, SatTypeError, SatSyntaxError, SatValueError, SatPythonError, SatExit
-from ..types import Var, Number, String, SatType, PythonObject
-from ..types.expr import Expr
+from ..types import Expr, Var, Number, String, SatType, PythonObject
 from ..types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, CMD_PYTHON
-from ..types.symbols.tokens import T_IDX
+from ..types.symbols.tokens import T_IDX, T_ADD, T_NEG
 
 def regex(pattern: str):
     def decor(callback):
@@ -589,7 +588,10 @@ class SatParser(object):
                  | expr RIMP expr
                  | expr IFF expr
         """
-        p[0] = Expr(p[2], p[1], p[3])
+        if p[2] == T_NEG:
+            p[0] = Expr(T_ADD, p[1], Expr(T_NEG, p[3]))
+        else:
+            p[0] = Expr(p[2], p[1], p[3])
 
     def p_expr_index(self, p):
         """ expr : expr LBRA expr RBRA

@@ -3,7 +3,7 @@ import pytest
 
 ## Local
 from ..sat.types import Var, Array, Number, Constraint
-from ..sat.types.expr import Expr
+from ..sat.types import Expr
 from ..sat.types.indexer import SatIndexer, Default
 from ..sat.compiler import SatCompiler
 from ..sat.parser import SatParser

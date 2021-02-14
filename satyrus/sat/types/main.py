@@ -28,6 +28,8 @@ class MetaSatType(type):
         for attr_name, token in cls.ATTRS.items():
             if attr_name in attrs:
                 callback = attrs[attr_name]
+            elif any(hasattr(base, attr_name) for base in bases):
+                continue
             else:
                 callback = cls.null_func
 
@@ -70,7 +72,7 @@ class SatType(metaclass=MetaSatType):
         return (hash(self) != hash(other))
     
     def _IDX_(self, i: tuple):
-        return Expr(T_IDX, self, *i)
+        raise SatTypeError(f"Can not index object of type `{type(self)}`.", target=self)
 
     ## Some aliases
     ## pylint: disable=no-member
@@ -85,6 +87,9 @@ class SatType(metaclass=MetaSatType):
 
     def __xor__(self, other):
         return self._XOR_(other)
+
+    def __neg__(self):
+        return self._NEG_()
 
     def __add__(self, other):
         return self._ADD_(other)
@@ -120,6 +125,8 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
     FORMAT_FUNCTIONS = {}
 
     def __new__(cls, head: str, *tail: tuple, sort: bool=True, flat:bool=True):
+        """ Creates pair (head, tail) to represent an expression. Here is applied, according to `sort` and `flat` parameters, child sorting and 
+        """
         if sort and flat:
             return tuple.__new__(cls, (head, *cls.sort(head, cls.flat(head, tail))))
         elif sort:
@@ -137,6 +144,8 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
     
     @classmethod
     def sort(cls, head: str, tail: list) -> list:
+        """ Returns sorted tail according to key function defined by `cls.SORT: object -> object`.
+        """
         if head in cls.SORTABLE:
             return sorted([(p if (type(p) is not cls) else (p if p._sort_ else cls(p.head, *p.tail))) for p in tail], key=cls.SORT)
         else:
@@ -218,8 +227,9 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
                     if (type(e) is cls) and (e.head == expr.head):
                         e = rule(cls, *e.tail)
                     else:
-                        break
-                return e
+                        return cls.apply_rule(e)
+                else:
+                    return e
             else:
                 return expr
         else:
@@ -227,16 +237,9 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
 
     @classmethod
     def calculate(cls, expr) -> SatType:
-        """ :: CALCULATE ::
-            ===============
-
-            Applies rules as described in `cls.RULES` for each
-            expression, in a backward fashion i.e. from leaves
-            to root.
-
-            As result, may yield Var, Number or Expr.
+        """ Applies rules as described in `cls.RULES` for each expression, in a backward fashion i.e. from leaves to root, then, applies forward. As result, may yield Var, Number or Expr.
         """
-        return cls.back_apply(expr, cls.apply_rule)
+        return cls.apply(cls.back_apply(expr, cls.apply_rule), cls.apply_rule)
 
     @property
     def head(self):
@@ -359,6 +362,9 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
         setattr(cls, func.__name__, classmethod(func))
         return getattr(cls, func.__name__)
 
+    def _IDX_(self, i: tuple):
+        return type(self)(T_IDX, self, *i)
+
 class Number(SatType, decimal.Decimal, metaclass=MetaSatType):
     """ :: Number ::
         ============
@@ -374,7 +380,7 @@ class Number(SatType, decimal.Decimal, metaclass=MetaSatType):
     def numeric(cls, x: object) -> bool:
         return type(x) is cls or type(x) in cls.NUMERIC_TYPES
 
-    def __init__(self, value):
+    def __init__(self, value: {int, float, str}):
         SatType.__init__(self)
         self._hash_ = None
 
@@ -388,6 +394,9 @@ class Number(SatType, decimal.Decimal, metaclass=MetaSatType):
 
     def __repr__(self):
         return f"Number('{self.__str__()}')"
+
+    def __abs__(self):
+        return Number(decimal.Decimal.__abs__(self))
 
     def __int__(self):
         return decimal.Decimal.__int__(self)
@@ -662,14 +671,14 @@ class Var(SatType, str):
     def _IDX_(self, idx: tuple):
         subvarname = str(self)
         while idx:
-            i, *idx = idx
+            i, *idx = idx ## pick first
             if type(i) is Number:
                 if i > 0 and i.is_int:
                     subvarname = f"{subvarname}_{i}"
                 else:
                     raise SatValueError(f"Index must be a positive integer, not `{i}`.", target=i)
             else:
-                return Expr(T_IDX, Var(subvarname), i, *idx)
+                return MetaSatType.ExprType(T_IDX, Var(subvarname), i, *idx)
         else:
             return Var(subvarname)
 
@@ -695,39 +704,39 @@ class Array(SatType):
             i, *idx = idx
             return self[i]._IDX_(idx)
 
-    def __getitem__(self, idx: Number):
-        if type(idx) is Number and idx.is_int:
-            i = int(idx)
-            if i in self.array:
-                return self.array[i]
+    def __getitem__(self, i: Number):
+        if type(i) is Number and i.is_int:
+            j = int(i)
+            if j in self.array:
+                return self.array[j]
             else:
                 n = int(self.shape[0])
-                if 1 <= i <= n:
+                if 1 <= j <= n:
                     if len(self.shape) > 1:
-                        self.array[i] = Array(self.var._IDX_((idx,)), self.shape[1:])
-                        return self.array[i]
+                        self.array[j] = Array(self.var._IDX_((i,)), self.shape[1:])
+                        return self.array[j]
                     else:
-                        return self.var._IDX_((idx,))
+                        return self.var._IDX_((i,))
                 else:
-                    raise SatIndexError(f"Index {idx} is out of bounds [1, {n}].", target=idx)
-        elif type(idx) is Var:
-            return Expr(T_IDX, self, idx)
+                    raise SatIndexError(f"Index {i} is out of bounds [1, {n}].", target=i)
+        elif type(i) is Var:
+            return MetaSatType.ExprType(T_IDX, self, i)
         else:
-            raise SatIndexError(f"Invalid index {idx}.", target=idx)
+            raise SatIndexError(f"Invalid index `{i}` of type `{type(i)}`.", target=i)
 
-    def __setitem__(self, idx: Number, value: SatType):
-        if type(idx) is Number and idx.is_int:
+    def __setitem__(self, i: Number, value: SatType):
+        if type(i) is Number and i.is_int:
             if self.dim > 1:
-                raise SatIndexError(f"Attempt to assign to {self.dim}-dimensional array.", target=idx)
+                raise SatIndexError(f"Attempt to assign to {self.dim}-dimensional array.", target=i)
             else:
-                i = int(idx)
+                j = int(i)
                 n = int(self.shape[0])
-                if 1 <= i <= n:
-                    self.array[i] = value
+                if 1 <= j <= n:
+                    self.array[j] = value
                 else:
-                    raise SatIndexError(f"Index {idx} is out of bounds [1, {n}].", target=idx)                 
+                    raise SatIndexError(f"Index {i} is out of bounds [1, {n}].", target=i)                 
         else:
-            raise SatIndexError(f"Invalid index {idx}.", target=idx)
+            raise SatIndexError(f"Invalid index {i}.", target=i)
 
     def __str__(self):
         return f"{self.var}" #+ "".join([f"[{n}]" for n in self.shape])
@@ -790,12 +799,12 @@ class Constraint(object):
         self._expr = None
         self._clauses = None
         
-    def set_expr(self, expr: Expr):
+    def set_expr(self, expr: MetaSatType.ExprType):
         self._expr = expr
 
-        if type(self._expr) is Expr:
+        if isinstance(self._expr, Expr):
             if (self._expr.head == T_OR):
-                clauses = [([*p.tail] if (type(p) is Expr and p.head == T_AND) else [p]) for p in self._expr.tail]
+                clauses = [([*p.tail] if (isinstance(p, Expr) and p.head == T_AND) else [p]) for p in self._expr.tail]
             elif (self._expr.head == T_AND):
                 clauses = [[*self._expr.tail]]
             else:

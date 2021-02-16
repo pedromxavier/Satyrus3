@@ -6,7 +6,4 @@ from satyrus.satlib import join
 
 parser = ExprParser()
 
-x = Array(Var('x'), (Number('3'), Number('3')))
-
-e = Expr(T_IDX, x, Var('i'), Var('j'))
-a = Expr(T_IDX, Var('x'), Var('i'), Var('j'))
+e = parser.parse("x * (y + z * (w + i - j))")

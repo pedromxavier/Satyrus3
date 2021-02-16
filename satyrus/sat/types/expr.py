@@ -294,17 +294,54 @@ class SatExpr(Expr, metaclass=MetaSatType):
 
     @classmethod
     def posiform(cls, x: SatType) -> dict:
-        raise NotImplementedError
-        if type(x) is type(self):
-            y = {}
-            for p in x:
-                if type(p) is type(self): ## Expr
-                    y = {**y, **p.posiform}
+        """Turns SatType into posiform dictionary i.e. matching between terms and their respective weights.
+
+        Supposes that:
+        --------------
+
+        1. `x` is already in its stable representation as a sum of products. 
+        2. If `x` is an expression, its terms are sorted (constants ahead).
+
+        :param x: expression, constant or variable to be posiformed.
+        :type x: SatType
+        :returns: dictionary containing the terms as keys and the multiplying constant as respective value.
+        :rtype: dict
+        """
+        if type(x) is cls:
+            ## {Expr | None: Number}
+            table = {} 
+            if x.head == T_ADD:
+                for p in x.tail:
+                    pos = cls.posiform(p)
+                    for term, cons in pos.items():
+                        if term in table:
+                            table[term] += cons
+                        else:
+                            table[term] = cons
+
+            elif x.head == T_MUL:
+                for p in x.tail:
+                    pos = cls.posiform(p)
+                    for term, cons in pos.items():
+                        patial_table = {}
+                        if type(term) is tuple: ## Variable term
+                            table = {(term if (q is None) else (*q, *term)): (c * cons) for q, c in table.items()}
+                        elif term is None: ## Constant
+                            table = {q: (c * cons) for q, c in table.items()}
+                        else:
+                            raise TypeError(f'Invalid type `{type(term)}` as posiform multiplicative term.')
+
+            elif x.head == T_NEG:
+                return {term: cons._NEG_() for term, cons in cls.posiform(x[1]).items()}
+            else:
+                raise TypeError(f'Posiform candidates must be copositions of addition, negation and multiplication only.')
+
+            return table
 
         elif type(x) is Number:
-            return {None: x}
+            return {None : x}
         elif type(x) is Var:
-            return {x: Number('1')}
+            return {(x,) : Number('1')}
         else:
             raise TypeError(f'Invalid type `{type(x)}` for posiform.')
 

@@ -122,12 +122,10 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 		compiler.checkpoint()
 
 	## Reduces expression to simplest form
-	expr = Expr.calculate(raw_expr)
-
-	stdwar << repr(expr)
+	expr: Expr = Expr.calculate(raw_expr)
 
 	# pylint: disable=no-member
-	if str(cons_type) == CONS_INT and not Expr.logical(expr):
+	if str(cons_type) == CONS_INT and not expr.logical:
 		compiler << SatExprError("Integrity constraint expressions must be purely logical i.e. no arithmetic operations allowed.", target=raw_expr)
 
 	compiler.checkpoint()
@@ -153,15 +151,12 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 	else:
 		raise NotImplementedError('There are no extra constraint types yet, just `int` or `opt`.')
 
-	stdwar << repr(dnf_expr)
-
 	compiler.checkpoint()
 
 	## Simplify another time
 	dnf_expr: Expr = Expr.calculate(dnf_expr)
 
 	if indexer.in_dnf:
-		stdwar << repr(dnf_expr)
 		dnf_expr: Expr = indexer(dnf_expr)
 	else:
 		compiler < SatWarning(f'In Constraint `{constraint.name}` the expression indexed by `{indexer} {dnf_expr}` is not in the C.N.F.\nThis will require (probably many) extra steps to evaluate.\nThus, you may press Ctrl+X/Ctrl+C to interrupt compilation.', target=constraint.var)

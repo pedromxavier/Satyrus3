@@ -92,7 +92,7 @@ class CLI:
         sat_api = SatAPI(source_path=source_path, **sat_kwargs)
 
         ## Solve in desired way
-        sat_api[output].solve()
+        stdout[0] << sat_api[output].solve()
 
         
 

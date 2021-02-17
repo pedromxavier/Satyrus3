@@ -277,7 +277,7 @@ class SatExpr(Expr, metaclass=MetaSatType):
         return cls.back_apply(expr, cls._distribute_add_over_mul)
 
     @classmethod
-    def _logical(cls: type, item: object):
+    def _logical(cls: type, item: SatType):
         return (type(item) is not cls) or (item.head in T_LOGICAL) or (item.head in T_EXTRA)
 
     @property
@@ -285,7 +285,7 @@ class SatExpr(Expr, metaclass=MetaSatType):
         return self.tell(self, all, self._logical)
 
     @classmethod
-    def _arithmetic(cls: type, item: object):
+    def _arithmetic(cls: type, item: SatType):
         return (type(item) is not cls) or (item.head in T_ARITHMETIC) or (item.head in T_EXTRA)
 
     @property
@@ -293,7 +293,7 @@ class SatExpr(Expr, metaclass=MetaSatType):
         return self.tell(self, all, self._arithmetic)
 
     @classmethod
-    def posiform(cls, x: SatType) -> dict:
+    def posiform(cls, item: SatType, idempotent: bool=False) -> dict:
         """Turns SatType into posiform dictionary i.e. matching between terms and their respective weights.
 
         Supposes that:
@@ -302,48 +302,67 @@ class SatExpr(Expr, metaclass=MetaSatType):
         1. `x` is already in its stable representation as a sum of products. 
         2. If `x` is an expression, its terms are sorted (constants ahead).
 
-        :param x: expression, constant or variable to be posiformed.
+        :param : expression, constant or variable to be posiformed.
         :type x: SatType
+        :param idempotent: allows for simplification on repeated variables within terms.
+        :type idempotent: bool
         :returns: dictionary containing the terms as keys and the multiplying constant as respective value.
         :rtype: dict
         """
-        if type(x) is cls:
+        if type(item) is cls:
             ## {Expr | None: Number}
-            table = {} 
-            if x.head == T_ADD:
-                for p in x.tail:
-                    pos = cls.posiform(p)
-                    for term, cons in pos.items():
-                        if term in table:
-                            table[term] += cons
+            if item.head == T_ADD:
+                table = {} 
+                for child in item.tail:
+                    for p, x in cls.posiform(child).items():
+                        if p in table:
+                            table[p] += x
                         else:
-                            table[term] = cons
+                            table[p] = x
+                else:
+                    return table
 
-            elif x.head == T_MUL:
-                for p in x.tail:
-                    pos = cls.posiform(p)
-                    for term, cons in pos.items():
-                        patial_table = {}
-                        if type(term) is tuple: ## Variable term
-                            table = {(term if (q is None) else (*q, *term)): (c * cons) for q, c in table.items()}
-                        elif term is None: ## Constant
-                            table = {q: (c * cons) for q, c in table.items()}
+            elif item.head == T_MUL:
+                table = {}
+                for child in item.tail:
+                    if table:
+                        next_table = {}
+                        for p, x in table.items():
+                            for q, y in cls.posiform(child).items():
+                                if type(p) is tuple: ## Variable term
+                                    if idempotent:
+                                        key = tuple(sorted({*p, *q}))
+                                    else:
+                                        key = tuple({*p, *q})
+                                elif p is None: ## Constant
+                                    key = q
+                                else:
+                                    raise TypeError(f'Invalid type `{type(p)}` as posiform multiplicative term.')
+
+                                val = x * y
+
+                                if key in next_table:
+                                    next_table[key] += val
+                                else:
+                                    next_table[key] = val
                         else:
-                            raise TypeError(f'Invalid type `{type(term)}` as posiform multiplicative term.')
+                            table = next_table
+                    else:
+                        table = cls.posiform(child)
+                else:
+                    return table
 
-            elif x.head == T_NEG:
-                return {term: cons._NEG_() for term, cons in cls.posiform(x[1]).items()}
+            elif item.head == T_NEG:
+                return {term: cons._NEG_() for term, cons in cls.posiform(item[1]).items()}
             else:
                 raise TypeError(f'Posiform candidates must be copositions of addition, negation and multiplication only.')
 
-            return table
-
-        elif type(x) is Number:
-            return {None : x}
-        elif type(x) is Var:
-            return {(x,) : Number('1')}
+        elif type(item) is Number:
+            return {None : item}
+        elif type(item) is Var:
+            return {(item,) : Number('1')}
         else:
-            raise TypeError(f'Invalid type `{type(x)}` for posiform.')
+            raise TypeError(f'Invalid type `{type(item)}` for posiform.')
 
 ## Expression  Tables
 SatExpr.TABLE['NOT'] = {

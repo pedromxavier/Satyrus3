@@ -125,6 +125,4 @@ def run_script_energy(compiler: SatCompiler, constraints: dict, penalties: dict)
 
     E = Expr.calculate(Ei + Eo)
 
-    stdwar[0] << E
-
-    compiler(None)
+    compiler(Expr.posiform(E, idempotent=True))

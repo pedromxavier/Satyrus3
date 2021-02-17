@@ -10,17 +10,19 @@
     >>> sat['dwave'].solve()
 """ 
 ## Standard Library
-import abc
 from functools import wraps
+
+## Third-Party
+import numpy as np
 
 ## Local
 from ..satlib import stdout
 from ..sat.types import Expr
+from ..sat.types.symbols.tokens import T_ADD, T_MUL
 
-class MetaSatAPI(abc.ABCMeta):
+class MetaSatAPI(type):
 
-    name = 'SatAPI'
-
+    base_class_name = 'SatAPI'
     base_class = None
 
     subclasses = {
@@ -30,20 +32,20 @@ class MetaSatAPI(abc.ABCMeta):
     options = []
 
     def __new__(cls, name: str, bases: tuple, attrs: dict):
-        if 'solve' not in attrs:
-            raise NotImplementedError(f"Method .solve(self) must be implemented for class {name}.")
+        if name == cls.base_class_name:
+            new_class =cls.base_class = type.__new__(cls, name, bases, {**attrs, 'subclasses': cls.subclasses, 'options' : cls.options})
+        elif name in cls.options:
+            raise ValueError(f"Class `{name}` defined twice.")
+        elif cls.base_class is None:
+            raise NotImplementedError(f"Base class `{cls.base_class_name}` was not implemented.")
+        elif 'solve' not in attrs:
+            raise NotImplementedError(f"Method solve(self, posiform: dict) must be implemented for class {name}.")
         else:
-            attrs['solve'] = cls.solve_func(attrs['solve'])
+            attrs['_solve'] = cls.solve_func(attrs['solve'])
+            attrs['solve'] = cls.base_class.solve
 
-        if name == cls.name:
-            cls.base_class = new_class = type.__new__(cls, name, bases, {**attrs, 'subclasses': cls.subclasses, 'options' : cls.options})
-        else:
-            if name not in cls.options:
-                cls.subclasses[name] = new_class = type.__new__(cls, name, bases, attrs)
-                cls.options.append(name)
-            else:
-                raise ValueError(f"Method `{name}` defined twice.")
-
+            new_class = cls.subclasses[name] = type.__new__(cls, name, bases, attrs)
+            cls.options.append(name)
         return new_class
 
     @classmethod
@@ -51,11 +53,11 @@ class MetaSatAPI(abc.ABCMeta):
         """ func(api: SatAPI)
         """
         @wraps(func)
-        def new_func(api):
+        def new_func(api, *args, **kwargs):
             if api.code:
                 return None
             else:
-                return func(api)
+                return func(api, *args, **kwargs)
         return new_func
 
 class SatAPI(metaclass=MetaSatAPI):
@@ -94,9 +96,11 @@ class SatAPI(metaclass=MetaSatAPI):
     def code(self):
         return self.satyrus.code
 
-    @abc.abstractmethod
-    def solve(self):
+    def _solve(self, posiform: dict):
         raise NotImplementedError
+
+    def solve(self):
+        return self._solve(self.results)
 
 ## NOTE: DO NOT EDIT ABOVE THIS LINE
 ## ---------------------------------
@@ -104,8 +108,47 @@ class SatAPI(metaclass=MetaSatAPI):
 ## Text Output
 class text(SatAPI):
 
-    def solve(self) -> str:
-        stdout[0] << self.results
+    def solve(self, posiform: dict) -> str:
+        """
+        """
+        expr = Expr(T_ADD, *(cons if term is None else Expr(T_MUL, cons, *term) for (term, cons) in posiform.items()))
+        return str(Expr.calculate(expr))
+
+class qubo(SatAPI):
+
+    def solve(self, posiform: dict) -> (dict, np.ndarray):
+        """
+        :param posiform:
+        :type posiform: dict
+        :returns: 
+        :rtype: (dict, np.ndarray)
+        """
+        var = set()
+        for term in posiform:
+            if term is not None:
+                if len(term) >= 3: ## check for degre
+                    raise NotImplementedError('Degree reduction is not implemented yet.')
+                else:
+                    var.update(term)
+            else:
+                continue
+        
+        n = len(var)
+        x = {v: i for i, v in enumerate(sorted(var))}
+        Q = np.zeros((n, n), dtype=float)
+
+        for term, cons in posiform.items():
+            if term is not None:
+                i = tuple(map(x.get, term))
+                if len(i) == 1:
+                    i = (*i, *i)
+                elif len(i) >= 3:
+                    raise ValueError('Degree reduction failed.')
+
+                Q[i] += float(cons)
+            else:
+                continue ## Neglect constant.
+        return x, Q
 
 # ## CSV Output
 # class csv(SatAPI):

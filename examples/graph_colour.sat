@@ -31,7 +31,7 @@ neigh[n][n] = {
 
 (int) int0A[1]:
     @{i = [1:n]}
-    ${k = [1:n]}
+    @{k = [1:n]}
     vc[i][k];
 
 (int) int1A[2]:
@@ -52,5 +52,5 @@ neigh[n][n] = {
     vc[i][k] -> col[k];
 
 (opt) cost:
-    @{k = [1:n]}
+    ${k = [1:n]}
     col[k];

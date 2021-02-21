@@ -6,9 +6,10 @@ from ...satlib import stderr, stdout
 
 class SatError(Exception):
     'Error'
-    def __init__(self, msg=None, target=None):
+    def __init__(self, msg=None, target=None, code=2):
         Exception.__init__(self, msg)
         self.msg = str(msg) if msg is not None else ""
+        self.code = code
         self.target = target
 
     def __str__(self):
@@ -64,5 +65,4 @@ class SatExit(SatError):
     'Exit'
 
     def __init__(self, code: int):
-        self.code = code
         SatError.__init__(self, f'exit code {code}')

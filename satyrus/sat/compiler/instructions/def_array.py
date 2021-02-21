@@ -17,7 +17,7 @@ def def_array(compiler: SatCompiler, name: Var, shape: tuple, buffer: list):
         3. Set Array to memory
     """
     ## Evaluates shape values and variables
-    shape = tuple(compiler.evaluate(n, miss=True, calc=True) for n in shape)
+    shape = tuple(compiler.evaluate(n, miss=True, calc=True, track=True) for n in shape)
 
     compiler.checkpoint()
     

@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from .main import Var, Number
 from .expr import SatExpr as Expr
 from .symbols.tokens import T_FORALL, T_EXISTS, T_EXISTS_ONE, T_AND, T_OR
+from ...satlib import stderr
 from ..compiler import SatCompiler
 
 class SatIndexer(metaclass=ABCMeta):
@@ -98,7 +99,7 @@ class SatIndexer(metaclass=ABCMeta):
             if self._last._type == other._type:
                 ## Consume next Indexer
                 self._last._vars.extend(other._vars)
-                self._last._indices = [{**I, **J} for I in self._last._indices for J in other._indices]
+                self._last._indices = [K for I in self._last._indices for J in other._indices if other.cond(K := {**I, **J})]
             else:
                 self._last._next = other
                 self._last._last = other
@@ -127,9 +128,11 @@ class SatIndexer(metaclass=ABCMeta):
         else:
             return ValueError(f"Invalid loop type `{self._type}`")
         
-    def index(self, expr: Expr, context: dict=None):
+    def index(self, expr: Expr, context: dict=None) -> dict:
+        """
+        """
         if context is None: context = {}
-
+        
         if self._next is None:
             return self._index([self._eval(expr, context) for I in self._indices if self.cond(context := {**context, **I})])
         else:

@@ -68,7 +68,7 @@ class ExprLexer(object):
         """
         while self.error_stack:
             error = self.error_stack.popleft()
-            stderr << error
+            stderr[0] << error
         else:
             self.exit(1)
 
@@ -198,7 +198,7 @@ class ExprParser(object):
         """
         while self.error_stack:
             error = self.error_stack.popleft()
-            stderr << error
+            stderr[0] << error
         else:
             self.exit(1)
 

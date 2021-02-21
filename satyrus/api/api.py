@@ -12,13 +12,12 @@
 ## Standard Library
 from functools import wraps
 
-## Third-Party
-import numpy as np
-
 ## Local
-from ..satlib import stdout
-from ..sat.types import Expr
-from ..sat.types.symbols.tokens import T_ADD, T_MUL
+from ..satlib import stdout, stderr, stdwar
+from ..sat.types import Expr, Number, Var
+from ..sat.types.symbols.tokens import T_ADD, T_MUL, T_AUX
+
+#pylint: disable=unused-variable
 
 class MetaSatAPI(type):
 
@@ -108,57 +107,62 @@ class SatAPI(metaclass=MetaSatAPI):
 ## Text Output
 class text(SatAPI):
 
-    def solve(self, posiform: dict) -> str:
+    def solve(self, posiform: dict) -> (None, str):
         """
         """
         expr = Expr(T_ADD, *(cons if term is None else Expr(T_MUL, cons, *term) for (term, cons) in posiform.items()))
-        return str(Expr.calculate(expr))
-
-class qubo(SatAPI):
-
-    def solve(self, posiform: dict) -> (dict, np.ndarray):
-        """
-        :param posiform:
-        :type posiform: dict
-        :returns: 
-        :rtype: (dict, np.ndarray)
-        """
-        var = set()
-        for term in posiform:
-            if term is not None:
-                if len(term) >= 3: ## check for degre
-                    raise NotImplementedError('Degree reduction is not implemented yet.')
-                else:
-                    var.update(term)
-            else:
-                continue
-        
-        n = len(var)
-        x = {v: i for i, v in enumerate(sorted(var))}
-        Q = np.zeros((n, n), dtype=float)
-
-        for term, cons in posiform.items():
-            if term is not None:
-                i = tuple(map(x.get, term))
-                if len(i) == 1:
-                    i = (*i, *i)
-                elif len(i) >= 3:
-                    raise ValueError('Degree reduction failed.')
-
-                Q[i] += float(cons)
-            else:
-                continue ## Neglect constant.
-        return x, Q
+        return (None, str(Expr.calculate(expr)))
 
 # ## CSV Output
 # class csv(SatAPI):
 #     ...
 
-# ## cvxpy
-# class cvxpy(SatAPI):
-#     ## https://www.cvxpy.org/tutorial/advanced/index.html#mixed-integer-programs
-#     ## import cvxpy as cp
-#     ...
+## cvxpy - gurobi
+class gurobi(SatAPI):
+    ## https://www.cvxpy.org/tutorial/advanced/index.html#mixed-integer-programs
+    ## import cvxpy as cp
 
-# class dwave(SatAPI):
-#     ...
+    def solve(self, posiform: dict):
+        import cvxpy as cp
+        import numpy as np
+
+        from ..satlib import qubo
+
+        x, Q, c = qubo().solve(posiform)
+
+        X = cp.Variable(len(x), boolean=True)
+        P = cp.Problem(cp.Minimize(cp.quad_form(X, Q)), constraints=None)
+        
+        try:
+            P.solve(solver=cp.GUROBI)
+            y, e = X.value, P.value
+            s = {k: int(y[i]) for k, i in x.items()}
+            return (s, e + c)
+        except cp.error.DCPError:
+            stderr[0] << "Solver Error: Function is not convex."
+            return None
+        except Exception as error:
+            stderr[0] << error
+            return None
+            
+
+class dwave(SatAPI):
+    
+    def solve(self, posiform: dict):
+        import neal
+
+        stdwar[0] << "Warning: D-Wave option currently running local simulated annealing since remote connection to quantum host is unavailable."
+
+        from ..satlib import qubo
+
+        sampler = neal.SimulatedAnnealingSampler()
+
+        x, Q, c = qubo().solve(posiform)
+
+        sampleset = sampler.sample_qubo(Q)
+
+        y, e, z = sampleset.record[0]
+
+        s = {k: y[i] for k, i in x.items()}
+
+        return (s, e + c)

@@ -12,4 +12,4 @@ def def_constant(compiler: SatCompiler, name : Var, value : SatType):
     """ DEF_CONSTANT
         ============
     """
-    compiler.memset(name, compiler.evaluate(value, miss=True, calc=True, null=False))
+    compiler.memset(name, compiler.evaluate(value, miss=True, calc=True, null=False, track=True))

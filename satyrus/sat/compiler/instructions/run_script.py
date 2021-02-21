@@ -8,7 +8,7 @@
 from tabulate import tabulate
 
 ## Local
-from ....satlib import stdout, stdwar
+from ....satlib import stdlog, stdout, stdwar
 from ...types.error import SatValueError, SatCompilerError, SatWarning
 from ...types import Number, Constraint
 from ...types.expr import SatExpr as Expr
@@ -105,8 +105,8 @@ def run_script_penalties(compiler: SatCompiler, constraints: dict, penalties: di
         else:
             penalties[level_j] = penalties[level_k] * (n_k + 1)
     else: ## print penalty table
-        stdout[2] << tabulate([(f"{k:6d}", f"{n:d}", penalties[k]) for k, n in levels], headers=["lvl", "n", "value"], tablefmt="pretty")
-        stdout[2] << tabulate([[compiler.env[EPSILON], compiler.env[ALPHA]]], headers =["ε", "α"], tablefmt="pretty")
+        stdlog[2] << tabulate([(f"{k:6d}", f"{n:d}", penalties[k]) for k, n in levels], headers=["lvl", "n", "value"], tablefmt="pretty")
+        stdlog[2] << tabulate([[compiler.env[EPSILON], compiler.env[ALPHA]]], headers =["ε", "α"], tablefmt="pretty")
 
     compiler.checkpoint()
 
@@ -117,12 +117,15 @@ def run_script_energy(compiler: SatCompiler, constraints: dict, penalties: dict)
     ## Instantiate Mapping
     mapping: SatMapping = compiler.env[MAPPING]()
 
-    ## Integrity
-    Ei = Expr.calculate(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_INT]), start=Number('0')))
+    if compiler[1]:
+        raise NotImplementedError("Compiler Optimization not implemented for energy equation generation.")
+    else:
+        ## Integrity
+        Ei = Expr.calculate(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_INT]), start=Number('0')))
 
-    ## Optimality
-    Eo = Expr.calculate(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_OPT]), start=Number('0')))
+        ## Optimality
+        Eo = Expr.calculate(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_OPT]), start=Number('0')))
 
-    E = Expr.calculate(Ei + Eo)
+        E = Expr.calculate(Ei + Eo)
 
     compiler(Expr.posiform(E, idempotent=True))

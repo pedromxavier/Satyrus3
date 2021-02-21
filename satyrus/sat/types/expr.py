@@ -460,7 +460,17 @@ def R_OR(cls: type, *tail: tuple):
 
 @SatExpr.rule(T_NOT)
 def R_NOT(cls: type, x: SatType):
-    return x._NOT_()
+    if type(x) is cls:
+        if x.head == T_NOT:
+            return x[1]
+        elif x.head == T_AND:
+            return cls(T_OR, *(p._NOT_() for p in x.tail))
+        elif x.head == T_OR:
+            return cls(T_AND, *(p._NOT_() for p in x.tail))
+        else:
+            return x._NOT_()
+    else:
+        return x._NOT_()
 
 @SatExpr.rule(T_XOR)
 def R_XOR(cls: type, x: SatType, y: SatType):

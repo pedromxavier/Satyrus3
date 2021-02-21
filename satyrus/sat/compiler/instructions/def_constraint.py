@@ -8,7 +8,7 @@ import itertools as it
 from functools import reduce
 
 ## Local
-from ....satlib import arange, Stack, stdout, stdwar, stderr, join
+from ....satlib import arange, Stack, stdlog, stdout, stdwar, stderr, join
 from ..compiler import SatCompiler
 from ...types.indexer import SatIndexer
 from ...types.mapping import SatMapping
@@ -20,12 +20,12 @@ from ...types import Expr, Var, String, Number, Array, Constraint
 LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 CONST_TYPES = {CONS_INT, CONS_OPT}
 
-def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: list, expr: Expr, level: Number):
+def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: list, expr: Expr, level: {Number, Var}):
 	""" DEF_CONSTRAINT
 		==============
 	"""
-	## Report process start
-	stdout[5] << f"Started `{name}` ({cons_type}) constraint definition."
+	if type(level) is not Number:
+		level = compiler.evaluate(level, miss=True, calc=True, null=True)
 
 	## Check constraint type and level
 	def_constraint_type_level(compiler, cons_type, level)
@@ -42,7 +42,6 @@ def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: l
 def def_constraint_type_level(compiler: SatCompiler, cons_type: String, level: Number):
 	"""
 	"""
-	
 	if str(cons_type) not in CONST_TYPES:
 		compiler << SatTypeError(f"Invalid constraint type {cons_type}. Options are: `int`, `opt`.", target=cons_type)
 
@@ -109,7 +108,7 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 		## define condition
 		if l_conds is not None:
 			## Compile condition expressions
-			cond = reduce(lambda x, y: x & y, [compiler.evaluate(c, miss=False, calc=True) for c in l_conds], Number.T)
+			cond = reduce(lambda x, y: x._AND_(y), [compiler.evaluate(c, miss=False, calc=True) for c in l_conds], Number.T)
 		else:
 			cond = None
 
@@ -121,8 +120,14 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 
 		compiler.checkpoint()
 
+	## Verbose
+	stdlog[3] << f"\n@{constraint.name}(raw):\n\t{raw_expr}"
+
 	## Reduces expression to simplest form
 	expr: Expr = Expr.calculate(raw_expr)
+
+	## Verbose
+	stdlog[3] << f"\n@{constraint.name}(simplified):\n\t{raw_expr}"
 
 	# pylint: disable=no-member
 	if str(cons_type) == CONS_INT and not expr.logical:
@@ -146,28 +151,42 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 		dnf_expr: Expr = Expr.dnf(~expr)
 		## Invert Indexing Loops
 		~indexer #pylint: disable=invalid-unary-operand-type
+		## Verbose
+		stdlog[3] << f"\n@{constraint.name}(D.N.F. + Negation):\n\t{dnf_expr}"
 	elif str(cons_type) == CONS_OPT:
 		dnf_expr: Expr = Expr.dnf(expr)
+		## Verbose
+		stdlog[3] << f"\n@{constraint.name}(D.N.F.):\n\t{dnf_expr}"
 	else:
 		raise NotImplementedError('There are no extra constraint types yet, just `int` or `opt`.')
-
-	compiler.checkpoint()
 
 	## Simplify another time
 	dnf_expr: Expr = Expr.calculate(dnf_expr)
 
-	if indexer.in_dnf:
-		dnf_expr: Expr = indexer(dnf_expr)
-	else:
-		compiler < SatWarning(f'In Constraint `{constraint.name}` the expression indexed by `{indexer} {dnf_expr}` is not in the C.N.F.\nThis will require (probably many) extra steps to evaluate.\nThus, you may press Ctrl+X/Ctrl+C to interrupt compilation.', target=constraint.var)
-		dnf_expr: Expr = indexer(dnf_expr, ensure_dnf=True)
-	
+	## Verbose
+	stdlog[3] << f"\n@{constraint.name}(D.N.F. + Simplify):\n\t{dnf_expr}"
+
 	compiler.checkpoint()
 
+	if indexer.in_dnf:
+		idx_expr: Expr = indexer(dnf_expr)
+	else:
+		compiler < SatWarning(f'In Constraint `{constraint.name}` the expression indexed by `{indexer} {dnf_expr}` is not in the C.N.F.\nThis will require (probably many) extra steps to evaluate.\nThus, you may press Ctrl+X/Ctrl+C to interrupt compilation.', target=constraint.var)
+		idx_expr: Expr = indexer(dnf_expr, ensure_dnf=True)
+
+	compiler.checkpoint()
+
+	## Verbose
+	stdlog[3] << f"\n@{constraint.name}(indexed):\n\t{idx_expr}"
+
 	## One last time after indexing
-	dnf_expr: Expr = Expr.calculate(dnf_expr)
+	final_expr: Expr = Expr.calculate(idx_expr)
+
+	compiler.checkpoint()
 	
-	constraint.set_expr(dnf_expr)
+	constraint.set_expr(final_expr)
+
+	stdlog[2] << f"\n@{constraint.name}(final):\n\t{final_expr}"
 
 	compiler.checkpoint()
 

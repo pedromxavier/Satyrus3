@@ -1,12 +1,17 @@
-#?prec: 32;
-#?out: "ampl";
+?prec: 16; # Precision
+?epsilon: 1E-03;
+#?alpha: 30;
 
+# Total number of verties in the graph.
 n = 4;
 
+# Vector indicates used colors.
 col[n];
 
+# Correspondence between each vertex and its color
 vc[n][n];
 
+# Graph representation
 neigh[n][n] = {
   (1,1) : 0,
   (1,2) : 1,
@@ -29,27 +34,32 @@ neigh[n][n] = {
   (4,4) : 0
 };
 
-(int) int0A[1]:
+## Here are defined the penalty levels
+LOW = 1;
+HIGH = 2;
+
+
+(int) color_all[LOW]:
     @{i = [1:n]}
     @{k = [1:n]}
     vc[i][k];
 
-(int) int1A[2]:
-    @{i = [1:n]}
-    @{j = [1:n], j != i}
-    @{k = [1:n]}
-    neigh[i][j] -> ~(vc[i][k] & vc[j][k]);
-
-(int) int1B[2]:
+(int) unique_coloring[HIGH]: ## WTA
     @{i = [1:n]}
     @{k = [1:n]}
     @{l = [1:n], k != l}
     ~(vc[i][k] & vc[i][l]);
 
-(int) int0B[1]:
+(int) use_color[LOW]:
     @{i = [1:n]}
     @{k = [1:n]}
     vc[i][k] -> col[k];
+
+(int) neighbour_coloring[HIGH]:
+    @{i = [1:n]}
+    @{j = [1:n], j != i}
+    @{k = [1:n]}
+    neigh[i][j] -> ~(vc[i][k] & vc[j][k]);
 
 (opt) cost:
     ${k = [1:n]}

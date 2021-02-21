@@ -1,25 +1,22 @@
-""" :: Setup ::
-    ===========
+"""A setuptools based setup module.
+
+See:
+https://packaging.python.org/guides/distributing-packages-using-setuptools/
+https://github.com/pypa/sampleproject
 """
 
-""" :: Setup ::
-    ===========
-"""
-
-## Standard Library
-import os
-import sys
+# Always prefer setuptools over distutils
 from setuptools import setup, find_packages
 
-def load(fname: str):
-    with open(fname, 'r') as file:
-        return file.read()
+import os
+import shutil
+import pickle
 
-URL = r'https://pedromxavier.github.io/projetos/satyrus'
+# Get the long description from the README file
+with open('README.md', encoding='utf-8') as file:
+    long_description = file.read()
 
-DESCRIPTION = r''
-
-kwargs = {
+SETUP_OPTIONS = {
     # This is the name of your project. The first time you publish this
     # package, this name will be registered for you. It will determine how
     # users can install this project, e.g.:
@@ -31,7 +28,7 @@ kwargs = {
     # There are some restrictions on what makes a valid project name
     # specification here:
     # https://packaging.python.org/specifications/core-metadata/#name
-    "name" : 'satyrus',  # Required
+    "name" : 'satyrus3',  # Required
 
     # Versions should comply with PEP 440:
     # https://www.python.org/dev/peps/pep-0440/
@@ -39,12 +36,12 @@ kwargs = {
     # For a discussion on single-sourcing the version across setup.py and the
     # project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    "version" : '3.0.0',  # Required
+    "version" : '1.0.0',  # Required
 
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#summary
-    "description" : DESCRIPTION,  # Optional
+    "description" : 'Optimization framework.',  # Optional
 
     # This is an optional longer description of your project that represents
     # the body of text which users will see when they visit PyPI.
@@ -54,7 +51,7 @@ kwargs = {
     #
     # This field corresponds to the "Description" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#description-optional
-    "long_description" : load('README.md'),  # Optional
+    "long_description" : long_description,  # Optional
 
     # Denotes that our long_description is in Markdown; valid values are
     # text/plain, text/x-rst, and text/markdown
@@ -72,15 +69,15 @@ kwargs = {
     #
     # This field corresponds to the "Home-Page" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#home-page-optional
-    "url" : URL,  # Optional
+    "url" : 'https://pedromxavier.github.io/projects/satyrus',  # Optional
 
     # This should be your name or the name of the organization which owns the
     # project.
-    "author" : 'Pedro Maciel Xavier',  # Optional
+    ## "author" : 'Pedro Maciel Xavier',  # Optional
 
     # This should be a valid email address corresponding to the author listed
     # above.
-    "author_email" : 'pedromxavier@poli.ufrj.br',  # Optional
+    ## "author_email" : 'pedromxavier@poli.ufrj.br',  # Optional
 
     # Classifiers help users find your project by categorizing it.
     #
@@ -90,10 +87,10 @@ kwargs = {
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
 
         # Indicate who your project is intended for
-        ## 'Intended Audience :: ??',
+        'Intended Audience :: Academia',
         ## 'Topic :: Software Development :: Build Tools',
 
         # Pick your license as you wish
@@ -103,7 +100,6 @@ kwargs = {
         # that you indicate whether you support Python 2, Python 3 or both.
         # These classifiers are *not* checked by 'pip install'. See instead
         # 'python_requires' below.
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
 
@@ -111,11 +107,11 @@ kwargs = {
     # project page. What does your project relate to?
     #
     # Note that this is a string of words separated by whitespace, not a list.
-    "keywords" : 'Satyrus',  # Optional
+    "keywords" : 'Optimization Logic',  # Optional
 
     # When your source code is in a subdirectory under the project root, e.g.
     # `src/`, it is necessary to specify the `package_dir` argument.
-    "package_dir" : {'': '.'},  # Optional
+    "package_dir" : {'': 'src'},  # Optional
 
     # You can just specify package directories manually here if your project is
     # simple. Or you can use find_packages().
@@ -126,17 +122,14 @@ kwargs = {
     #
     #   py_modules=["my_module"],
     #
-    "packages" : [
-        "satyrus",
-        "satyrus.satlib"
-        ],
+    "packages" : ["satyrus"],
 
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
     # and refuse to install the project if the version does not match. If you
     # do not support Python 2, you can simplify this to '>=3.5' or similar, see
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
-    "python_requires" : '>=3.7, <4',
+    "python_requires" : '>=3.8, <4',
 
     # This field lists other packages that your project depends on to run.
     # Any package you put here will be installed by pip when your project is
@@ -144,7 +137,7 @@ kwargs = {
     #
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    "install_requires" : ['ply', 'colorama'],  # Optional
+    "install_requires" : ["ply", "colorama"],  # Optional
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). Users will be able to install these using the "extras"
@@ -154,10 +147,10 @@ kwargs = {
     #
     # Similar to `install_requires` above, these must be valid existing
     # projects.
-    # "extras_require" : {  # Optional
-    #     'archive': ['lorem'],
-    #     ## 'test': ['satyrus3-test'],
-    # },
+    "extras_require" : {  # Optional
+        'all': ['cvxpy'],
+        ## 'test': ['coverage'],
+    },
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.
@@ -165,22 +158,22 @@ kwargs = {
     # If using Python 2.6 or earlier, then these have to be included in
     # MANIFEST.in as well.
     # "package_data" : {  # Optional
-    #     ## 'sample': ['package_data.dat'],
+    #     'minerva': ['src/minerva/minerva.info'],
     # },
 
     # Although 'package_data' is the preferred approach, in some case you may
     # need to place data files outside of your packages. See:
     # http://docs.python.org/3.4/distutils/setupscript.html#installing-additional-files
     #
-    # In this case, 'data_file' will be installed into '<sys.prefix>/my_data'
-    ## "data_files" : [('my_data', ['data/data_file'])],  # Optional
+    # In this case, 'data_file' will be installed into '<sys.prefix>/.minerva'
+    # "data_files" : [('.minerva', ['src/minerva/minerva.info'])],  # Optional
 
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # `pip` to create the appropriate form of executable for the target
     # platform.
     
-    # "scripts" : ["bin/satyrus"],
+    "scripts" : ['bin/satyrus'],
 
     # For example, the following would provide a command called `sample` which
     # executes the function `main` from this package when invoked:
@@ -199,12 +192,13 @@ kwargs = {
     # issues, where the source is hosted, where to say thanks to the package
     # maintainers, and where to support the project financially. The key is
     # what's used to render the link text on PyPI.
-    "project_urls" : {  # Optional
-        'Bug Reports': f'{URL}#bugs',
-        'Docs': f'{URL}#docs',
-        'Source': f'{URL}#source',
-    },
+    # "project_urls" : {  # Optional
+    #     'Bug Reports': 'https://pedromxavier.github.io/projects/minerva',
+    #     'Funding': 'https://pedromxavier.github.io/projects/minerva',
+    #     'Say Thanks!': 'https://pedromxavier.github.io/projects/minerva',
+    #     'Source': 'https://pedromxavier.github.io/projects/minerva',
+    # },
 }
 
 if __name__ == '__main__':
-    setup(**kwargs)
+    setup(**SETUP_OPTIONS)

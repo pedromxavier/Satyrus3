@@ -100,7 +100,10 @@ def join(glue : {str, callable}, args: list, func: callable=str, enum: bool=Fals
         raise TypeError()
 
 def log():
-    return traceback.format_exc()
+    trace = traceback.format_exc()
+    with open('sat.log', 'w') as file:
+        file.write(trace)
+    return trace
 
 def arange(start, stop=None, step=None):
     """ arange(stop) -> [0, 1, ..., stop]

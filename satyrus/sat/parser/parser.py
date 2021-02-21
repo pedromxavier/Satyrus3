@@ -77,7 +77,7 @@ class SatLexer(object):
         """
         while self.error_stack:
             error = self.error_stack.popleft()
-            stderr << error
+            stderr[0] << error
         else:
             self.exit(1)
 
@@ -251,7 +251,7 @@ class SatParser(object):
         """
         while self.error_stack:
             error = self.error_stack.popleft()
-            stderr << error
+            stderr[0] << error
         else:
             self.exit(1)
 
@@ -374,7 +374,7 @@ class SatParser(object):
         p[0] = p[1]
 
     def p_def_constant(self, p):
-        """ def_constant : varname ASSIGN constant
+        """ def_constant : varname ASSIGN expr
         """
         name = self.get_arg(p, 1)
         value = self.get_arg(p, 3)
@@ -395,7 +395,7 @@ class SatParser(object):
     def p_varname(self, p):
         """ varname : NAME
         """
-        p[0] = self.cast_type(self.get_arg(p, 1), Var)
+        p[0] = self.cast_type(self.get_arg(p, 1, track=True), Var)
 
     def p_python_literal(self, p):
         """ python_literal : PYTHON
@@ -432,9 +432,9 @@ class SatParser(object):
                   | index
         """
         if len(p) == 3:
-            p[0] = (*p[1], self.get_arg(p, 2))
+            p[0] = (*p[1], p[2])
         else:
-            p[0] = (self.get_arg(p, 1),)
+            p[0] = (p[1],)
 
     def p_index(self, p):
         """ index : LBRA expr RBRA
@@ -528,7 +528,7 @@ class SatParser(object):
                   | EXISTS
                   | EXISTS_ONE
         """
-        p[0] = p[1]
+        p[0] = self.get_arg(p, 1, track=False)
 
     def p_domain(self, p):
         """ domain : LBRA expr DOTS expr DOTS expr RBRA
@@ -548,20 +548,20 @@ class SatParser(object):
         else:
             p[0] = [p[1],]
 
-    def p_condition(self, p):
-        """ condition : expr EQ expr
-                      | expr GT expr
-                      | expr LT expr
-                      | expr GE expr
-                      | expr LE expr
-                      | expr NE expr
-        """
-        p[0] = Expr(p[2], p[1], p[3])
-
     def p_condition_expr(self, p):
         """ condition : expr
         """
         p[0] = p[1]
+
+    def p_condition(self, p):
+        """ expr : expr EQ expr
+                 | expr GT expr
+                 | expr LT expr
+                 | expr GE expr
+                 | expr LE expr
+                 | expr NE expr
+        """
+        p[0] = Expr(p[2], p[1], p[3])
 
     def p_expr(self, p):
         """ expr : literal
@@ -604,7 +604,7 @@ class SatParser(object):
         p[0] = p[2]
 
     def p_error(self, t):
-        stderr[5] << f"Error Token: `{t}`"
+        stderr[3] << f"Error Token: `{t}`"
         target = SatType()
         if t:
             target.lexinfo = {

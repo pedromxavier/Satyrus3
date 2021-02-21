@@ -2,10 +2,17 @@
 """
 ## Standard Library
 import sys
+import os
+import locale
 from collections import namedtuple
 
 ## Third-Party
 import colorama
+
+## Constants
+STDIN_FD = 0
+STDOUT_FD = 1
+STDERR_FD = 2
 
 class _stream(object):
     """ stream(level=0, bg=..., fg=..., )
@@ -75,7 +82,10 @@ class _stream(object):
         print(self.RESET, sep="", end="", file=self.file)
 
     def string(self, s: str):
-        return f"{self.RESET}{self.bg}{self.fg}{self.sty}{s}{self.RESET}"
+        if self.bg or self.fg or self.sty:
+            return f"{self.RESET}{self.bg}{self.fg}{self.sty}{s}{self.RESET}"
+        else:
+            return s
 
     def __lshift__(self, s: str):
         if self.echo: print(self.string(s), file=self.file)
@@ -110,10 +120,27 @@ class _stream(object):
             cls.__lvl__ = lvl
         else:
             raise TypeError(f'Invalid type `{type(lvl)}`` for debug lvl. Must be `int`.')
-            
-stream = _stream()
+
+class LogFile:
+
+    def __init__(self):
+        self.fd = os.dup(STDERR_FD)
+        self.file = os.fdopen(self.fd, mode='w', encoding='utf-8')
+
+    def write(self, s: str, *args, **kwargs):
+        self.file.write(s, *args, **kwargs)
+
+## Initialize shell environment
 colorama.init()
+os.system("")
+
+## Initialize default plain stream
+stream = _stream()
+
+## Initialize log file
+logfile = LogFile()
 
 stderr = stream(fg='RED', file=sys.stderr)
 stdwar = stream(fg='YELLOW', file=sys.stderr)
-stdout = stream(fg='CYAN', sty='BRIGHT', file=sys.stdout)
+stdlog = stream(fg='CYAN', file=logfile)
+stdout = stream(file=sys.stdout)

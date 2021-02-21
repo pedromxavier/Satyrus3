@@ -4,6 +4,9 @@
 """
 from sys import intern
 
+## Ancillary variable token
+T_AUX = intern('§')
+
 ## Logical
 T_AND = intern('&')
 T_OR = intern('|')

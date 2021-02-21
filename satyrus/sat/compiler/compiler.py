@@ -7,8 +7,8 @@ import os
 import math
 
 ## Local
-from satyrus.satlib import log, system, stderr, stdout, stdwar, Source, Stack, join
-
+from ...satlib import log, system, stderr, stdlog, stdout, stdwar, Source, Stack, join
+from ...satlib import track as sat_track
 from ..parser import SatParser
 from ..parser.legacy import SatLegacyParser
 from ..types.error import SatValueError, SatTypeError, SatCompilerError, SatReferenceError
@@ -17,13 +17,22 @@ from ..types import Expr, SatType, String, Number, Var, Array
 from ..types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA, OPT, RUN_INIT, RUN_SCRIPT
 from ..types.symbols import CONS_INT, CONS_OPT
 from ..types.symbols.tokens import T_ADD, T_MUL
-
 from .memory import Memory
 
 class SatCompiler:
 	"""
 	"""
 	def __init__(self, instructions: dict, parser : SatParser = None, env: dict=None):
+		"""
+		Parameters
+		----------
+		instructions : dict
+			Dictionary containing the compiler's instruction set. Matches string command identifiers with respective functions.
+		parser : SatParser
+			Allows for chosing alternative parsers for a given compiler. Main uses are for parsing multiple versions of an evolving language.
+		env : dict
+			Initial compiler environment configuration.
+		"""
 		## Build Instruction Set
 		if type(instructions) is not dict:
 			raise TypeError("`instructions` must be of type `dict`.")
@@ -68,48 +77,88 @@ class SatCompiler:
 	def __exit__(self, *args, **kwargs):
 		return None
 
-	def __lshift__(self, error: SatError):
+	def __lshift__(self, error: SatError) -> None:
+		""" Pushes error into compiler stack.
+
+		Parameters
+		----------
+		error: SatError
+			Error to be raised in the next `compiler.checkpoint()` call.
+		"""
 		self.error_stack.push(error)
+
+	def __lt__(self, warning: SatWarning) -> None:
+		""" Prints Warning to stdout.
+
+		Parameters
+		----------
+		warning: SatWarning
+		"""
+		stdwar[1] << warning
 
 	def __getitem__(self, opt_level: int) -> bool:
 		""" Optimization Level check.
-			>>> if compiler[n]: # requires optimization to be at least
-					...block... # in level `n` to execute block.
+
+		Parameters
+		----------
+		opt_level: int
+			Desired optimization level.
+
+		Returns
+		-------
+		bool
+			Equivalent to (compiler.opt >= opt_level)
+
+		Example
+		-------
+		This requires optimization level to be at least `n` to execute block.
+		>>> if compiler[n]:
+				block
 		"""
 		return (self.env[OPT] >= opt_level)
 
-	def __lt__(self, warning: SatWarning) -> None:
-		stdwar << warning
-		
 	def __call__(self, results: object):
 		self.results = results
 
-	def compile(self, source: Source):
+	def compile(self, source: Source) -> int:
 		"""
+		Parameters
+		----------
+		source: Source
+			String-like object created from `.sat` source-code file.
+
+		Returns
+		-------
+		int
+			Compiler exit code.
 		"""
 		try:
 			self.code = 0
 			self._compile(source)
+			return self.code
 		except SatExit as error:
 			self.code = error.code
 			self.results = None
-		except Exception:
-			trace = traceback.format_exc()
-			with open('sat.log', 'w') as file:
-				file.write(trace)
-			stderr << trace
+			return self.code
+		except SatError as error:
+			stderr[0] << error
+			self.code = error.code
+			self.results = None
+			return self.code
+		except Exception as error:
 			self.code = 1
 			self.results = None
-			raise
-		finally:
-			if self.code:
-				stderr << f"> compiler exited with code {self.code}."
-			else:
-				stdout << f"> compiler exited with code {self.code}."
+			raise error
+		else:
 			return self.code
 
 	def _compile(self, source: Source):
-		"""
+		"""Parses source into bytecode and then executes it sequentially.
+
+		Parameters
+		----------
+		source: Source
+			String-like object created from `.sat` source-code file.
 		"""
 		## Input
 		self.source = source
@@ -119,14 +168,20 @@ class SatCompiler:
 		self.bytecode = [(RUN_INIT,), *self.parser.parse(self.source), (RUN_SCRIPT,)]
 
 		for stmt in self.bytecode:
-			stdout[3] << f"{join(', ', stmt, repr)}"
+			stdlog[3] << join('\n\t', [f"\nCMD {stmt[0]}", *(f"{i} {x}" for i, x in enumerate(stmt[1:]))])
 			self.exec(stmt)
 		else:
-			stdout[3] << ""
+			stdlog[3] << ""
 
 		self.checkpoint()
 
 	def exit(self, code: int):
+		"""
+		Parameters
+		----------
+		code: int
+			Compiler exit code.
+		"""
 		raise SatExit(code)
 
 	def exec(self, stmt: tuple):
@@ -134,6 +189,8 @@ class SatCompiler:
 		return self.instructions[name](self, *args)
 
 	def __contains__(self, item: Var):
+		""" 
+		"""
 		return (item in self.memory)
 
 	def memset(self, name: Var, value: SatType):
@@ -148,6 +205,11 @@ class SatCompiler:
 
 	def memget(self, name: Var):
 		"""
+
+		Returns
+		-------
+		SatType
+			Internal Satyrus Object retrieved from compiler memory.
 		"""
 		try:
 			return self.memory.memget(name)
@@ -156,15 +218,33 @@ class SatCompiler:
 		finally:
 			self.checkpoint()
 
-	def evaluate(self, item: SatType, miss: bool=True, calc: bool=True, null: bool=False, context: dict=None) -> SatType:
-		""" :: EVALUATE ::
-			==============
-			>>> n = Var('n')
-			>>> Expr.memset(n, Number('0.5'))
-			>>> Expr.evaluate(n)
-			Number('0.5')
-			>>> Expr.evaluate(Number('7.4'))
-			Number('7.4')
+	def evaluate(self, item: SatType, miss: bool=True, calc: bool=True, null: bool=False, track: bool=False, context: dict=None) -> SatType:
+		"""
+		Parameters
+		----------
+		item : SatType
+			Internal Satyrus object to be evaluated.
+		miss : bool
+			If True, raises SatReferenceError when undefined variable is found. Otherwise, returns the variable itself.
+		calc : bool
+			If True, applies Expr.calculate to expressions retrived by compiler evaluation.
+		null : bool
+			If True, allows Python null (None) to be bypassed during evaluation. Otherwise, raises (critical) ValueError.
+		track : bool
+			If True, attempts to propagate `lexinfo` into evaluation results.
+		context : dict
+			Temporary memory scope to be pushed into memory stack before evaluation and released just after.
+
+		Example
+		-------
+		...
+		>>> compiler = SatCompiler(*args, **kwargs)
+		>>> n = Var('n')
+		>>> compiler.memset(n, Number('0.5'))
+		>>> compiler.evaluate(n)
+		Number('0.5')
+		>>> compiler.evaluate(Number('7.4'))
+		Number('7.4')
 		"""
 		if context is not None:
 			self.push(context)
@@ -172,6 +252,8 @@ class SatCompiler:
 			self.pop()
 		else:
 			result = self._evaluate(item, miss, calc, null)
+
+		if track: sat_track(item, result)
 
 		return result
 
@@ -206,7 +288,12 @@ class SatCompiler:
 			raise TypeError(f'Invalid Type `{type(item)}` for `{item!r}` in `compiler.evaluate`.')
 
 	def push(self, scope: dict=None):
-		""" push memory scope
+		"""Adds new scope to the top of the memory stack. Variable definition is done by `SatCompiler.memset` and will follow its rules for referencing.
+
+		Parameters
+		----------
+		scope : dict, optional
+			Mapping between variables and values.
 		"""
 		self.memory.push()
 		
@@ -215,26 +302,35 @@ class SatCompiler:
 				self.memset(k, v)
 
 	def pop(self, depth: int=1):
-		""" pop memory scope
+		"""Removes a given number of layers from the memory stack. If removal goes beyond global scope, an exception is raised.
+
+		Parameters
+		----------
+		depth: int, optional
+			How many layers should be removed from the memory stack, defaults to a single one.
 		"""
 		self.memory.pop(depth)
 
 	def interrupt(self):
-		"""
+		"""Interrupts compilation after outputing error messages to stderr.
 		"""
 		while self.error_stack:
 			error = self.error_stack.popleft()
-			stderr << error
+			stderr[0] << error
 		else:
 			self.exit(1)
 
 	def checkpoint(self):
-		"""
+		"""If there is any unhandled exception in the compiler's error stack, interrupts compilation via a `SatCompiler.interrupt` call
 		"""
 		if self.status: self.interrupt()
 
 	@property
-	def status(self):
-		"""
+	def status(self) -> bool:
+		"""Evaluates to True if there is any unhandled exception in the compiler's error stack. Otherwise, returns False.
+
+		Returns
+		-------
+		bool
 		"""
 		return bool(self.error_stack)

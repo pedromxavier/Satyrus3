@@ -280,7 +280,7 @@ class SatLegacyParser(object):
         self.lexer = SatLegacyLexer(self.source)
 
         ## Initialize Parser
-        self.parser = yacc.yacc(module=self)
+        self.parser = yacc.yacc(module=self, write_tables=False, debug=False)
         
         ## Run Parser
         if not self.source:

@@ -183,7 +183,7 @@ class ExprParser(object):
         self.lexer = ExprLexer(self.source)
 
         ## Initialize Parser
-        self.parser = yacc.yacc(module=self)
+        self.parser = yacc.yacc(module=self, write_tables=False, debug=False)
 
         self.error_stack = Stack()
 

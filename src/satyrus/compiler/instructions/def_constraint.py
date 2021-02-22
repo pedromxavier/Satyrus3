@@ -114,9 +114,9 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 
 		## Initialize Indexer for this loop
 		if indexer is None:
-			indexer: SatIndexer = Indexer(compiler, l_type, l_var, indices, cond)
+			indexer: SatIndexer = Indexer(compiler.evaluate, l_type, l_var, indices, cond)
 		else:
-			indexer: SatIndexer = indexer << Indexer(compiler, l_type, l_var, indices, cond)
+			indexer: SatIndexer = indexer << Indexer(compiler.evaluate, l_type, l_var, indices, cond)
 
 		compiler.checkpoint()
 

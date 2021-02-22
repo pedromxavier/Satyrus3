@@ -13,11 +13,12 @@
 from functools import wraps
 
 ## Local
-from ..satlib import stdout, stderr, stdwar, devnull
+from ..satlib import Stream, stdout, stderr, stdwar, devnull
 from ..types import Expr, Number, Var
 from ..types.symbols.tokens import T_ADD, T_MUL, T_AUX
 
-#pylint: disable=unused-variable
+## Disable unecessary output
+Stream.set_lvl(0)
 
 class MetaSatAPI(type):
 
@@ -162,7 +163,7 @@ class dwave(SatAPI):
 
         sampleset = sampler.sample_qubo(Q)
 
-        y, e, z = sampleset.record[0]
+        y, e, *_ = sampleset.record[0]
 
         s = {k: y[i] for k, i in x.items()}
 

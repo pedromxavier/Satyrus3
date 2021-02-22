@@ -124,18 +124,20 @@ SETUP_OPTIONS = {
     #
     #   py_modules=["my_module"],
     #
-    "packages" : find_packages(),
-    # [
-    #     "satyrus",
-    #     "satyrus.api",
-    #     "satyrus.cli",
-    #     "satyrus.compiler",
-    #     "satyrus.parser",
-    #     "satyrus.satlib",
-    #     "satyrus.test",
-    #     "satyrus.types",
-    #     "satyrus.types.symbols",
-    #     ],
+    "packages" :  [
+        "satyrus",
+        "satyrus.api",
+        "satyrus.assets",
+        "satyrus.cli",
+        "satyrus.compiler",
+        "satyrus.compiler.instructions",
+        "satyrus.parser",
+        "satyrus.parser.legacy",
+        "satyrus.satlib",
+        "satyrus.test",
+        "satyrus.types",
+        "satyrus.types.symbols",
+        ],
 
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this

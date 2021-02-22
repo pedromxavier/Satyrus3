@@ -8,6 +8,9 @@ from .types.symbols import DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, SYS_CONFIG
 from .types.symbols import OPT
 from .compiler.instructions import instructions
 
+## Disable unecessary output
+Stream.set_lvl(0)
+
 class Satyrus:
 
     def __init__(self, source_path: str, legacy: bool=False, opt: int=0):

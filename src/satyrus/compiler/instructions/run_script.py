@@ -121,10 +121,10 @@ def run_script_energy(compiler: SatCompiler, constraints: dict, penalties: dict)
         raise NotImplementedError("Compiler Optimization not implemented for energy equation generation.")
     else:
         ## Integrity
-        Ei = Expr.calculate(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_INT]), start=Number('0')))
+        Ei = Expr.calculate(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_INT]), Number('0')))
 
         ## Optimality
-        Eo = Expr.calculate(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_OPT]), start=Number('0')))
+        Eo = Expr.calculate(sum((penalties[cons.level] * mapping(cons.expr) for cons in constraints[CONS_OPT]), Number('0')))
 
         E = Expr.calculate(Ei + Eo)
 

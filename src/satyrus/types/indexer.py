@@ -1,19 +1,21 @@
 from abc import ABCMeta, abstractmethod
+from typing import Callable
+
 from .main import Var, Number
 from .expr import SatExpr as Expr
 from .symbols.tokens import T_FORALL, T_EXISTS, T_EXISTS_ONE, T_AND, T_OR
-from ..satlib import stderr
-from ..compiler import SatCompiler
+from ..satlib import stderr, stdwar
 
 class SatIndexer(metaclass=ABCMeta):
 
-    def __init__(self, compiler: SatCompiler, type_: str, var: Var, indices: list, cond: Expr=None):
-        self._type = type_
-        self._vars = [var]
-        self._cond = cond
-        self._next = None
-        self._last = self
-        self._comp = compiler
+    def __init__(self, eval_: Callable, type_: str, var: Var, indices: list, cond: Expr=None):
+        self._eval: Callable = eval_
+        self._type: str = type_
+        self._vars: list = [var]
+        self._cond: Expr = cond
+        self._next: None = None
+        self._last: None = self
+        
         self._indices = [{var: i} for i in indices]
 
     @abstractmethod
@@ -134,28 +136,28 @@ class SatIndexer(metaclass=ABCMeta):
         if context is None: context = {}
         
         if self._next is None:
-            return self._index([self._eval(expr, {**context, **I}) for I in self._indices if self.cond({**context, **I})])
+            return self._index([self.evaluate(expr, {**context, **I}) for I in self._indices if self.cond({**context, **I})])
         else:
             return self._index([self._next.index(expr, {**context, **I}) for I in self._indices if self.cond({**context, **I})])
 
     def cond(self, context: dict) -> bool:
         if self._cond is not None:
-            return bool(self._eval(self._cond, context))
+            return bool(self.evaluate(self._cond, context))
         else:
             return True
 
-    def _eval(self, expr: Expr, context: dict) -> Number:
+    def evaluate(self, expr: Expr, context: dict) -> Number:
         """ SatIndexer._eval(expr: Expr, context: dict) -> Number
             Here, `miss=False` supposes that all variables (`SatType::Var`) are
             verified before, during previous compilation i.e. it is not in the
             goals of this module to assert that condition.
         """
-        return self._comp.evaluate(expr, miss=False, calc=True, null=False, context=context)
+        return self._eval(expr, miss=False, calc=True, null=False, context=context)
 
 class Default(SatIndexer):
 
-    def __init__(self, compiler: SatCompiler, type_: str, var: Var, indices: list, cond: Expr = None):
-        SatIndexer.__init__(self, compiler, type_, var, indices, cond)
+    def __init__(self, eval_: Callable, type_: str, var: Var, indices: list, cond: Expr = None):
+        SatIndexer.__init__(self, eval_, type_, var, indices, cond)
 
     def forall(self, tail: list):
         return Expr(T_AND, *tail)

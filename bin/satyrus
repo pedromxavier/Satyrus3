@@ -1,4 +1,6 @@
-
+#! /usr/bin/env python3
+"""Satyrus3 - A compiler.
+"""
 ## Standard Library
 import sys
 
@@ -7,7 +9,8 @@ def main(argv: list):
         =================
     """
     try:
-        from satyrus.cli import CLI
+        print('hey')
+        from satyrus import CLI
     except ImportError:
         raise SystemError("Satyrus3 is not correctly installed. See README for installation details.")
     else:

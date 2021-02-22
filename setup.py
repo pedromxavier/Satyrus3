@@ -28,7 +28,7 @@ SETUP_OPTIONS = {
     # There are some restrictions on what makes a valid project name
     # specification here:
     # https://packaging.python.org/specifications/core-metadata/#name
-    "name" : 'satyrus3',  # Required
+    "name" : 'satyrus',  # Required
 
     # Versions should comply with PEP 440:
     # https://www.python.org/dev/peps/pep-0440/
@@ -36,7 +36,7 @@ SETUP_OPTIONS = {
     # For a discussion on single-sourcing the version across setup.py and the
     # project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    "version" : '1.0.0',  # Required
+    "version" : '3.0.0',  # Required
 
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
@@ -73,11 +73,11 @@ SETUP_OPTIONS = {
 
     # This should be your name or the name of the organization which owns the
     # project.
-    ## "author" : 'Pedro Maciel Xavier',  # Optional
+    "author" : 'Pedro Maciel Xavier',  # Optional
 
     # This should be a valid email address corresponding to the author listed
     # above.
-    ## "author_email" : 'pedromxavier@poli.ufrj.br',  # Optional
+    "author_email" : 'pedromxavier@poli.ufrj.br',  # Optional
 
     # Classifiers help users find your project by categorizing it.
     #
@@ -100,7 +100,9 @@ SETUP_OPTIONS = {
         # that you indicate whether you support Python 2, Python 3 or both.
         # These classifiers are *not* checked by 'pip install'. See instead
         # 'python_requires' below.
+        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
     ],
 
     # This field adds keywords for your project which will appear on the
@@ -122,14 +124,25 @@ SETUP_OPTIONS = {
     #
     #   py_modules=["my_module"],
     #
-    "packages" : ["satyrus"],
+    "packages" : find_packages(),
+    # [
+    #     "satyrus",
+    #     "satyrus.api",
+    #     "satyrus.cli",
+    #     "satyrus.compiler",
+    #     "satyrus.parser",
+    #     "satyrus.satlib",
+    #     "satyrus.test",
+    #     "satyrus.types",
+    #     "satyrus.types.symbols",
+    #     ],
 
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
     # and refuse to install the project if the version does not match. If you
     # do not support Python 2, you can simplify this to '>=3.5' or similar, see
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
-    "python_requires" : '>=3.8, <4',
+    "python_requires" : '>=3.7, <4',
 
     # This field lists other packages that your project depends on to run.
     # Any package you put here will be installed by pip when your project is
@@ -137,7 +150,7 @@ SETUP_OPTIONS = {
     #
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    "install_requires" : ["ply", "colorama"],  # Optional
+    "install_requires" : ["ply", "colorama", "tabulate"],  # Optional
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). Users will be able to install these using the "extras"
@@ -148,6 +161,8 @@ SETUP_OPTIONS = {
     # Similar to `install_requires` above, these must be valid existing
     # projects.
     "extras_require" : {  # Optional
+        'dwave' : ['dwave-neal'],
+        'gurobi' : ['cvxpy'],
         'all': ['cvxpy'],
         ## 'test': ['coverage'],
     },

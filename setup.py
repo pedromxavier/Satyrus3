@@ -194,11 +194,11 @@ SETUP_OPTIONS = {
 
     # For example, the following would provide a command called `sample` which
     # executes the function `main` from this package when invoked:
-    ## "entry_points" : {  # Optional
-    ##    'console_scripts': [
-    ##        'sample=sample:main',
-    ##    ],
-    ##},
+    "entry_points" : {  # Optional
+       'console_scripts': [
+           'satyrus=satyrus:main',
+       ],
+    },
 
     # List additional URLs that are relevant to your project as a dict.
     #

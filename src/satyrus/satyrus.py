@@ -1,9 +1,7 @@
 
 ## Local
 from .satlib import Source, Stream
-
 from .compiler import SatCompiler
-
 from .types.symbols import DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, SYS_CONFIG
 from .types.symbols import OPT
 from .compiler.instructions import instructions

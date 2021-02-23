@@ -21,8 +21,7 @@ LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
 CONST_TYPES = {CONS_INT, CONS_OPT}
 
 def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: list, expr: Expr, level: {Number, Var}):
-	""" DEF_CONSTRAINT
-		==============
+	"""
 	"""
 	if type(level) is not Number:
 		level = compiler.evaluate(level, miss=True, calc=True, null=True)
@@ -121,13 +120,13 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 		compiler.checkpoint()
 
 	## Verbose
-	stdlog[3] << f"\n@{constraint.name}(raw):\n\t{raw_expr}"
+	with stdlog[3] as stream: stream << f"\n@{constraint.name}(raw):\n\t{raw_expr}"
 
 	## Reduces expression to simplest form
 	expr: Expr = Expr.calculate(raw_expr)
 
 	## Verbose
-	stdlog[3] << f"\n@{constraint.name}(simplified):\n\t{raw_expr}"
+	with stdlog[3] as stream: stream << f"\n@{constraint.name}(simplified):\n\t{raw_expr}"
 
 	# pylint: disable=no-member
 	if str(cons_type) == CONS_INT and not expr.logical:
@@ -152,11 +151,11 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 		## Invert Indexing Loops
 		~indexer #pylint: disable=invalid-unary-operand-type
 		## Verbose
-		stdlog[3] << f"\n@{constraint.name}(D.N.F. + Negation):\n\t{dnf_expr}"
+		with stdlog[3] as stream: stream << f"\n@{constraint.name}(D.N.F. + Negation):\n\t{dnf_expr}"
 	elif str(cons_type) == CONS_OPT:
 		dnf_expr: Expr = Expr.dnf(expr)
 		## Verbose
-		stdlog[3] << f"\n@{constraint.name}(D.N.F.):\n\t{dnf_expr}"
+		with stdlog[3] as stream: stream << f"\n@{constraint.name}(D.N.F.):\n\t{dnf_expr}"
 	else:
 		raise NotImplementedError('There are no extra constraint types yet, just `int` or `opt`.')
 
@@ -164,7 +163,7 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 	dnf_expr: Expr = Expr.calculate(dnf_expr)
 
 	## Verbose
-	stdlog[3] << f"\n@{constraint.name}(D.N.F. + Simplify):\n\t{dnf_expr}"
+	with stdlog[3] as stream: stream << f"\n@{constraint.name}(D.N.F. + Simplify):\n\t{dnf_expr}"
 
 	compiler.checkpoint()
 
@@ -177,7 +176,7 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 	compiler.checkpoint()
 
 	## Verbose
-	stdlog[3] << f"\n@{constraint.name}(indexed):\n\t{idx_expr}"
+	with stdlog[3] as stream: stream << f"\n@{constraint.name}(indexed):\n\t{idx_expr}"
 
 	## One last time after indexing
 	final_expr: Expr = Expr.calculate(idx_expr)
@@ -186,7 +185,7 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 	
 	constraint.set_expr(final_expr)
 
-	stdlog[2] << f"\n@{constraint.name}(final):\n\t{final_expr}"
+	with stdlog[2] as stream: stream << f"\n@{constraint.name}(final):\n\t{final_expr}"
 
 	compiler.checkpoint()
 

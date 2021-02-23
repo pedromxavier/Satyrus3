@@ -128,19 +128,39 @@ class Stream(object):
     def __call__(self, **kwargs):
         return self.__class__(self.lvl, **kwargs)
 
-    ## File interface
+    ## Block skip
+    class SkipBlock(Exception):
+        ...
+
+    def trace(self, *args, **kwargs):
+        raise self.SkipBlock()
+
     def __enter__(self):
-        raise NotImplementedError
+        """Implements with-block skipping.
+        """
+        if not self.echo:
+            sys.settrace(lambda *args, **kwargs: None)
+            frame = sys._getframe(1)
+            frame.f_trace = self.trace
+        else:
+            return self
 
-    def __exit__(self, *args):
-        raise NotImplementedError
+    def __exit__(self, type_, value, traceback):
+        """
+        """
+        if type_ is None:
+            return None
+        elif issubclass(type_, self.SkipBlock):
+            return True
+        else:
+            return None
 
+    ## File interface
     def read(self):
         raise NotImplementedError
 
     def write(self, s: str, *args, **kwargs):
         self.printf(s, **kwargs)
-    ## File interface
 
     @property
     def echo(self):

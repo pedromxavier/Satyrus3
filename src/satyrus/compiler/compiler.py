@@ -168,7 +168,7 @@ class SatCompiler:
 		self.bytecode = [(RUN_INIT,), *self.parser.parse(self.source), (RUN_SCRIPT,)]
 
 		for stmt in self.bytecode:
-			stdlog[3] << join('\n\t', [f"\nCMD {stmt[0]}", *(f"{i} {x}" for i, x in enumerate(stmt[1:]))])
+			with stdlog[3] as stream: stream << join('\n\t', [f"\nCMD {stmt[0]}", *(f"{i} {x}" for i, x in enumerate(stmt[1:]))])
 			self.exec(stmt)
 		else:
 			stdlog[3] << ""

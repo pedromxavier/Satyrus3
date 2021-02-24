@@ -17,15 +17,8 @@ class ArgParser(argparse.ArgumentParser):
 
     @wraps(argparse.ArgumentParser.__init__)
     def __init__(self, *args, **kwargs):
-        self._args = {}
         self._rank = {}
         argparse.ArgumentParser.__init__(self, *args, **kwargs)
-
-    @wraps(argparse.ArgumentParser.add_argument)
-    def add_argument(self, *args, priority: int=0, **kwargs):
-        arg = argparse.ArgumentParser.add_argument(self, *args, **kwargs)
-        self._args[arg.dest] = arg
-        return arg
 
     @wraps(argparse.ArgumentParser.parse_args)
     def parse_args(self, args: list=None, namespace: argparse.Namespace=None):
@@ -101,7 +94,6 @@ class AugmentSatAPI(argparse._StoreAction):
         fname = getattr(namespace, self.dest)
         if fname is not None:
             SatAPI.augment(fname)
-            parser._args['out'].choices = SatAPI.options
 
 class SetOutput(argparse._StoreAction):
 
@@ -114,10 +106,8 @@ class SetOutput(argparse._StoreAction):
     def __call__(self, parser: ArgParser, namespace, values, option_string=None):
         argparse._StoreAction.__call__(self, parser, namespace, values, option_string)
         output = getattr(namespace, self.dest)
-        choices = parser._args['out'].choices
-        if choices is not None and output not in choices:
-            parser.error(gettext(f'invalid choice: {output} (choose from {", ".join(map(repr, choices))})'))
-
+        if output not in SatAPI.options:
+            parser.error(gettext(f'invalid choice: {output} (choose from {", ".join(map(repr, SatAPI.options))})'))
 
 class CLI:
     """Satyrus command line interface.
@@ -165,7 +155,7 @@ class CLI:
         parser.add_argument('-d', '--debug', dest='debug', help=HELP['debug'], action=DebugMode)
 
         ## Optional - Augmented API
-        parser.add_argument('-a', '--api', type=str, dest='api', action=AugmentSatAPI)
+        parser.add_argument('-a', '--api', type=str, dest='api', help=HELP['api'], action=AugmentSatAPI)
 
         ## Optional - Output format
         parser.add_argument('-o', '--out', type=str, dest="out", help=HELP['out'], action=SetOutput)
@@ -184,8 +174,7 @@ class CLI:
         ## Debug mode
         debug: bool = args.debug
 
-        if debug:
-            stdwar[0] << f"Warning: Debug mode enabled."
+        if debug: stdwar[0] << f"Warning: Debug mode enabled."
 
         ## Check source path
         source_path: str = args.source
@@ -197,20 +186,17 @@ class CLI:
         ## Legacy mode
         legacy: bool = args.legacy
 
-        if legacy:
-            stdwar[0] << f"Warning: Parser is in legacy mode."
+        if legacy: stdwar[0] << f"Warning: Parser is in legacy mode."
 
         ## Output selection
         output: str = args.out
 
-        if output is None:
-            output = 'text'
+        if output is None: output = 'text'
 
         ## Compiler Optmization
         opt: int = args.opt
 
-        if opt is None:
-            opt = 0
+        if opt is None: opt = 0
 
         ## Exhibits Compiler Command line arguments
         with stdlog[3] as stream:

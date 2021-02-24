@@ -189,8 +189,20 @@ class text(SatAPI):
         return (None, str(Expr.calculate(expr)))
 
 # ## CSV Output
-# class csv(SatAPI):
-#     ...
+class csv(SatAPI):
+    
+    def solve(self, posiform: Posiform):
+        lines = []
+
+        for term, cons in posiform:
+            if term is None:
+                lines.append(f"{cons:.4f}")
+            else:
+                lines.append(",".join([*term, f"{cons:.4f}"]))
+
+        s = "\n".join(lines)
+
+        return (None, s)
 
 class glpk(SatAPI):
 
@@ -256,7 +268,7 @@ class dwave(SatAPI):
 
         x, Q, c = posiform.qubo()
 
-        sampleset = sampler.sample_qubo(Q)
+        sampleset = sampler.sample_qubo(Q, num_reads=4 * len(x))
 
         y, e, *_ = sampleset.record[0]
 

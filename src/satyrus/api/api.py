@@ -198,7 +198,7 @@ class csv(SatAPI):
             if term is None:
                 lines.append(f"{cons:.4f}")
             else:
-                lines.append(",".join([*term, f"{cons:.4f}"]))
+                lines.append(",".join([f"{cons:.4f}", *term]))
 
         s = "\n".join(lines)
 

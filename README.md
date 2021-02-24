@@ -1,15 +1,25 @@
 # Satyrus3
 
-## Install (Windows, Linux, OSx):
-```bash
-$> git clone https://github.com/pedromxavier/Satyrus3
-$> cd Satyrus3
-$> pip3 install .
-```
+## Install
+Requires 3.7+ CPython ([python.org](https://www.python.org)) distribution.
+- ### Linux, OSx
+    ```bash
+    $ git clone https://github.com/pedromxavier/Satyrus3
+    $ cd Satyrus3
+    $ pip3 install .
+    ```
+- ### Windows:
+    ```shell
+    > git clone https://github.com/pedromxavier/Satyrus3
+    > cd Satyrus3
+    > pip install .
+    ```
 
-## Command Line Interface:
+## Command line interface:
 ```bash
-$> satyrus --help
+$ satyrus --help
+$ satyrus examples/graph_colour.sat > graph_colour.txt
+$ satyrus examples/graph_colour.sat -o csv > graph_colour.csv
 ```
 
 ## Example API code:
@@ -22,11 +32,11 @@ SOURCE_PATH = r"examples/graph_colour.sat"
 sat = SatAPI(SOURCE_PATH)
 
 ## Text output
-_, txt = sat['text'].solve()
+txt = sat['text'].solve()
 print(txt)
 
 ## CSV output
-_, csv = sat['csv'].solve()
+csv = sat['csv'].solve()
 with open('sat.csv', 'w') as file:
     file.write(csv)
     
@@ -36,16 +46,17 @@ x, e = sat['gurobi'].solve()
 ## D-Wave
 x, e = sat['dwave'].solve()
 ```
-## Available Solvers
+## Available solver interfaces
 
-- ### Text \[`'text'`\]
-Returns the arithmetic expression (in C/Fortran/Python style) for the energy equation as a Python string.
+### Partial
+These solvers output either problem specifications or intermediate data.
+- ### Text \[`'text'`\]: <br> Returns the arithmetic expression (in C/Fortran/Python style) for the energy equation as a Python string.
 
-- ### CSV \[`'csv'`\]
-Returns a comma-separated values table as a Python string where each line contains a coefficient followed by the respective variable names. There may one line with no variable names, representing a constant term.
+- ### CSV \[`'csv'`\] <br> Returns a comma-separated values table as a Python string where each line contains a coefficient followed by the respective variable names. A single line with no variable names, represents a constant term.
 
-- ### Gurobi \[`'gurobi'`\]
-Returns a dictionary mapping variable names to binary value and also the respective total energy.
+### Complete
+Complete ones output a dictionary (Python `dict`) mapping variable names to binary value and also the respective total energy (Python `float`).
 
-- ### D-Wave \[`'dwave'`\]
-Returns a dictionary mapping variable names to binary value and also the respective total energy. If a connetion to a quantum host is not available, uses `dwave-neal` simulated annealer locally.
+- ### Gurobi \[`'gurobi'`\] <br> May require license for usage.
+
+- ### D-Wave \[`'dwave'`\] <br> If a connetion to a quantum host is not available, runs `dwave-neal` simulated annealer locally.

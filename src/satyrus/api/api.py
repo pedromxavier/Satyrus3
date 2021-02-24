@@ -15,7 +15,7 @@ import os
 from functools import wraps
 
 ## Local
-from ..satlib import Stream, stdout, stderr, stdwar, stdlog, devnull, Posiform
+from ..satlib import Stream, stdout, stderr, stdwar, stdlog, devnull, Posiform, Timing
 from ..types import Expr, Number, Var
 from ..types.symbols.tokens import T_ADD, T_MUL, T_AUX
 
@@ -173,6 +173,7 @@ class SatAPI(metaclass=MetaSatAPI):
     def _solve(self, posiform: Posiform):
         raise NotImplementedError
 
+    @Timing.timeit(level=1, section="SatAPI.solve")
     def solve(self):
         return self._solve(self.results)
 
@@ -268,7 +269,7 @@ class dwave(SatAPI):
 
         x, Q, c = posiform.qubo()
 
-        sampleset = sampler.sample_qubo(Q, num_reads=4 * len(x))
+        sampleset = sampler.sample_qubo(Q, num_reads=100, num_sweeps=2_000)
 
         y, e, *_ = sampleset.record[0]
 

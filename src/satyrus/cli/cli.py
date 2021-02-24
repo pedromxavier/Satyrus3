@@ -152,7 +152,7 @@ class CLI:
         parser.add_argument('-v', '--verbose', type=int, dest='verbose', choices=[0, 1, 2, 3], help=HELP['verbose'], action=SetVerbosity)
 
         ## Optional - Debug Mode
-        parser.add_argument('-d', '--debug', dest='debug', help=HELP['debug'], action=DebugMode)
+        parser.add_argument('-d', '--debug', dest='debug', help=argparse.SUPPRESS, action=DebugMode)
 
         ## Optional - Augmented API
         parser.add_argument('-a', '--api', type=str, dest='api', help=HELP['api'], action=AugmentSatAPI)

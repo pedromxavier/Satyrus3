@@ -7,7 +7,7 @@ import itertools as it
 from ply import lex, yacc
 
 ## Local
-from ..satlib import stderr, stdout, Source, Stack, PythonShell, PythonError, track
+from ..satlib import stderr, stdout, Source, Stack, PythonShell, PythonError, track, Timing
 from ..types.error import SatParserError, SatLexerError, SatTypeError, SatSyntaxError, SatValueError, SatPythonError, SatExit
 from ..types import Expr, Var, Number, String, SatType, PythonObject
 from ..types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, CMD_PYTHON
@@ -260,6 +260,7 @@ class SatParser(object):
         """
         if self.error_stack: self.interrupt()
 
+    @Timing.timeit(level=1, section="Parser.parse")
     def parse(self, source: Source):
         ## Input
         self.source = source

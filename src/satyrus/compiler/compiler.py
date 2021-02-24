@@ -8,7 +8,7 @@ import math
 
 ## Local
 from .memory import Memory
-from ..satlib import log, system, stderr, stdlog, stdout, stdwar, Source, Stack, join
+from ..satlib import log, system, stderr, stdlog, stdout, stdwar, Source, Stack, join, Timing
 from ..satlib import track as sat_track
 from ..parser import SatParser
 from ..parser.legacy import SatLegacyParser
@@ -120,6 +120,7 @@ class SatCompiler:
 	def __call__(self, results: object):
 		self.results = results
 
+	@Timing.timeit(level=1, section="Compiler.compile")
 	def compile(self, source: Source) -> int:
 		"""
 		Parameters

@@ -261,28 +261,28 @@ class csv(SatAPI):
 
         return "\n".join(lines)
 
-class glpk(SatAPI):
+# class glpk(SatAPI):
 
-    require = [ {'import': 'numpy', 'as': 'np'},
-                {'import': 'cvxpy', 'as': 'cp'},
-                {'import': 'cvxopt', 'check': True} ]
+#     require = [ {'import': 'numpy', 'as': 'np'},
+#                 {'import': 'cvxpy', 'as': 'cp'},
+#                 {'import': 'cvxopt', 'check': True} ]
 
-    def _solve(self, posiform: Posiform):
-        x, Q, c = posiform.qubo()
+#     def _solve(self, posiform: Posiform):
+#         x, Q, c = posiform.qubo()
 
-        X = cp.Variable(len(x), boolean=True)
-        P = cp.Problem(cp.Minimize(cp.quad_form(X, Q)), constraints=None)
+#         X = cp.Variable(len(x), boolean=True)
+#         P = cp.Problem(cp.Minimize(cp.quad_form(X, Q)), constraints=None)
 
-        try:
-            P.solve(solver=cp.GLPK_MI) ## Silenced output
+#         try:
+#             P.solve(solver=cp.GLPK_MI) ## Silenced output
             
-            y, e = X.value, P.value
-            s = {k: int(y[i]) for k, i in x.items()}
+#             y, e = X.value, P.value
+#             s = {k: int(y[i]) for k, i in x.items()}
 
-            return (s, e + c)
-        except cp.error.DCPError:
-            stderr[0] << "Solver Error: Function is not convex."
-            return None
+#             return (s, e + c)
+#         except cp.error.DCPError:
+#             stderr[0] << "Solver Error: Function is not convex."
+#             return None
 
 ## cvxpy - gurobi
 class gurobi(SatAPI):

@@ -28,38 +28,41 @@ class SatError(Exception):
         else:
             return self.msg
 
-class SatWarning(SatError):
-    'Warning'
-##
-class SatIndexError(SatError):
-    'Index Error'
+class SatCompilerError(SatError):
+	'Compiler Error'
 
 class SatExprError(SatError):
     'Expression Error'
 
-class SatCompilerError(SatError):
-	'Compiler Error'
+class SatIndexError(SatError):
+    'Index Error'
 
-class SatValueError(SatError):
-	'Value Error'
-
-class SatTypeError(SatError):
-	'Type Error'
-
-class SatReferenceError(SatError):
-	'Reference Error'
-
-class SatParserError(SatError):
-    'Parser Error'
+class SatFileError(SatError):
+    'File Error'
 
 class SatLexerError(SatError):
     'Lexer Error'
 
-class SatSyntaxError(SatError):
-    'Syntax Error'
+class SatParserError(SatError):
+    'Parser Error'
 
 class SatPythonError(SatError):
     'Python Error'
+
+class SatReferenceError(SatError):
+	'Reference Error'
+
+class SatSyntaxError(SatError):
+    'Syntax Error'
+
+class SatTypeError(SatError):
+	'Type Error'
+
+class SatValueError(SatError):
+	'Value Error'
+
+class SatWarning(SatError):
+    'Warning'
 
 class SatExit(SatError):
     'Exit'

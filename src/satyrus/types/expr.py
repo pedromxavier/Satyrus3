@@ -4,7 +4,7 @@ from functools import reduce
 from collections import defaultdict
 
 ## Local
-from ..satlib import join, compose, stderr
+from ..satlib import join, compose, stderr, Posiform
 from .error import SatValueError
 from .main import Expr, Number, Var, Array, SatType, MetaSatType
 
@@ -293,14 +293,14 @@ class SatExpr(Expr, metaclass=MetaSatType):
         return self.tell(self, all, self._arithmetic)
 
     @classmethod
-    def posiform(cls, item: SatType, boolean: bool=False) -> dict:
+    def posiform(cls, item: SatType, boolean: bool=False) -> Posiform:
         """Turns SatType into posiform dictionary i.e. matching between terms and their respective weights.
 
         Note
         ----
-        SatExpr.posiform supposes that
-            1. `item` is already in its stable representation as a sum of products. 
-            2. If `item` is an expression, its terms are sorted (constants ahead).
+        ``SatExpr.posiform(item: SatType, boolean: bool)`` supposes that
+            1. ``item`` is already in its stable representation as a sum of products. 
+            2. If ``item`` is an expression, its terms are sorted (constants ahead).
 
         Parameters
         ----------
@@ -314,7 +314,7 @@ class SatExpr(Expr, metaclass=MetaSatType):
         dict
             dictionary containing the terms as keys and the multiplying constant as respective value.
         """
-        return {k: v for k, v in cls._posiform(item, boolean).items() if v != Number('0')}
+        return Posiform({k: v for k, v in cls._posiform(item, boolean).items() if v != Number('0')})
 
     @classmethod
     def _posiform(cls, item: SatType, boolean: bool) -> dict:

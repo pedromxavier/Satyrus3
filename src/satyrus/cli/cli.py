@@ -1,4 +1,4 @@
-r""" Satyrus III - A compiler.
+r"""Satyrus optimization framework compiler.
 """
 ## Standard Library
 import argparse
@@ -81,7 +81,7 @@ class DebugMode(argparse._StoreTrueAction):
         setattr(namespace, 'verbose', 3)
         Stream.set_lvl(3)
 
-class AugmentSatAPI(argparse._StoreAction):
+class IncludeSatAPI(argparse._StoreAction):
 
     @wraps(argparse._StoreAction.__init__)
     def __init__(self, *args, **kwargs):
@@ -93,7 +93,7 @@ class AugmentSatAPI(argparse._StoreAction):
         argparse._StoreAction.__call__(self, parser, namespace, values, option_string)
         fname = getattr(namespace, self.dest)
         if fname is not None:
-            SatAPI.augment(fname)
+            SatAPI.include(fname)
 
 class SetOutput(argparse._StoreAction):
 
@@ -112,18 +112,16 @@ class SetOutput(argparse._StoreAction):
 class CLI:
     """Satyrus command line interface.
 
-    Note
-    ----
-
     Example
     -------
-    >>> CLI.run()
+    >>> CLI.run(["--help"])
     """
     @classmethod
     def run(cls, argv: list=None):
         """
-        Options
-        -------
+        Parameters
+        ----------
+
         source : str
             Path to source code.
         -o, --out : str
@@ -136,6 +134,8 @@ class CLI:
             Compiler verbosity level.
         -d, --debug : bool
             If True, enables debug mode.
+        -a, --api : str
+            If present, include solver interfaces defined in python file.
         """
 
         ap_kwargs = {
@@ -155,7 +155,7 @@ class CLI:
         parser.add_argument('-d', '--debug', dest='debug', help=argparse.SUPPRESS, action=DebugMode)
 
         ## Optional - Augmented API
-        parser.add_argument('-a', '--api', type=str, dest='api', help=HELP['api'], action=AugmentSatAPI)
+        parser.add_argument('-a', '--api', type=str, dest='api', help=HELP['api'], action=IncludeSatAPI)
 
         ## Optional - Output format
         parser.add_argument('-o', '--out', type=str, dest="out", help=HELP['out'], action=SetOutput)
@@ -164,7 +164,7 @@ class CLI:
         parser.add_argument('-l', '--legacy', dest='legacy', action='store_true', help=HELP['legacy'])
 
         ## Optional - Compiler Optmization degree
-        parser.add_argument('-O', '--opt', type=int, dest='opt', choices=[0, 1, 2, 3], help=HELP['opt'])
+        parser.add_argument('-O', '--opt', type=int, dest='opt', choices=[0, 1, 2, 3], help=argparse.SUPPRESS)
 
         if argv is None:
             args = parser.parse_args()
@@ -217,8 +217,7 @@ class CLI:
             answer: (dict, float) = sat_api[output].solve()
 
             ## Compilation Failed
-            if answer is None:
-                return None
+            if answer is None: return None
         except Exception:
             trace = log()
             if debug:
@@ -229,14 +228,11 @@ class CLI:
             return None
         else:
             ## Output
-            x, e = answer
-            if x is not None: ## Print solution
-                for var, val in x.items():
-                    stdout[0] << f"{var}\t{val}" ## Variable choice
-                stdout[0] << f"E = {e}" ## Total energy for given configuration
-            else: ## Incomplete process
-                stdout[0] << e
-
-        
-
-        
+            with stdout[0] as stream:
+                if SatAPI.complete(answer):
+                    x, e = answer
+                    for var, val in x.items():
+                        stream << f"{var}\t{val}" ## Variable choice
+                    stream << f"E = {e}" ## Total energy for given configuration
+                else: ## Partial Solution
+                    stream << answer

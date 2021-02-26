@@ -1,13 +1,14 @@
-""" :: SATyrus Python API ::
-    ========================
+""" SATyrus Python API
+    ==================
 
-    Example:
+    Example
+    -------
 
-    >>> sat = SatAPI.load_source('~/path/source.sat')
-    >>> # - Mosel Xpress Solver -
-    >>> sat['mosel'].solve()
+    >>> sat = SatAPI('source.sat')
+    >>> # - Gurobi Solver -
+    >>> x, e = sat['mosel'].solve()
     >>> # - DWave Quantum Annealing Solver -
-    >>> sat['dwave'].solve()
+    >>> x, e = sat['dwave'].solve()
 """ 
 ## Standard Library
 import importlib
@@ -15,6 +16,7 @@ import os
 from functools import wraps
 
 ## Local
+from ..satyrus import Satyrus
 from ..satlib import Stream, stdout, stderr, stdwar, stdlog, devnull, Posiform, Timing
 from ..types import Expr, Number, Var
 from ..types.symbols.tokens import T_ADD, T_MUL, T_AUX
@@ -43,8 +45,8 @@ class MetaSatAPI(type):
             raise NameError(f"Class `{name}` is already defined.")
         elif cls.base_class is None:
             raise NotImplementedError(f"Base class `{cls.base_class_name}` was not implemented.")
-        elif 'solve' not in attrs:
-            raise NotImplementedError(f"Method solve(self, posiform: dict) must be implemented for class {name}.")
+        elif '_solve' not in attrs:
+            raise NotImplementedError(f"Method _solve(self, posiform: dict) must be implemented for class {name}.")
         else:
             imports = []
             missing = []
@@ -63,12 +65,9 @@ class MetaSatAPI(type):
             if missing:
                 new_class = cls.subclasses[name] = cls.missing(name, missing)
             else:
+                ## Import required packages
                 for import_, as_ in imports:
                     globals()[as_] = importlib.import_module(import_)
-
-                ## Define interface
-                attrs['_solve'] = cls.solve_func(attrs['solve'])
-                attrs['solve'] = cls.base_class.solve
 
                 ## Register new class
                 new_class = cls.subclasses[name] = type.__new__(cls, name, bases, attrs)
@@ -79,10 +78,10 @@ class MetaSatAPI(type):
         
         def __init__(self, name: str, packages: list):
             self.name = name
-            self.packages = [package['package'] if 'package' in package else package['import'] for package in packages]
+            self.packages = [package['pip'] if 'pip' in package else package['import'] for package in packages]
 
         def __call__(self, *args, **kwargs):
-            stderr[0] << f"Missing packages for this solver ({self.name}). Try running:"
+            stderr[0] << f"There are missing packages for this solver ({self.name}). Try running:"
             for package in self.packages:
                 stderr[0] << f"\t$ pip install {package}"
             return self
@@ -90,48 +89,70 @@ class MetaSatAPI(type):
         def solve(self, *args, **kwargs):
             return None
 
-    @classmethod
-    def solve_func(cls, func: callable):
-        """ func(api: SatAPI)
-        """
-        @wraps(func)
-        def new_func(api, *args, **kwargs):
-            if api.code:
-                return None
-            else:
-                return func(api, *args, **kwargs)
-        return new_func
-
 class SatAPI(metaclass=MetaSatAPI):
-    subclasses = {
+    """
+    To define a new interface one must write, in a separate Python file (``.py``, ``.pyw``), a ``SatAPI`` subclass that implements the ``_solve(self, posiform: Posiform) -> {(dict, float), object}`` method.
+    
+    There are two types of interface: partial and complete. Complete ones must return a ``tuple`` containing a ``dict`` (mapping between variables and binary state) and a ``float`` (total energy for the given configuration). Any implementation that does not return as specified by this signature will be considered partial, leading to its output being returned as in string formating.
 
-    }
+    Example
+    -------
+    As found in ``examples/myapi.py``::
+
+        class MyPartialAPI(SatAPI):
+
+            def _solve(self, posiform: Posiform) -> object:
+                return "My Solution"
+
+        class MyCompleteAPI(SatAPI):
+
+            def _solve(self, posiform: Posiform) -> (dict, float):
+                x = {'x': 0, 'y': 1, 'z': 0}
+                e = 2.0
+                return (x, e)
+
+    Note
+    ----
+    It is not necessary to import SatAPI in this case.
+    """
+
+    subclasses = {}
 
     options = []
 
-    def __init__(self, source_path: str, solve: bool=True, **kwargs: dict):
+    def __init__(self, source_path: str, satyrus: Satyrus=None, **kwargs: dict):
         """
+        Parameters
+        ----------
+
+        source_path : str
+            Path to ``.sat`` source code file.
+        **kwargs : dict
+            Keyword arguments for compiler.
         """
         self.source_path: str = source_path
         self.kwargs: dict = kwargs
 
-        ## Regular usage
-        if solve:
-            from ..satyrus import Satyrus
+        if satyrus is None:
             self.satyrus = Satyrus(self.source_path, **self.kwargs)
         else:
-            self.satyrus = None
+            self.satyrus = satyrus
 
     def __getitem__(self, key: str):
         if key in self.subclasses:
-            subclass = self.subclasses[key](source_path=self.source_path, solve=False, **self.kwargs)
-            subclass.satyrus = self.satyrus
-            return subclass
+            return self.subclasses[key](source_path=self.source_path, satyrus=self.satyrus, **self.kwargs)
         else:
             raise NotImplementedError(f"Unknown solver interface `{key}`. Available options are: {set(self.options)}")
 
     @classmethod
-    def augment(self, fname: str):
+    def include(self, fname: str):
+        """Includes new SatAPI interfaces given a separate Python file (``.py``, ``.pyw``).
+
+        Parameters
+        ----------
+        fname : str
+            Path to Python file.
+        """
         stdlog[1] << f"Augmenting API with content from {fname}"
 
         old_options = set(self.options)
@@ -163,19 +184,59 @@ class SatAPI(metaclass=MetaSatAPI):
                 stdwar[0] << "Warning: No API interfaces added."
 
     @property
-    def results(self):
-        return Posiform(self.satyrus.results)
+    def output(self) -> Posiform:
+        return self.satyrus.output
 
     @property
-    def code(self):
+    def code(self) -> int:
         return self.satyrus.code
 
-    def _solve(self, posiform: Posiform):
+    def _solve(self, posiform: Posiform) -> {(dict, float), object}:
+        """
+        Parameters
+        ----------
+        posiform : Posiform
+            Object that represents a sum of products of variable terms.
+
+        Returns
+        -------
+        dict
+            Mapping between variables and binary states of the solution.
+        float
+            Total energy for given configuration.
+        """
         raise NotImplementedError
 
     @Timing.timeit(level=1, section="SatAPI.solve")
     def solve(self):
-        return self._solve(self.results)
+        """Wraps specific ``_solve(self, posiform: Posiform)`` methods, bounding method to api subclass and, more specifically, instantiated problem.
+
+        Returns
+        -------
+        dict
+            Mapping between variables and binary states of the solution.
+        float
+            Total energy for given configuration.
+        """
+
+        stdlog[2] << "POSIFORM:"
+        stdlog[2] << self.output
+
+        if not self.code:
+            answer: (dict, float) = self._solve(self.output)
+            if self.complete(answer):
+                x, e = answer
+                ## Discard Ancillary variables
+                x = {k: v for k, v in x.items() if not k.startswith(T_AUX)}
+                return (x, e)
+            else: ## Partial solution
+                return answer
+        else:
+            return None
+
+    @staticmethod
+    def complete(answer: object):
+        return (isinstance(answer, tuple) and len(answer) == 2 and isinstance(answer[0], (dict, Posiform)) and isinstance(answer[1], float))
 
 ## NOTE: DO NOT EDIT ABOVE THIS LINE
 ## ---------------------------------
@@ -183,27 +244,22 @@ class SatAPI(metaclass=MetaSatAPI):
 ## Text Output
 class text(SatAPI):
 
-    def solve(self, posiform: dict) -> (None, str):
-        """
-        """
-        expr = Expr(T_ADD, *(Number(cons) if term is None else Expr(T_MUL, Number(cons), *term) for (term, cons) in posiform.items()))
-        return (None, str(Expr.calculate(expr)))
+    def _solve(self, posiform: Posiform) -> str:
+        return str(Expr.calculate(Expr(T_ADD, *(Number(cons) if term is None else Expr(T_MUL, Number(cons), *map(Var, term)) for (term, cons) in posiform))))
 
 # ## CSV Output
 class csv(SatAPI):
     
-    def solve(self, posiform: Posiform):
+    def _solve(self, posiform: Posiform) -> str:
         lines = []
 
         for term, cons in posiform:
             if term is None:
-                lines.append(f"{cons:.4f}")
+                lines.append(f"{cons:.5f}")
             else:
-                lines.append(",".join([f"{cons:.4f}", *term]))
+                lines.append(",".join([f"{cons:.5f}", *term]))
 
-        s = "\n".join(lines)
-
-        return (None, s)
+        return "\n".join(lines)
 
 class glpk(SatAPI):
 
@@ -211,23 +267,21 @@ class glpk(SatAPI):
                 {'import': 'cvxpy', 'as': 'cp'},
                 {'import': 'cvxopt', 'check': True} ]
 
-    def solve(self, posiform: Posiform):
+    def _solve(self, posiform: Posiform):
         x, Q, c = posiform.qubo()
 
         X = cp.Variable(len(x), boolean=True)
         P = cp.Problem(cp.Minimize(cp.quad_form(X, Q)), constraints=None)
 
         try:
-            with devnull: P.solve(solver=cp.GLPK_MI) ## Silenced output
+            P.solve(solver=cp.GLPK_MI) ## Silenced output
             
             y, e = X.value, P.value
             s = {k: int(y[i]) for k, i in x.items()}
+
             return (s, e + c)
         except cp.error.DCPError:
             stderr[0] << "Solver Error: Function is not convex."
-            return None
-        except Exception as error:
-            stderr[0] << error
             return None
 
 ## cvxpy - gurobi
@@ -236,9 +290,9 @@ class gurobi(SatAPI):
     
     require = [ {'import': 'numpy', 'as': 'np'},
                 {'import': 'cvxpy', 'as': 'cp'},
-                {'import': 'gurobipy', 'package': '-i https://pypi.gurobi.com gurobipy', 'check': True} ]
+                {'import': 'gurobipy', 'pip': '-i https://pypi.gurobi.com gurobipy', 'check': True} ]
 
-    def solve(self, posiform: Posiform):
+    def _solve(self, posiform: Posiform) -> (dict, float):
         x, Q, c = posiform.qubo()
 
         X = cp.Variable(len(x), boolean=True)
@@ -260,19 +314,21 @@ class gurobi(SatAPI):
 
 class dwave(SatAPI):
 
-    require = [{'import': 'neal', 'package': 'dwave-neal'}]
+    require = [{'import': 'neal', 'pip': 'dwave-neal'}]
     
-    def solve(self, posiform: Posiform):
+    def _solve(self, posiform: Posiform) -> (dict, float):
         stdwar[0] << "Warning: D-Wave option currently running local simulated annealing since remote connection to quantum host is unavailable."
 
         sampler = neal.SimulatedAnnealingSampler()
 
         x, Q, c = posiform.qubo()
 
-        sampleset = sampler.sample_qubo(Q, num_reads=100, num_sweeps=2_000)
+        sampleset = sampler.sample_qubo(Q, num_reads=2_000, num_sweeps=2_000)
 
         y, e, *_ = sampleset.record[0]
 
         s = {k: y[i] for k, i in x.items()}
 
         return (s, e + c)
+
+__all__ = ['SatAPI']

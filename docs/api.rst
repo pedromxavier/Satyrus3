@@ -3,21 +3,10 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Satyrus Docs
-=============
+Python API
+**********
 
-.. toctree::
-   :maxdepth: 2
+How to
+======
 
-   start
-   satish
-   api
-   examples
-   source
-
-Indices and tables
-------------------
-   
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+In order to define new solver interfaces, one may write a Python file (*.py*, *.pyw*) with ``SatAPI`` subclasses who implement the ``solve`` method.

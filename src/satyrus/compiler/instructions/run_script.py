@@ -105,9 +105,12 @@ def run_script_penalties(compiler: SatCompiler, constraints: dict, penalties: di
         else:
             penalties[level_j] = penalties[level_k] * (n_k + 1)
     
-    ## print penalty table
+    ## Print penalty table
     with stdlog[2] as stream:
+        stream << " PENALTY TABLE"
         stream << tabulate([(f"{k:6d}", f"{n:d}", penalties[k]) for k, n in levels], headers=["lvl", "n", "value"], tablefmt="pretty")
+        stream << ""
+        stream << " CONSTANTS"
         stream << tabulate([[compiler.env[EPSILON], compiler.env[ALPHA]]], headers =["ε", "α"], tablefmt="pretty")
 
     compiler.checkpoint()

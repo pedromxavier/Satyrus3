@@ -1,12 +1,12 @@
 #pylint: disable=undefined-variable
-class myapi1(SatAPI):
+class MyPartialAPI(SatAPI):
 
-    def solve(self, posiform):
-        print("Solving with myapi1")
-        return (None, 'solution1')
+    def _solve(self, posiform: Posiform) -> {(dict, float), object}:
+        return "My Solution"
 
-class myapi2(SatAPI):
-
-    def solve(self, posiform):
-        print("Solving with myapi2")
-        return (None, 'solution2')
+class MyCompleteAPI(SatAPI):
+    
+    def _solve(self, posiform: Posiform) -> {(dict[str: int], float), object}:
+        x = {'x': 0, 'y': 1, 'z': 0}
+        e = 2.0
+        return (x, e)

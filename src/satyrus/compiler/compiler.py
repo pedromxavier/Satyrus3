@@ -8,20 +8,19 @@ import math
 
 ## Local
 from .memory import Memory
-from ..satlib import log, system, stderr, stdlog, stdout, stdwar, Source, Stack, join, Timing
+from ..satlib import log, system, stderr, stdlog, stdout, stdwar, Source, Stack, join, Posiform, Timing
 from ..satlib import track as sat_track
 from ..parser import SatParser
 from ..parser.legacy import SatLegacyParser
 from ..types.error import SatValueError, SatTypeError, SatCompilerError, SatReferenceError
 from ..types.error import SatError, SatExit, SatWarning
 from ..types import Expr, SatType, String, Number, Var, Array
-from ..types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA, OPT, RUN_INIT, RUN_SCRIPT
+from ..types.symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA, OPT, CMD_INIT, CMD_SCRIPT
 from ..types.symbols import CONS_INT, CONS_OPT
 from ..types.symbols.tokens import T_ADD, T_MUL
 
 class SatCompiler:
-	"""
-	"""
+
 	def __init__(self, instructions: dict, parser : SatParser = None, env: dict=None):
 		"""
 		Parameters
@@ -49,7 +48,7 @@ class SatCompiler:
 		else:
 			self.parser = parser
 
-		## Memory
+		## Compiler Memory
 		self.memory = Memory()
 
 		## Compiler Environment
@@ -58,11 +57,11 @@ class SatCompiler:
 		else:
 			self.env = dict(env)
 
-		## Results
-		self.results = None
+		## Output
+		self.output = Posiform()
 
 		## Exit code
-		self.code = 1
+		self.code = 0
 
 		## Errors
 		self.error_stack = Stack()
@@ -117,8 +116,8 @@ class SatCompiler:
 		"""
 		return (self.env[OPT] >= opt_level)
 
-	def __call__(self, results: object):
-		self.results = results
+	def __call__(self, output: {Posiform, None}):
+		self.output = output
 
 	@Timing.timeit(level=1, section="Compiler.compile")
 	def compile(self, source: Source) -> int:
@@ -134,60 +133,84 @@ class SatCompiler:
 			Compiler exit code.
 		"""
 		try:
+			## Clear compiler state
 			self.code = 0
-			self._compile(source)
+			## Adds special instructions RUN_INIT, RUN_SCRIPT in both ends
+			self.execute([CMD_INIT, *self.parse(source), CMD_SCRIPT])
 			return self.code
 		except SatExit as error:
 			self.code = error.code
-			self.results = None
+			self.output = None
 			return self.code
 		except SatError as error:
 			stderr[0] << error
 			self.code = error.code
-			self.results = None
+			self.output = None
 			return self.code
 		except Exception as error:
 			self.code = 1
-			self.results = None
+			self.output = None
 			raise error
 		else:
 			return self.code
 
-	def _compile(self, source: Source):
-		"""Parses source into bytecode and then executes it sequentially.
+	def parse(self, source: Source, load: bool=False) -> list:
+		"""Parses source into bytecode.
 
 		Parameters
 		----------
-		source: Source
+		source : Source
 			String-like object created from `.sat` source-code file.
+
+		Returns
+		-------
+		list
+			Bytecode sequence.
 		"""
-		## Input
-		self.source = source
-
 		## Parse code into bytecode
-		## Adds special instructions RUN_INIT, RUN_SCRIPT in both ends
-		self.bytecode = [(RUN_INIT,), *self.parser.parse(self.source), (RUN_SCRIPT,)]
+		return self.parser.parse(source)
 
-		for stmt in self.bytecode:
-			with stdlog[3] as stream: stream << join('\n\t', [f"\nCMD {stmt[0]}", *(f"{i} {x}" for i, x in enumerate(stmt[1:]))])
-			self.exec(stmt)
+	def execute(self, bytecode: list):
+		"""Executes bytecode sequentially.
+
+		Parameters
+		----------
+		bytecode : list
+			Sequence of tuples (CMD, *args) to be executed.
+		"""
+
+		if stdlog[3]:
+			with stdlog[3] as stream:
+				for stmt in bytecode:
+					stream << join('\n\t', [f"\nCMD {stmt[0]}", *(f"{i} {x}" for i, x in enumerate(stmt[1:]))])
+					self.exec(stmt)
+				else:
+					stream << ""
 		else:
-			stdlog[3] << ""
+			for stmt in bytecode: self.exec(stmt)
 
 		self.checkpoint()
 
-	def exit(self, code: int):
-		"""
+	def exit(self, code: int=0):
+		"""Exits compiler session with a given code.
+
 		Parameters
 		----------
-		code: int
+		code : int
 			Compiler exit code.
 		"""
 		raise SatExit(code)
 
 	def exec(self, stmt: tuple):
-		name, *args = stmt
-		return self.instructions[name](self, *args)
+		"""Executes a single bytecode instruction.
+
+		Parameters
+		----------
+		stmt : tuple
+			(CMD, *args) pair.
+		"""
+		cmd, *args = stmt
+		return self.instructions[cmd](self, *args)
 
 	def __contains__(self, item: Var):
 		""" 

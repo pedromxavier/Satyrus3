@@ -18,8 +18,11 @@ class Posiform(dict):
     """
     """
     def __init__(self, d: dict=None):
-        dict.__init__(self, {} if d is None else {(k if k is None else tuple(k)): float(v) for k, v in d.items() if (float(v) != 0.0)})
+        dict.__init__(self, {} if d is None else {(k if k is None else tuple(map(str, k))): float(v) for k, v in d.items() if (float(v) != 0.0)})
         self.__aux = 0
+
+    def __iter__(self):
+        return iter(dict.items(self))
 
     def copy(self):
         return Posiform(dict.copy(self))
@@ -84,7 +87,7 @@ class Posiform(dict):
                 return NotImplemented
             else:
                 posiform = self.copy()
-                for k in posiform:
+                for k, _ in posiform:
                     posiform[k] *= cons
                 return posiform
 
@@ -106,7 +109,7 @@ class Posiform(dict):
         -------
         Posiform
         """
-        if len(term) <= 2:
+        if term is None or len(term) <= 2:
             return self.cls({term: cons})
         elif len(term) == 3:
             ## Reduction by minimum selection
@@ -168,21 +171,24 @@ class Posiform(dict):
 
         reduced_posiform = Posiform()
 
-        for term, cons in self.items():
+        c: float = 0.0
+
+        for term, cons in self:
             if term is not None:
                 reduced_posiform += self.reduce_degree(term, cons)
             else:
-                c = float(cons)
+                c += float(cons)
 
         variables: set = set()
-        for term in reduced_posiform:
+
+        for term, _ in reduced_posiform:
             variables.update(term)
         
         n = len(variables)
         x = {v: i for i, v in enumerate(sorted(variables))}
         Q = zeros((n, n), dtype=float)
 
-        for term, cons in reduced_posiform.items():
+        for term, cons in reduced_posiform:
             I = tuple(map(x.get, term))
             if len(I) == 1:
                 i, = I
@@ -193,4 +199,5 @@ class Posiform(dict):
                 i, j = I
                 Q[i][j] += float(cons)
                 Q[j][i] += float(cons)
+
         return x, Q, c

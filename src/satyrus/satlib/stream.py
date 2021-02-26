@@ -128,6 +128,9 @@ class Stream(object):
     def __call__(self, **kwargs):
         return self.__class__(self.lvl, **kwargs)
 
+    def __bool__(self) -> bool:
+        return self.echo
+
     ## Block skip
     class SkipBlock(Exception):
         ...

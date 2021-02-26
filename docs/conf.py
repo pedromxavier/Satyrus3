@@ -10,10 +10,64 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+sys.path.insert(0, os.path.abspath('..'))
 
+# -- Add Lexer to Pygments ---------------------------------------------------
+
+from pygments.lexer import RegexLexer
+from pygments import token
+from sphinx.highlighting import lexers
+
+class SATishLexer(RegexLexer):
+    name = 'SATish'
+    aliases = ['satish']
+    filenames = ['*.sat']
+
+    tokens = {
+        'root': [
+            (r'\#\{[\S\s]*?\}\#', token.Comment.Multiline),
+            (r'\#.*?$', token.Comment.Singleline),
+            (r'[-+]?[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?', token.Number),
+            (r'\(int\)', token.Keyword),
+            (r'\(opt\)', token.Keyword),
+            (r'\(', token.Punctuation),
+            (r'\)', token.Punctuation),
+            (r'\[', token.Punctuation),
+            (r'\]', token.Punctuation),
+            (r'\{', token.Punctuation),
+            (r'\}', token.Punctuation),
+            (r'\;', token.Punctuation),
+            (r'\:', token.Punctuation),
+            (r'\,', token.Punctuation),
+            (r'\@', token.Operator),
+            (r'\$', token.Operator),
+            (r'\&', token.Operator),
+            (r'\|', token.Operator),
+            (r'\^', token.Operator),
+            (r'\~', token.Operator),
+            (r'\<\-\>', token.Operator),
+            (r'\<\-', token.Operator),
+            (r'\-\>', token.Operator),
+            (r'\+', token.Operator),
+            (r'\-', token.Operator),
+            (r'\*', token.Operator),
+            (r'\!\=', token.Operator),
+            (r'\=\=', token.Operator),
+            (r'\<\=', token.Operator),
+            (r'\>\=', token.Operator),
+            (r'\=', token.Operator),
+            (r'\<', token.Operator),
+            (r'\>', token.Operator),
+            (r'\?[a-zA-Z_][a-zA-Z0-9_]*\:', token.Literal),
+            (r'[a-zA-Z_][a-zA-Z0-9_]*', token.Name),
+            (r'\s', token.Whitespace)
+            #(r'.*', token.Text),
+        ],
+    }
+
+lexers['satish'] = SATishLexer(startinline=True)
 
 # -- Project information -----------------------------------------------------
 
@@ -31,7 +85,7 @@ release = '3.0.0'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['recommonmark', 'sphinx.ext.autodoc']
+extensions = ['recommonmark', 'sphinx.ext.autodoc', 'sphinx.ext.coverage', 'sphinx.ext.napoleon']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -53,3 +107,6 @@ html_theme = 'alabaster'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+
+# ----------------------------------------------------------------------------

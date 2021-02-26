@@ -2,12 +2,14 @@ from sys import intern
 
 ## Statements
 RUN_INIT = intern('RUN_INIT')
+CMD_INIT = (RUN_INIT,)
 SYS_CONFIG = intern('SYS_CONFIG')
 DEF_CONSTANT  = intern('DEF_CONSTANT')
 DEF_ARRAY = intern('DEF_ARRAY')
 DEF_CONSTRAINT = intern('DEF_CONSTRAINT')
 CMD_PYTHON = intern('CMD_PYTHON')
 RUN_SCRIPT = intern('RUN_SCRIPT')
+CMD_SCRIPT = (RUN_SCRIPT,)
 
 ## Sys config options
 ## To be used in `compiler.env` dict as keys.

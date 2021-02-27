@@ -110,28 +110,32 @@ class Posiform(dict):
         Posiform
         """
         if term is None or len(term) <= 2:
-            return self.cls({term: cons})
-        elif len(term) == 3:
+            return self.cls({sorted(term): cons})
+        elif len(term) >= 3:
             ## Reduction by minimum selection
             a = cons
             w = self.aux
-            x, y, z = term
+            x, y, *z = sorted(term)
 
             if self.minimum_selection(): ## minimum selection
                 if a < 0:
                     ## if a < 0: a (x y z) => a w (x + y + z - 2) 
-                    return self.cls({(x, w): a, (y, w): a, (z, w): a, (w,): -2.0 * a})
+                    return self.cls({(x, w): a, (y, w): a, (*z, w): a, (w,): -2.0 * a})
                 else:
                     ## if a > 0: a (x y z) => a (x w + y w + z w + x y + x z + y z - x - y - z - w + 1) 
                     return self.cls({
-                        (x, w): a, (y, w): a, (z, w): a,
-                        (x, y): a, (x, z): a, (y, z): a, 
-                        (x,): -a, (y,): -a, (z,): -a, (w,): -a,
+                        (x, w): a, (y, w): a, (x, y): a,
+                        (x,): -a, (y,): -a, (w,): -a,
                         None : a
-                    })
+                    }) + (
+                    + self.reduce_degree((x, *z), a)
+                    + self.reduce_degree((y, *z), a)
+                    + self.reduce_degree((*z, w), a)
+                    + self.reduce_degree((*z,), -a)
+                    )
             elif self.substitution():
                 alpha = 2.0 ## TODO: How can I compute alpha? (besides alpha > 1)
-                return self.cls({(w, z): 1.0}) + alpha * self.P(x, y, w)
+                return self.reduce_degree((*z, w), 1.0) + alpha * self.P(x, y, w)
             else:
                 raise NotImplementedError('Not an option.')
         else:

@@ -8,6 +8,8 @@ class Timing:
 
     class Timer:
 
+        BARS = 25
+
         def __init__(self, prec=2):
             self.pattern = f"Time elapsed @ {{}}:  {{:.{prec}f}}s"
             self.sections = {}
@@ -43,6 +45,24 @@ class Timing:
             self.sections.clear()
 
         def report(self):
-            return [(k, v) for k, v in self.sections.items() if k is not None]
+            return [(k, t) for k, t in self.sections.items() if k is not None]
 
-    timeit = Timer()
+        def show_report(self, level: int=0):
+            R = self.report()
+            L = max(len(k) for k, _ in R)
+            T = sum(t for _, t in R)
+            stdlog[level] << f"Time elapsed: {T:.2f}s"
+            for k, t in R:
+                stdlog[level] << f"{self.__fill(k, L)}\t{self.__bar(t, T)}"
+
+        @classmethod
+        def __fill(cls, k:str, L: int):
+            l = len(k)
+            return k + ' ' * (L - l)
+
+        @classmethod
+        def __bar(cls, t: float, T: float):
+            x = (t / T) if T else 0.0
+            return '[' + '■' * int(cls.BARS * x) + ' ' * int(cls.BARS * (1.0 - x)) + ']' + f"{t:6.2f}s ({x * 100.0:6.2f}%)"
+
+    timer = Timer()

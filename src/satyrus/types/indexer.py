@@ -3,7 +3,7 @@ from typing import Callable
 
 from .main import Var, Number
 from .expr import SatExpr as Expr
-from .symbols.tokens import T_FORALL, T_EXISTS, T_EXISTS_ONE, T_AND, T_OR
+from .symbols.tokens import T_FORALL, T_EXISTS, T_UNIQUE, T_AND, T_OR
 from ..satlib import stderr, stdwar
 
 class SatIndexer(metaclass=ABCMeta):
@@ -27,7 +27,7 @@ class SatIndexer(metaclass=ABCMeta):
         ...
 
     @abstractmethod
-    def exists_one(self, expr: Expr, context: dict=None):
+    def unique(self, expr: Expr, context: dict=None):
         ...
 
     @property
@@ -125,8 +125,8 @@ class SatIndexer(metaclass=ABCMeta):
             return self.forall(tail)
         elif self._type == T_EXISTS:
             return self.exists(tail)
-        elif self._type == T_EXISTS_ONE:
-            return self.exists_one(tail)
+        elif self._type == T_UNIQUE:
+            return self.unique(tail)
         else:
             return ValueError(f"Invalid loop type `{self._type}`")
         
@@ -165,5 +165,5 @@ class Default(SatIndexer):
     def exists(self, tail: list):
         return Expr(T_OR, *tail)
 
-    def exists_one(self, tail: list):
+    def unique(self, tail: list):
         raise NotImplementedError

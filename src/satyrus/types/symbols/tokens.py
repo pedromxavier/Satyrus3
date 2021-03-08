@@ -6,6 +6,8 @@ from sys import intern
 
 ## Ancillary variable token
 T_AUX = intern('§')
+## Extra Indexing variable token
+T_IJK = intern('°')
 
 ## Logical
 T_AND = intern('&')
@@ -21,7 +23,7 @@ T_RIMP = intern('<-')
 ## Quantifiers
 T_FORALL = intern('@')      
 T_EXISTS = intern('$')      
-T_EXISTS_ONE = intern('$!') 
+T_UNIQUE = intern('$!') 
 
 T_LOGICAL = {
   T_AND,
@@ -36,7 +38,7 @@ T_LOGICAL = {
   ## Quantifiers
   T_FORALL,
   T_EXISTS,
-  T_EXISTS_ONE,
+  T_UNIQUE,
 }
 
 

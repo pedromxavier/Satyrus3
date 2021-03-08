@@ -11,7 +11,7 @@ from gettext import gettext
 from .help import HELP
 from ..api import SatAPI
 from ..assets import SAT_BANNER
-from ..satlib import Stream, stdlog, stdout, stdwar, stderr, log
+from ..satlib import Timing,Stream, stdlog, stdout, stdwar, stderr, log
 
 class ArgParser(argparse.ArgumentParser):
 
@@ -163,6 +163,9 @@ class CLI:
         ## Optional - Legacy Syntax
         parser.add_argument('-l', '--legacy', dest='legacy', action='store_true', help=HELP['legacy'])
 
+        ## Optional - Legacy Syntax
+        parser.add_argument('-r', '--report', dest='report', action='store_true', help=HELP['report'])
+
         ## Optional - Compiler Optmization degree
         parser.add_argument('-O', '--opt', type=int, dest='opt', choices=[0, 1, 2, 3], help=argparse.SUPPRESS)
 
@@ -187,6 +190,9 @@ class CLI:
         legacy: bool = args.legacy
 
         if legacy: stdwar[0] << f"Warning: Parser is in legacy mode."
+
+        ## Report performance
+        report: bool = args.report
 
         ## Output selection
         output: str = args.out
@@ -236,3 +242,5 @@ class CLI:
                     stream << f"E = {e}" ## Total energy for given configuration
                 else: ## Partial Solution
                     stream << answer
+
+            if report: Timing.timer.show_report()

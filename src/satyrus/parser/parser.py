@@ -23,7 +23,7 @@ class SatLexer(object):
 
     ## List of token names.
     tokens = (
-        'FORALL', 'EXISTS', 'EXISTS_ONE', # quantifiers
+        'FORALL', 'EXISTS', 'UNIQUE', # quantifiers
 
         'NOT', 'AND', 'OR', 'XOR', # logical
 
@@ -100,7 +100,7 @@ class SatLexer(object):
 
     t_FORALL = r'\@'
     t_EXISTS = r'\$'
-    t_EXISTS_ONE = r'\!\$'
+    t_UNIQUE = r'\$\!'
 
     t_NOT = r'\~'
 
@@ -206,7 +206,7 @@ class SatParser(object):
 
         ('left', 'EQ', 'NE', 'GE', 'LE', 'GT', 'LT'),
 
-        ('left', 'FORALL', 'EXISTS', 'EXISTS_ONE'),
+        ('left', 'FORALL', 'EXISTS', 'UNIQUE'),
 
         ('left', 'DOTS'),
 
@@ -260,7 +260,7 @@ class SatParser(object):
         """
         if self.error_stack: self.interrupt()
 
-    @Timing.timeit(level=1, section="Parser.parse")
+    @Timing.timer(level=1, section="Parser.parse")
     def parse(self, source: Source):
         ## Input
         self.source = source
@@ -269,7 +269,7 @@ class SatParser(object):
         self.lexer = SatLexer(self.source)
 
         ## Initialize Parser
-        self.parser = yacc.yacc(module=self, write_tables=False, debug=False)
+        self.parser = yacc.yacc(module=self, debug=False)
         
         ## Run Parser
         if not self.source:
@@ -527,7 +527,7 @@ class SatParser(object):
     def p_quant(self, p):
         """ quant : FORALL
                   | EXISTS
-                  | EXISTS_ONE
+                  | UNIQUE
         """
         p[0] = self.get_arg(p, 1, track=False)
 

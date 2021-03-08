@@ -22,7 +22,18 @@ from ..types import Expr, Number, Var
 from ..types.symbols.tokens import T_ADD, T_MUL, T_AUX
 
 ## Eventual imports
-np = cp = neal = None
+try:
+    import neal
+except ImportError:
+    neal = None
+try:
+    import numpy as np
+except ImportError:
+    np = None
+try:
+    import cvxpy as cp
+except ImportError:
+    cp = None
 
 ## Disable unecessary output when imported
 Stream.set_lvl(0)
@@ -61,7 +72,6 @@ class MetaSatAPI(type):
                             imports.append((package['import'], package['as']))
                         else:
                             imports.append((package['import'], package['import']))
-
             if missing:
                 new_class = cls.subclasses[name] = cls.missing(name, missing)
             else:
@@ -207,7 +217,7 @@ class SatAPI(metaclass=MetaSatAPI):
         """
         raise NotImplementedError
 
-    @Timing.timeit(level=1, section="SatAPI.solve")
+    @Timing.timer(level=1, section="SatAPI.solve")
     def solve(self):
         """Wraps specific ``_solve(self, posiform: Posiform)`` methods, bounding method to api subclass and, more specifically, instantiated problem.
 
@@ -260,29 +270,6 @@ class csv(SatAPI):
                 lines.append(",".join([f"{cons:.5f}", *term]))
 
         return "\n".join(lines)
-
-# class glpk(SatAPI):
-
-#     require = [ {'import': 'numpy', 'as': 'np'},
-#                 {'import': 'cvxpy', 'as': 'cp'},
-#                 {'import': 'cvxopt', 'check': True} ]
-
-#     def _solve(self, posiform: Posiform):
-#         x, Q, c = posiform.qubo()
-
-#         X = cp.Variable(len(x), boolean=True)
-#         P = cp.Problem(cp.Minimize(cp.quad_form(X, Q)), constraints=None)
-
-#         try:
-#             P.solve(solver=cp.GLPK_MI) ## Silenced output
-            
-#             y, e = X.value, P.value
-#             s = {k: int(y[i]) for k, i in x.items()}
-
-#             return (s, e + c)
-#         except cp.error.DCPError:
-#             stderr[0] << "Solver Error: Function is not convex."
-#             return None
 
 ## cvxpy - gurobi
 class gurobi(SatAPI):

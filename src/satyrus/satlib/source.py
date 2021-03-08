@@ -101,10 +101,11 @@ def trackable(cls: type):
 
     return cls
 
-def track(from_: object, to_: object):
+def track(from_: object, to_: object, out: bool=False):
     if hasattr(from_, 'lexinfo'):
         if hasattr(to_, 'lexinfo'):
             to_.lexinfo.update(from_.lexinfo)
+            if out: return to_
         else:
             raise AttributeError('`to_` is not trackable, i.e. has no attribute `lexinfo`.')
     else:

@@ -48,6 +48,9 @@ class SatCompiler:
 		else:
 			self.parser = parser
 
+		## Eventual source
+		self.source: Source = None
+
 		## Compiler Memory
 		self.memory = Memory()
 
@@ -119,7 +122,7 @@ class SatCompiler:
 	def __call__(self, output: {Posiform, None}):
 		self.output = output
 
-	@Timing.timeit(level=1, section="Compiler.compile")
+	@Timing.timer(level=1, section="Compiler.compile")
 	def compile(self, source: Source) -> int:
 		"""
 		Parameters
@@ -135,21 +138,22 @@ class SatCompiler:
 		try:
 			## Clear compiler state
 			self.code = 0
+			self.source = source
 			## Adds special instructions RUN_INIT, RUN_SCRIPT in both ends
 			self.execute([CMD_INIT, *self.parse(source), CMD_SCRIPT])
 			return self.code
 		except SatExit as error:
 			self.code = error.code
-			self.output = None
+			self.output = self.source = None
 			return self.code
 		except SatError as error:
 			stderr[0] << error
 			self.code = error.code
-			self.output = None
+			self.output = self.source = None
 			return self.code
 		except Exception as error:
 			self.code = 1
-			self.output = None
+			self.output = self.source = None
 			raise error
 		else:
 			return self.code

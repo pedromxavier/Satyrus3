@@ -6,19 +6,22 @@
 ## Standard Library
 import itertools as it
 from functools import reduce
+from collections import namedtuple
 
 ## Local
 from ..compiler import SatCompiler
-from ...satlib import arange, Stack, stdlog, stdout, stdwar, stderr, join
+from ...satlib import arange, Stack, stdlog, stdout, stdwar, stderr, join, track
 from ...types.indexer import SatIndexer
 from ...types.mapping import SatMapping
 from ...types.error import SatValueError, SatTypeError, SatReferenceError, SatExprError, SatWarning
-from ...types.symbols.tokens import T_EXISTS, T_EXISTS_ONE, T_FORALL, T_IDX
+from ...types.symbols.tokens import T_EXISTS, T_UNIQUE, T_FORALL, T_IDX, T_IJK
 from ...types.symbols import CONS_INT, CONS_OPT, INDEXER
 from ...types import Expr, Var, String, Number, Array, Constraint	
 
-LOOP_TYPES = {T_EXISTS, T_EXISTS_ONE, T_FORALL}
+LOOP_TYPES = {T_EXISTS, T_UNIQUE, T_FORALL}
 CONST_TYPES = {CONS_INT, CONS_OPT}
+
+Loop = namedtuple('Loop', ['type', 'var', 'bounds', 'cond'])
 
 def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: list, expr: Expr, level: {Number, Var}):
 	"""
@@ -27,20 +30,6 @@ def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: l
 		level = compiler.evaluate(level, miss=True, calc=True, null=True)
 
 	## Check constraint type and level
-	def_constraint_type_level(compiler, cons_type, level)
-
-	## Create constraint object
-	constraint: Constraint = Constraint(name, cons_type, level)
-
-	## Retrieve clauses
-	def_constraint_clauses(compiler, cons_type, loops, expr, constraint)
-
-	## Register Constraint
-	def_constraint_register(compiler, constraint)
-
-def def_constraint_type_level(compiler: SatCompiler, cons_type: String, level: Number):
-	"""
-	"""
 	if str(cons_type) not in CONST_TYPES:
 		compiler << SatTypeError(f"Invalid constraint type {cons_type}. Options are: `int`, `opt`.", target=cons_type)
 
@@ -52,10 +41,11 @@ def def_constraint_type_level(compiler: SatCompiler, cons_type: String, level: N
 
 	compiler.checkpoint()
 
-def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, raw_expr: Expr, constraint: Constraint):
-	"""
-	"""
-	## Holds loop variables
+	## Create constraint object
+	constraint: Constraint = Constraint(name, cons_type, level)
+
+	## Retrieve clauses
+		## Holds loop variables
 	variables = set()
 
 	## Retrieve Indexer Type
@@ -63,6 +53,11 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 
 	## Indexer
 	indexer: SatIndexer = None
+
+	## Loop Stack
+	## At each level we have:
+	## (type, var, indices, conds)
+	stack = Stack()
 
 	# extract loop properties
 	for (l_type, l_var, l_bounds, l_conds) in loops:
@@ -101,9 +96,6 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 		
 		compiler.checkpoint()
 
-		## Run through all indices
-		indices = [i for i in arange(start, stop, step)]
-
 		## define condition
 		if l_conds is not None:
 			## Compile condition expressions
@@ -111,26 +103,25 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 		else:
 			cond = None
 
-		## Initialize Indexer for this loop
-		if indexer is None:
-			indexer: SatIndexer = Indexer(compiler.evaluate, l_type, l_var, indices, cond)
-		else:
-			indexer: SatIndexer = indexer << Indexer(compiler.evaluate, l_type, l_var, indices, cond)
+		stack.push(Loop(type=l_type, var=l_var, bounds=(start, stop, step), cond=cond))
 
-		compiler.checkpoint()
+	## Print Loop Stack
+	if stdlog[3]:
+		for (l_type, l_var, (start, stop, step), cond) in reversed(stack):
+			stdlog[3] << f"{l_type} {l_var} [{start}:{stop}:{step}] ? {'Ø' if cond is None else cond}"
 
-	## Verbose
-	with stdlog[3] as stream: stream << f"\n@{constraint.name}(raw):\n\t{raw_expr}"
+	compiler.checkpoint()
 
-	## Reduces expression to simplest form
-	expr: Expr = Expr.calculate(raw_expr)
+	## Begin expr analysis
+	if stdlog[3]: stdlog[3] << f"\n@{constraint.name}(raw):\n\t{expr}"
 
-	## Verbose
-	with stdlog[3] as stream: stream << f"\n@{constraint.name}(simplified):\n\t{raw_expr}"
+	## Simplify
+	expr = track(expr, Expr.calculate(expr), out=True)
 
-	# pylint: disable=no-member
+	if stdlog[3]: stdlog[3] << f"\n@{constraint.name}(simplified):\n\t{expr}"
+
 	if str(cons_type) == CONS_INT and not expr.logical:
-		compiler << SatExprError("Integrity constraint expressions must be purely logical i.e. no arithmetic operations allowed.", target=raw_expr)
+		compiler << SatExprError("Integrity constraint expressions must be purely logical i.e. no arithmetic operations allowed.", target=expr)
 
 	compiler.checkpoint()
 
@@ -142,7 +133,9 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 	## also undefined loop variables.
 	## Last but not least, automatically removes this
 	## artificial scope.
-	expr = compiler.evaluate(expr, miss=True, calc=True, null=False, context={var: var for var in variables})
+	expr = track(expr, compiler.evaluate(expr, miss=True, calc=True, null=False, context={var: var for var in variables}), out=True)
+
+	return
 
 	## Sets expression for this constraint in the Conjunctive Normal Form (C.N.F.)
 	if str(cons_type) == CONS_INT:
@@ -151,11 +144,11 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 		## Invert Indexing Loops
 		~indexer #pylint: disable=invalid-unary-operand-type
 		## Verbose
-		with stdlog[3] as stream: stream << f"\n@{constraint.name}(D.N.F. + Negation):\n\t{dnf_expr}"
+		if stdlog[3]: stdlog[3] << f"\n@{constraint.name}(D.N.F. + Negation):\n\t{dnf_expr}"
 	elif str(cons_type) == CONS_OPT:
 		dnf_expr: Expr = Expr.dnf(expr)
 		## Verbose
-		with stdlog[3] as stream: stream << f"\n@{constraint.name}(D.N.F.):\n\t{dnf_expr}"
+		if stdlog[3]: stdlog[3] << f"\n@{constraint.name}(D.N.F.):\n\t{dnf_expr}"
 	else:
 		raise NotImplementedError('There are no extra constraint types yet, just `int` or `opt`.')
 
@@ -163,7 +156,7 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 	dnf_expr: Expr = Expr.calculate(dnf_expr)
 
 	## Verbose
-	with stdlog[3] as stream: stream << f"\n@{constraint.name}(D.N.F. + Simplify):\n\t{dnf_expr}"
+	if stdlog[3]: stdlog[3] << f"\n@{constraint.name}(D.N.F. + Simplify):\n\t{dnf_expr}"
 
 	compiler.checkpoint()
 
@@ -176,7 +169,7 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 	compiler.checkpoint()
 
 	## Verbose
-	with stdlog[3] as stream: stream << f"\n@{constraint.name}(indexed):\n\t{idx_expr}"
+	if stdlog[3]: stdlog[3] << f"\n@{constraint.name}(indexed):\n\t{idx_expr}"
 
 	## One last time after indexing
 	final_expr: Expr = Expr.calculate(idx_expr)
@@ -185,14 +178,13 @@ def def_constraint_clauses(compiler: SatCompiler, cons_type: str, loops: list, r
 	
 	constraint.set_expr(final_expr)
 
-	with stdlog[2] as stream: stream << f"\n@{constraint.name}(final):\n\t{final_expr}"
+	if stdlog[2]: stdlog[2] << f"\n@{constraint.name}(final):\n\t{final_expr}"
 
 	compiler.checkpoint()
 
-def def_constraint_register(compiler: SatCompiler, constraint: Constraint):
-	"""
-	"""
+	## Register Constraint
 	if constraint.name in compiler:
 		compiler < SatWarning(f"Variable redefinition in constraint `{constraint.name}`.", target=constraint.name)
 	
 	compiler.memset(constraint.name, constraint)
+	

@@ -124,6 +124,8 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
     FORMAT_PATTERNS = {}
     FORMAT_FUNCTIONS = {}
 
+    VarType = str
+
     def __new__(cls, head: str, *tail: tuple, sort: bool=True, flat:bool=True):
         """ Creates pair (head, tail) to represent an expression. Here is applied, according to `sort` and `flat` parameters, child sorting and 
         """
@@ -261,11 +263,13 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
    
     @classmethod
     def transverse(cls, expr, func, *args, **kwargs) -> None:
-        """ Transverses expression tree calling `func` on leaves
+        """Transverses expression tree calling `func` on leaves
 
-            >>> def func(expr, *args, **kwargs):
-            ...     ...
-            ...     return None
+        Example
+        -------
+        >>> def func(expr, *args, **kwargs):
+        ...     ...
+        ...     return None
         """
         if type(expr) is cls:
             for p in expr.tail:
@@ -275,11 +279,13 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
 
     @classmethod
     def seek(cls, expr, func, *args, **kwargs) -> list:
-        """ Seeks for tree leaves who satisfy `func`
+        """Seeks for tree leaves who satisfy `func`
 
-            >>> def func(expr, *args, **kwargs) -> bool:
-            ...     ...
-            ...     return bool(...)
+        Example
+        -------
+        >>> def func(expr, *args, **kwargs) -> bool:
+        ...     ...
+        ...     return bool(...)
         """
         results = []
         if type(expr) is cls:
@@ -335,32 +341,10 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
         return func(expr, *args, **kwargs)
 
     @classmethod
-    def property(cls, func: callable):
-        """ >>> @Expr.property
-            ... def func(expr):
-            ...     ...
-            ...     return expr.attr
-
-            >>> e = Expr(...)
-            >>> e.func
-            e.attr
+    def sub(cls, expr, x, y):
         """
-        setattr(cls, func.__name__, property(func))
-        return getattr(cls, func.__name__)
-
-    @classmethod
-    def classmethod(cls, func: callable):
-        """ >>> @Expr.property
-            ... def func(expr):
-            ...     ...
-            ...     return expr.attr
-
-            >>> e = Expr(...)
-            >>> e.func()
-            e.attr
         """
-        setattr(cls, func.__name__, classmethod(func))
-        return getattr(cls, func.__name__)
+        return cls.apply(expr, lambda e: ((y if (e == x) else e) if type(e) is cls.VarType else e))
 
     def _IDX_(self, i: tuple):
         return type(self)(T_IDX, self, *i)

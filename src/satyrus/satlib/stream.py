@@ -3,7 +3,6 @@
 ## Standard Library
 import sys
 import os
-import locale
 from collections import namedtuple
 
 ## Third-Party

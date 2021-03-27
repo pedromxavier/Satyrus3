@@ -242,5 +242,5 @@ class CLI:
                     stream << f"E = {e}" ## Total energy for given configuration
                 else: ## Partial Solution
                     stream << answer
-
+        finally:
             if report: Timing.timer.show_report()

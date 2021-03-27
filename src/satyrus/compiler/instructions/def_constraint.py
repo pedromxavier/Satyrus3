@@ -6,7 +6,7 @@
 ## Standard Library
 import itertools as it
 from functools import reduce
-from collections import namedtuple
+from dataclasses import dataclass
 
 ## Local
 from ..compiler import SatCompiler
@@ -21,7 +21,19 @@ from ...types import Expr, Var, String, Number, Array, Constraint
 LOOP_TYPES = {T_EXISTS, T_UNIQUE, T_FORALL}
 CONST_TYPES = {CONS_INT, CONS_OPT}
 
-Loop = namedtuple('Loop', ['type', 'var', 'bounds', 'cond'])
+@dataclass
+class Loop:
+	type: String
+	var: Var
+	bounds: tuple
+	cond: Expr
+
+	def __iter__(self):
+		return iter([self.type, self.var, self.bounds, self.cond])
+
+	def __str__(self):
+		start, stop, step = self.bounds
+		return f"{self.type} {self.var} [{start}:{stop}:{step}] ? {'Ø' if self.cond is None else self.cond}"
 
 def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: list, expr: Expr, level: {Number, Var}):
 	"""
@@ -42,22 +54,19 @@ def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: l
 	compiler.checkpoint()
 
 	## Create constraint object
-	constraint: Constraint = Constraint(name, cons_type, level)
-
-	## Retrieve clauses
-		## Holds loop variables
-	variables = set()
+	constraint = Constraint(name, cons_type, level)
 
 	## Retrieve Indexer Type
 	Indexer = compiler.env[INDEXER]
 
-	## Indexer
-	indexer: SatIndexer = None
+	# Holds loop variables
+	variables = set()
 
-	## Loop Stack
-	## At each level we have:
-	## (type, var, indices, conds)
-	stack = Stack()
+	# Loop Stack
+	# At each level we have:
+	# Loop(type, var, indices, conds)
+	stack_A = Stack()
+	stack_B = Stack()
 
 	# extract loop properties
 	for (l_type, l_var, l_bounds, l_conds) in loops:
@@ -68,12 +77,12 @@ def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: l
 		elif l_var in compiler:
 			compiler < SatWarning(f"Variable `{l_var}` redefinition. Global values are set into the expression before loop variables.", target=l_var)
 
-		## account for variable in loop scope
+		# account for variable in loop scope
 		variables.add(l_var)
 
 		compiler.checkpoint()
 
-		## check for boundary consistency
+		# check for boundary consistency
 		# extract loop boundaries
 		start, stop, step = l_bounds
 
@@ -96,19 +105,17 @@ def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: l
 		
 		compiler.checkpoint()
 
-		## define condition
+		# define condition
 		if l_conds is not None:
-			## Compile condition expressions
+			# Compile condition expressions
 			cond = reduce(lambda x, y: x._AND_(y), [compiler.evaluate(c, miss=False, calc=True) for c in l_conds], Number.T)
 		else:
 			cond = None
 
-		stack.push(Loop(type=l_type, var=l_var, bounds=(start, stop, step), cond=cond))
+		stack_A.push(Loop(type=l_type, var=l_var, bounds=(start, stop, step), cond=cond))
 
 	## Print Loop Stack
-	if stdlog[3]:
-		for (l_type, l_var, (start, stop, step), cond) in reversed(stack):
-			stdlog[3] << f"{l_type} {l_var} [{start}:{stop}:{step}] ? {'Ø' if cond is None else cond}"
+	if stdlog[3]: stdlog[3] << stack_A
 
 	compiler.checkpoint()
 
@@ -125,18 +132,27 @@ def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: l
 
 	compiler.checkpoint()
 
-	## Checks for undefined variables + evaluate constants
+	# Checks for undefined variables + evaluate constants
+	# Adds inner scope where inside-loop variables point to themselves. This prevents both
+	# older variables from interfering in evaluation and also undefined loop variables.
+	# Last but not least, automatically removes this artificial scope.
+	expr: Expr = track(expr, compiler.evaluate(expr, miss=True, calc=True, null=False, context={var: var for var in variables}), out=True)
 
-	## Adds inner scope where inside-loop variables
-	## point to themselves. This prevents both older
-	## variables from interfering in evaluation and
-	## also undefined loop variables.
-	## Last but not least, automatically removes this
-	## artificial scope.
-	expr = track(expr, compiler.evaluate(expr, miss=True, calc=True, null=False, context={var: var for var in variables}), out=True)
+	while stack_A:
+		loop: Loop = stack_A.pop()
 
-	return
+		if loop.type in {T_EXISTS, T_FORALL}:
+			stack_B.push(loop)
+		elif loop.type in {T_UNIQUE}:
+			fork_wta(compiler, constraint, loop, stack_A, stack_B, expr)
+		else:
+			raise ValueError(f"Invalid Loop type {loop.type}")
 
+	compiler.checkpoint()
+
+	indexer: Indexer = Indexer(stack_B, expr)
+
+	"""
 	## Sets expression for this constraint in the Conjunctive Normal Form (C.N.F.)
 	if str(cons_type) == CONS_INT:
 		## Negate inner expression
@@ -187,4 +203,17 @@ def def_constraint(compiler: SatCompiler, cons_type: String, name: Var, loops: l
 		compiler < SatWarning(f"Variable redefinition in constraint `{constraint.name}`.", target=constraint.name)
 	
 	compiler.memset(constraint.name, constraint)
-	
+	"""
+
+def fork_wta(compiler: SatCompiler, constraint: Constraint, loop: Loop, stack_a: Stack, stack_b: Stack, expr: Expr):
+	"""
+	"""
+	wta_var = Var(f"{T_IJK}{loop.var}")
+	wta_name = Var(f"{constraint.name}_wta")
+	wta_expr = ~(expr & Expr.sub(expr, loop.var, wta_var))
+	wta_cond = None if loop.cond is None else Expr.sub(loop, loop.var, wta_var)
+	wta_loop = Loop(T_FORALL, loop.var, loop.bounds, wta_cond)
+	wta_loops = [*stack_a, loop, wta_loop, *reversed(stack_b)]
+	wta_level = Number(constraint.level) + Number('1')
+
+	def_constraint(compiler, constraint.type, wta_name, wta_loops, wta_expr, wta_level)

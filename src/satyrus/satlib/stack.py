@@ -9,17 +9,23 @@ class Stack:
     def clear(self):
         self.__stack.clear()
 
-    def push(self, x):
+    def push(self, x: object):
         self.__stack.append(x)
 
-    def pop(self):
+    def pushleft(self, x: object):
+        self.__stack.appendleft(x)
+
+    def pop(self) -> object:
         return self.__stack.pop()
 
-    def popleft(self):
+    def popleft(self) -> object:
         return self.__stack.popleft()
 
     def __getitem__(self, index):
         return self.__stack.__getitem__(index)
+
+    def __str__(self):
+        return "\n".join(map(str, reversed(self.__stack)))
 
     def __iter__(self):
         return iter(self.__stack)

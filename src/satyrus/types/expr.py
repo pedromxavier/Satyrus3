@@ -53,6 +53,8 @@ def F_ADD(cls: type, head: str, tail: list):
 
 class SatExpr(Expr, metaclass=MetaSatType):
 
+    VarType = Var
+
     FLAT = {
         ## Logical
         T_AND, T_OR,

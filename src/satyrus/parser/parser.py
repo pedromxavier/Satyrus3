@@ -86,6 +86,18 @@ class SatLexer(object):
         """
         if self.error_stack: self.interrupt()
 
+    reserved = {
+        'forall' : 'FORALL',
+        'exists' : 'EXISTS',
+        'unique' : 'UNIQUE',
+        'or' : 'OR',
+        'xor': 'XOR',
+        'and': 'AND',
+        'iff': 'IFF',
+        'imp': 'IMP',
+        'not': 'NOT',
+    }
+
     # Regular expression rules for tokens
     t_DOTS = r'\:'
 
@@ -160,6 +172,7 @@ class SatLexer(object):
 
     @regex(r"[a-zA-Z_][a-zA-Z0-9_]*")
     def t_NAME(self, t):
+        t.type = self.reserved.get(t.value, 'NAME')
         t.value = String(t.value)
         return t
 

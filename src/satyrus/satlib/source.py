@@ -3,9 +3,6 @@ from functools import wraps
 import itertools as it
 import os
 
-## Local
-from .main import load
-
 class EOFType(object):
 
     def __init__(self, lexinfo: dict):
@@ -27,7 +24,8 @@ class Source(str):
             position tracking.
         """
         if fname is not None:
-            return str.__new__(cls, load(fname))
+            with open(fname, mode='r') as file:
+                return str.__new__(cls, file.read())
         else:
             return str.__new__(cls, buffer)
 

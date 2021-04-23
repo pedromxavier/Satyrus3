@@ -7,11 +7,14 @@ import os
 from functools import wraps
 from gettext import gettext
 
+## Third-Party
+from cstream import Stream, stdlog, stdout, stdwar, stderr
+
 ## Local
 from .help import HELP
 from ..api import SatAPI
 from ..assets import SAT_BANNER
-from ..satlib import Timing,Stream, stdlog, stdout, stdwar, stderr, log
+from ..satlib import Timing, log
 
 class ArgParser(argparse.ArgumentParser):
 

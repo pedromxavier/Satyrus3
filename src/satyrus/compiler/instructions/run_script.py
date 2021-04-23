@@ -6,14 +6,14 @@
 
 ## Third-Party
 from tabulate import tabulate
+from cstream import stdlog, stdout, stdwar
 
 ## Local
 from ..compiler import SatCompiler
-from ...satlib import stdlog, stdout, stdwar
+from ..components.mapping import SatMapping
 from ...types.error import SatValueError, SatCompilerError, SatWarning
 from ...types import Number, Constraint
 from ...types.expr import SatExpr as Expr
-from ...types.mapping import SatMapping
 from ...types.symbols import CONS_INT, CONS_OPT, MAPPING, PREC, EPSILON, ALPHA
 from ...types.symbols.tokens import T_AND, T_OR
 

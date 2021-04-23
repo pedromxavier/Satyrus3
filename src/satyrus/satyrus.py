@@ -1,6 +1,8 @@
 
+from cstream import Stream
+
 ## Local
-from .satlib import Source, Stream
+from .satlib import Source
 from .types.symbols import DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, SYS_CONFIG
 from .types.symbols import OPT
 from .compiler import SatCompiler

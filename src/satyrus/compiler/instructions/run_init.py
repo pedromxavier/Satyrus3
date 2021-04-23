@@ -5,8 +5,9 @@
 """
 
 from ..compiler import SatCompiler
-from ...types import Number, Relaxed, Default
-from ...types.symbols import PREC, DIR, LOAD, OPT, EPSILON, ALPHA, MAPPING, INDEXER
+from ..components.mapping import RelaxedMapping
+from ...types import Number
+from ...types.symbols import PREC, DIR, LOAD, OPT, EPSILON, ALPHA, MAPPING
 
 def run_init(compiler: SatCompiler, *args: tuple):
     """ RUN_INIT
@@ -19,8 +20,7 @@ def run_init(compiler: SatCompiler, *args: tuple):
         (OPT, 0),
         (ALPHA, Number('1.0')),
         (EPSILON, Number('1E-4')),
-        (MAPPING, Relaxed),
-        (INDEXER, Default)
+        (MAPPING, RelaxedMapping),
     ]
 
     for key, val in default_env:

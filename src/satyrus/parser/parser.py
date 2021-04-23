@@ -6,8 +6,10 @@ import itertools as it
 ## Third-Party
 from ply import lex, yacc
 
+from cstream import stderr, stdout
+
 ## Local
-from ..satlib import stderr, stdout, Source, Stack, PythonShell, PythonError, track, Timing
+from ..satlib import Source, Stack, PythonShell, PythonError, track, Timing
 from ..types.error import SatParserError, SatLexerError, SatTypeError, SatSyntaxError, SatValueError, SatPythonError, SatExit
 from ..types import Expr, Var, Number, String, SatType, PythonObject
 from ..types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, CMD_PYTHON

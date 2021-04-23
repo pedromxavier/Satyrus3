@@ -3,9 +3,9 @@ import abc
 from functools import reduce
 
 ## Local1
-from .main import Var, Number
-from .expr import SatExpr as Expr
-from .symbols.tokens import T_AND, T_OR, T_XOR, T_NOT, T_ADD, T_MUL, T_NEG
+from ...types import Expr
+from ...types import Var, Number
+from ...types.symbols.tokens import T_AND, T_OR, T_XOR, T_NOT, T_ADD, T_MUL, T_NEG
 
 class SatMapping(metaclass=abc.ABCMeta):
     """
@@ -48,7 +48,7 @@ class SatMapping(metaclass=abc.ABCMeta):
         else:
             return expr
 
-class Strict(SatMapping):
+class StrictMapping(SatMapping):
 
     def map_and(self, tail: list) -> Expr:
         """ SatMapping.map_and:
@@ -68,7 +68,7 @@ class Strict(SatMapping):
         """
         return Expr(T_ADD, Number('1'), Expr(T_NEG, *tail))
 
-class Relaxed(SatMapping):
+class RelaxedMapping(SatMapping):
 
     def map_and(self, tail: list) -> Expr:
         """ SatMapping.map_and:
@@ -90,5 +90,3 @@ class Relaxed(SatMapping):
             ~x => 1 - x
         """
         return Expr(T_ADD, Number('1'), Expr(T_NEG, *tail))
-    
-    

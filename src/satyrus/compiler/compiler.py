@@ -6,9 +6,11 @@ import traceback
 import os
 import math
 
+from cstream import stderr, stdlog, stdout, stdwar
+
 ## Local
 from .memory import Memory
-from ..satlib import log, system, stderr, stdlog, stdout, stdwar, Source, Stack, join, Posiform, Timing
+from ..satlib import log, Source, Stack, join, Posiform, Timing
 from ..satlib import track as sat_track
 from ..parser import SatParser
 from ..parser.legacy import SatLegacyParser

@@ -3,10 +3,12 @@ from itertools import combinations
 from functools import reduce
 from collections import defaultdict
 
+from cstream import stderr
+
 ## Local
-from ..satlib import join, compose, stderr, Posiform
 from .error import SatValueError
 from .main import Expr, Number, Var, Array, SatType, MetaSatType
+from ..satlib import join, compose, Posiform
 
 ## Tokens
 from .symbols.tokens import T_ADD, T_NEG, T_MUL, T_DIV, T_MOD

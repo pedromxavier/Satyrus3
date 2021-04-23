@@ -5,6 +5,7 @@ import itertools as it
 
 ## Third-Party
 from ply import lex, yacc
+from cstream import stderr, stdout
 
 ## Local
 from ..satlib import stderr, stdout, Source, Stack, PythonShell, PythonError, track

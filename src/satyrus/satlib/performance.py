@@ -1,8 +1,7 @@
 from time import perf_counter as clock
 from functools import wraps
 
-from .stream import stdlog
-
+from cstream import stdlog
 
 class Timing:
 

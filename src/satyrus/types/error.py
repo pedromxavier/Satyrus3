@@ -2,7 +2,7 @@
 import os
 
 ## Local
-from ..satlib import stderr, stdout
+from cstream import stderr, stdout
 
 class SatError(Exception):
     'Error'

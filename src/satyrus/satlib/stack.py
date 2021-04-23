@@ -16,6 +16,12 @@ class Queue:
     def pop(self) -> object:
         return self.__queue.pop()
 
+    def pushleft(self, x: object):
+        self.__queue.appendleft(x)
+
+    def popleft(self):
+        return self.__queue.popleft()
+
     def copy(self):
         return self.__class__(buffer=self.__queue.copy(), limit=self.__limit)
 
@@ -55,6 +61,12 @@ class Stack:
 
     def pop(self) -> object:
         return self.__stack.pop()
+
+    def pushleft(self, x: object):
+        self.__stack.appendleft(x)
+
+    def popleft(self):
+        return self.__stack.popleft()
 
     def copy(self):
         return self.__class__(buffer=self.__stack.copy(), limit=self.__limit)

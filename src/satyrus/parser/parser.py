@@ -98,6 +98,18 @@ class SatLexer(object):
         'not': 'NOT',
     }
 
+    op_map = {
+        'FORALL' : '@',
+        'EXISTS' : '$',
+        'UNIQUE' : '$!',
+        'OR' : '|',
+        'XOR': '^',
+        'AND': '&',
+        'IFF': '<->',
+        'IMP': '->',
+        'NOT': '~',
+    }
+
     # Regular expression rules for tokens
     t_DOTS = r'\:'
 
@@ -172,7 +184,11 @@ class SatLexer(object):
 
     @regex(r"[a-zA-Z_][a-zA-Z0-9_]*")
     def t_NAME(self, t):
-        t.type = self.reserved.get(t.value, 'NAME')
+        if t.value in self.reserved:
+            t.type = self.reserved[t.value]
+            t.value = self.op_map[t.value]
+        else:
+            t.value = String(t.value)
         t.value = String(t.value)
         return t
 

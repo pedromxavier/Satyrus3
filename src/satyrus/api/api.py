@@ -15,9 +15,11 @@ import importlib
 import os
 from functools import wraps
 
+from cstream import Stream, stdout, stderr, stdwar, stdlog, devnull
+
 ## Local
 from ..satyrus import Satyrus
-from ..satlib import Stream, stdout, stderr, stdwar, stdlog, devnull, Posiform, Timing
+from ..satlib import Posiform, Timing
 from ..types import Expr, Number, Var
 from ..types.symbols.tokens import T_ADD, T_MUL, T_AUX
 

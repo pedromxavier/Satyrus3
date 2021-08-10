@@ -50,7 +50,7 @@ HIGH = 2;
 
 (int) color_all_once[LOW]:
     @{i = [1:n]}
-    $!{k = [1:n]}
+    @{k = [1:n]}
     vc[i][k];
 
 (int) use_color[LOW]:

@@ -116,14 +116,14 @@ def join(
         raise TypeError()
 
 
-def log(fname: str = "sat"):
+def log(fname: str = "sat", mode: str = "w"):
     trace = traceback.format_exc()
-    with open(f"{fname}.log", "w") as file:
+    with open(f"{fname}.log", mode=mode) as file:
         file.write(trace)
     return trace
 
 
-def arange(start, stop=None, step=None):
+def arange(start: object, stop: object=None, step: object=None):
     """arange(stop) -> [0, 1, ..., stop]
     arange(start, stop) -> [start, start + 1, ..., stop]
     arange(start, stop, step) -> [start, start + step, ..., stop]

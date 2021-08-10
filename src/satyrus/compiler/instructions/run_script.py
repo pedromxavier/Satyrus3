@@ -70,6 +70,8 @@ def run_script_constraints(compiler: SatCompiler, constraints: dict):
     elif len(constraints[CONS_OPT]) == 0:
         compiler << SatCompilerError("No Optmization condition defined.", target=compiler.source.eof)
 
+    stdlog[3] << compiler.memory
+
     compiler.checkpoint()
 
 

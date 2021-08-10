@@ -152,7 +152,7 @@ class CLI:
         parser.add_argument('source', help=HELP['source'])
 
         ## Optional - Compiler Verbosity
-        parser.add_argument('-v', '--verbose', type=int, dest='verbose', choices=[0, 1, 2, 3], help=HELP['verbose'], action=SetVerbosity)
+        parser.add_argument('-v', '--verbose', type=int, dest='verbose', choices=[0, 1, 2, 3], default=1, help=HELP['verbose'], action=SetVerbosity)
 
         ## Optional - Debug Mode
         parser.add_argument('-d', '--debug', dest='debug', help=argparse.SUPPRESS, action=DebugMode)

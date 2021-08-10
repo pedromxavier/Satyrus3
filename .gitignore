@@ -400,5 +400,5 @@ TSWLatexianTemp*
 #*Notes.bib
 
 ## Legacy Content
-legacy/
-docs_/
+# legacy/
+# docs_/

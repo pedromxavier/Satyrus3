@@ -18,6 +18,9 @@ class SatIndexer(object):
         self.loops = loops
         self.expr = expr
 
+    def __str__(self):
+        return " ".join([f"{loop.type}{loop.var}" for loop in self.loops] + [str(self.expr)])
+
     def index(self, *, ensure_dnf: bool = False, ensure_cnf: bool = False):
         """
         Parameters
@@ -62,22 +65,18 @@ class SatIndexer(object):
             else:
                 raise ValueError(f"Invalid loop type '{loop.type}'.")
 
-            return Expr(
-                head,
-                *(self.__index(k + 1, I) for I in self.get_indices(loop, context=J)),
-            )
-        else:
-            return self.expr
+            tail = [self.__index(k + 1, I) for I in self.get_indices(loop, J)]
 
-    def get_indices(self, loop: Loop, context: dict = {}):
+            return Expr(head, *tail)
+        else:
+            return self.compiler.evaluate(self.expr, context=J)
+
+    def get_indices(self, loop: Loop, context: dict):
         """"""
         if loop.cond is not None:
-            for i in arange(*loop.bounds):
-                I = {**context, loop.var: i}
-                if bool(self.compiler.evaluate(loop.cond, context=I)):
-                    yield I
+            return [{**context, loop.var: i} for i in arange(*loop.bounds) if bool(self.compiler.evaluate(loop.cond, context={**context, loop.var: i}))]
         else:
-            return ({**context, loop.var: i} for i in arange(*loop.bounds))
+            return [{**context, loop.var: i} for i in arange(*loop.bounds)]
 
     def negate(self):
         """"""
@@ -93,8 +92,8 @@ class SatIndexer(object):
 
     @property
     def in_dnf(self) -> bool:
-        return all(loop.type == T_FORALL for loop in self.loops)
+        return all(loop.type == T_EXISTS for loop in self.loops)
 
     @property
     def in_cnf(self) -> bool:
-        return all(loop.type == T_EXISTS for loop in self.loops)
+        return all(loop.type == T_FORALL for loop in self.loops)

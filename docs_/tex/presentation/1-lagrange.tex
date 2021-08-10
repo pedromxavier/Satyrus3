@@ -1,0 +1,171 @@
+\documentclass[brazil, MathSerif, aspectratio = 169]{beamer}
+
+
+\usetheme{OsloMet}
+\usepackage{style}
+\usepackage{bm}
+
+\author[Pedro]
+{Pedro Maciel Xavier}
+\title{I - Otimização Lagrangeana}
+\subtitle{\small Programação não-linear \textbullet{} Otimização com restrições}
+
+\begin{document}
+
+\section{Sumário}
+% Use
+%
+%     \begin{frame}[allowframebreaks]
+%
+% if the TOC does not fit one frame.
+\begin{frame}[allowframebreaks]{Table of contents}
+    \tableofcontents
+\end{frame}
+
+\section{Multiplicadores de Lagrange}
+
+\subsection{Teorema}
+
+%% Disable the logo in the lower right corner:
+\hidelogo
+
+\begin{frame}{Multiplicadores de Lagrange}
+
+    \begin{theorem}[Multiplicadores de Lagrange]
+        Sejam $f: \mathbb{R}^{m} \to \mathbb{R}$ e $g: \mathbb{R}^{m} \to \mathbb{R}^n$ de classe $\mathcal{C}^{1}$ onde $\mathbf{x}^{\circ} \in \mathbb{R}^{m}$ minimiza (maximiza) localmente o sistema
+        $$ \min_{\mathbf{x} \in \mathbb{R}^{m}}\left\{ f(\mathbf{x}) \middle| g(\mathbf{x})  = \alpha \right\}, \alpha \in \mathbb{R}^{n} $$
+        Se a matriz Jacobiana $n \times m$ $g'(\mathbf{x}^{\circ})$ tiver linhas linearmente independentes, então existe um único $\pmb{\lambda}^{\circ} \in \mathbb{R}^{n}$ que satisfaz
+        $$ f'(\mathbf{x}^{\circ}) = \pmb{\lambda}^{\circ} g'(\mathbf{x}^{\circ}) $$
+    \end{theorem}
+
+    
+    Demonstrações são encontradas em \cite{brezhneva:2011} e \cite{luenberger:2008}.
+    
+        
+\end{frame}
+
+%% Enable the logo in the lower right corner:
+%%\showlogo
+
+\subsection{Exemplo}
+
+\begin{frame}{Multiplicadores de Lagrange}
+    O teorema permite reescrever um problema definido pelas funções $f(\mathbf{x})$ e $g(\mathbf{x})$ como o sistema de $m + n$ variáveis
+        $$\mathcal{L}(\mathbf{x}, \pmb{\lambda}) = \nabla f(\mathbf{x}) + \pmb{\lambda} \nabla g(\mathbf{x}) = 0 $$
+    chamado de \emph{Lagrangeano} do sistema.
+    \begin{example}
+        Considere o seguinte problema \cite{luenberger:2008}:
+        \begin{align*}
+            \text{minimizar } &x_1 x_2 + x_2 x_3 + x_1 x_3 \\
+            \text{sujeito a } &x_1 + x_2 + x_3 = 3
+        \end{align*}
+
+
+    \end{example}
+\end{frame}
+
+\begin{frame}{Multiplicadores de Lagrange}
+    \begin{example}
+        Reescrevemos
+        \begin{align*}
+            \text{minimizar } &x_1 x_2 + x_2 x_3 + x_1 x_3 \\
+            \text{sujeito a } &x_1 + x_2 + x_3 = 3
+        \end{align*}
+        como
+        $$\begin{array}[]{@{}cccc@{}}
+            \phantom{x_1} &+\,\, x_2 &+\,\, x_3 &+\,\, \lambda = 0 \\
+            x_1 &\phantom{+\,\, x_2} &+\,\, x_3 &+\,\, \lambda = 0 \\
+            x_1 &+\,\, x_2 &\phantom{+\,\, x_3} &+\,\, \lambda = 0
+        \end{array}$$
+        cuja solução é $x_1 = x_2 = x_3 = 1$ e $\lambda = -2$.
+    \end{example}
+\end{frame}
+
+\section{Relaxação Lagrangeana}
+
+\begin{frame}{Relaxação Lagrangeana}
+    \begin{definition}[Relaxação Lagrangeana]
+        Dado um problema na forma
+        \begin{align*}
+            \text{minimizar } &\mathbf{c} \cdot \mathbf{x}\\
+            \text{sujeito a } & \mathbf{A} \mathbf{x} = \mathbf{b}\\
+                &\mathbf{x} \in X
+        \end{align*}
+        Podemos embutir parte das restrições na função objetivo 
+        \begin{align*}
+            \text{minimizar } &\mathbf{c} \cdot \mathbf{x} + \pmb{\lambda} \cdot \left( \mathbf{A} \mathbf{x} - \mathbf{b} \right)\\
+            \text{sujeito a } &\mathbf{x} \in X
+        \end{align*}
+        penalizando a violação das restrições em $\mathbf{A} \mathbf{x} = \mathbf{b}$.
+    \end{definition}
+\end{frame}
+
+\begin{frame}{Relaxação Lagrangeana}
+    \begin{definition}[Relaxação Lagrangeana]
+        Nos referimos a este problema como Relaxação Langrangeana ou Dual Lagrangeano do problema original e chamamos a função
+            $$\mathcal{L}(\mathbf{x}, \pmb{\lambda}) = \min \left\{%%
+                \mathbf{c} \cdot \mathbf{x} + \pmb{\lambda} \cdot \left(%%
+                \mathbf{A} \mathbf{x} - \mathbf{b}
+                \right)\, \middle|\, \mathbf{x} \in X
+            \right\}$$
+        de função Lagrangeana.
+    \end{definition}
+\end{frame}
+
+\section{Satyrus}
+
+\begin{frame}{Satyrus}
+
+    No contexto do Satyrus, temos uma equação de energia a minimizar dada por
+        \begin{align*}
+            \mathbb{E} &= \mathbb{E}_\text{opt} + \mathbb{E}_\text{int}\\
+                       &= \sum_{i} \mathcal{H} \left( \varphi_i \right) %%
+                       + \sum_j \pmb{\lambda}_j \mathcal{H} \left( \neg \varphi_j \right)
+        \end{align*}
+    onde $\lambda_j$ é a penalidade associada à $j$-ésima restrição de integridade e $\mathcal{H} \left(\,\cdot\,\right)$ é o mapeamento. É possível escrever um problema modelado no Satyrus como
+        \begin{align*}
+            \text{minimizar } &f(\mathbf{x}) + \pmb{\lambda} \cdot g(\mathbf{x})\\
+            \text{sujeito a } &\mathbf{x} \in \{0, 1\}^{n}
+        \end{align*}
+\end{frame}
+
+\section{Próximos Tópicos}
+\begin{frame}{Próximos Tópicos}
+
+    Compreender melhor:
+    \begin{enumerate}%%[<+-|alert@+>]
+        \item O princípio da dualidade (e suas demonstrações).
+
+        \item A relação entre o lagrangeano de um sistema e seu hamiltoniano.
+        
+        \item Modelagem QUBO
+    \end{enumerate}
+\end{frame}
+
+\section{References}
+\begin{frame}[allowframebreaks]{References}
+
+    \begin{thebibliography}{}
+
+        % Article is the default.
+        \setbeamertemplate{bibliography item}[article]
+
+        \bibitem{brezhneva:2011}
+        Olga Brezhneva, Alexey A. Tret’yakov, Stephen E. Wright
+        \newblock \emph{A short elementary proof of the Lagrange multiplier theorem}
+        \newblock \emph{Optimization Letters}.
+        \newblock Springer-Verlag, 2011.
+
+        \setbeamertemplate{bibliography item}[book]
+
+        \bibitem{luenberger:2008}
+        David G. Luenberger, Yiniu Ye
+        \newblock \emph{Linear and Nonlinear Programming}
+        \newblock Springer-Verlag, 2008.
+
+        \setbeamertemplate{bibliography item}[triangle]
+
+    \end{thebibliography}
+\end{frame}
+
+\end{document}

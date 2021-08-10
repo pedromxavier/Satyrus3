@@ -3,7 +3,8 @@ import sys
 try:
     from numpy import zeros
 except ImportError:
-    def zeros(shape, dtype: type=float):
+
+    def zeros(shape, dtype: type = float):
         if len(shape) == 0:
             return []
         if len(shape) == 1:
@@ -12,13 +13,24 @@ except ImportError:
             n, *shape = shape
             return [zeros(shape, dtype=dtype) for _ in range(n)]
 
+
 T_AUX = "§"
 
+
 class Posiform(dict):
-    """
-    """
-    def __init__(self, d: dict=None):
-        dict.__init__(self, {} if d is None else {(k if k is None else tuple(map(str, k))): float(v) for k, v in d.items() if (float(v) != 0.0)})
+    """"""
+
+    def __init__(self, d: dict = None):
+        dict.__init__(
+            self,
+            {}
+            if d is None
+            else {
+                (k if k is None else tuple(map(str, k))): float(v)
+                for k, v in d.items()
+                if (float(v) != 0.0)
+            },
+        )
         self.__aux = 0
 
     def __iter__(self):
@@ -110,37 +122,44 @@ class Posiform(dict):
         Posiform
         """
         if term is None or len(term) <= 2:
-            return self.cls({sorted(term): cons})
+            return self.cls({tuple(sorted(term)): cons})
         elif len(term) >= 3:
             ## Reduction by minimum selection
             a = cons
             w = self.aux
             x, y, *z = sorted(term)
 
-            if self.minimum_selection(): ## minimum selection
+            if self.minimum_selection():  ## minimum selection
                 if a < 0:
-                    ## if a < 0: a (x y z) => a w (x + y + z - 2) 
+                    ## if a < 0: a (x y z) => a w (x + y + z - 2)
                     return self.cls({(x, w): a, (y, w): a, (*z, w): a, (w,): -2.0 * a})
                 else:
-                    ## if a > 0: a (x y z) => a (x w + y w + z w + x y + x z + y z - x - y - z - w + 1) 
-                    return self.cls({
-                        (x, w): a, (y, w): a, (x, y): a,
-                        (x,): -a, (y,): -a, (w,): -a,
-                        None : a
-                    }) + (
-                    + self.reduce_degree((x, *z), a)
-                    + self.reduce_degree((y, *z), a)
-                    + self.reduce_degree((*z, w), a)
-                    + self.reduce_degree((*z,), -a)
+                    ## if a > 0: a (x y z) => a (x w + y w + z w + x y + x z + y z - x - y - z - w + 1)
+                    return self.cls(
+                        {
+                            (x, w): a,
+                            (y, w): a,
+                            (x, y): a,
+                            (x,): -a,
+                            (y,): -a,
+                            (w,): -a,
+                            None: a,
+                        }
+                    ) + (
+                        self.reduce_degree((x, *z), a)
+                        + self.reduce_degree((y, *z), a)
+                        + self.reduce_degree((*z, w), a)
+                        + self.reduce_degree((*z,), -a)
                     )
             elif self.substitution():
-                alpha = 2.0 ## TODO: How can I compute alpha? (besides alpha > 1)
+                alpha = 2.0  ## TODO: How can I compute alpha? (besides alpha > 1)
                 return self.reduce_degree((*z, w), 1.0) + alpha * self.P(x, y, w)
             else:
-                raise NotImplementedError('Not an option.')
+                raise NotImplementedError("Not an option.")
         else:
-            raise NotImplementedError("Reducing any amount of terms (greater than 3) is not implemented yet.") # 
-
+            raise NotImplementedError(
+                "Reducing any amount of terms (greater than 3) is not implemented yet."
+            )  #
 
     def minimum_selection(self, *args) -> bool:
         return True
@@ -154,10 +173,8 @@ class Posiform(dict):
 
     @classmethod
     def P(cls: type, x: str, y: str, w: str):
-        """
-        """
+        """"""
         return cls({(x, y): 1.0, (x, w): -2.0, (y, w): -2.0, (w,): 3.0})
-
 
     def qubo(self):
         """
@@ -187,7 +204,7 @@ class Posiform(dict):
 
         for term, _ in reduced_posiform:
             variables.update(term)
-        
+
         n = len(variables)
         x = {v: i for i, v in enumerate(sorted(variables))}
         Q = zeros((n, n), dtype=float)
@@ -195,10 +212,10 @@ class Posiform(dict):
         for term, cons in reduced_posiform:
             I = tuple(map(x.get, term))
             if len(I) == 1:
-                i, = I
+                (i,) = I
                 Q[i][i] += float(cons)
             elif len(I) >= 3:
-                raise ValueError('Degree reduction failed.')
+                raise ValueError("Degree reduction failed.")
             else:
                 i, j = I
                 Q[i][j] += float(cons)

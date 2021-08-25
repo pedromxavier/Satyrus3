@@ -4,6 +4,7 @@ from numbers import Number as ABC_NUM
 # Third-Party
 import numpy as np
 
+
 class Posiform(dict):
     r"""This object is intended to represent a sum of products under a psudo-boolean domain.
 
@@ -13,7 +14,7 @@ class Posiform(dict):
     """
 
     def __init__(self, d: dict = None):
-        """
+        r"""
         Parameters
         ----------
         d : dict
@@ -304,12 +305,4 @@ class Posiform(dict):
         return x, Q, c
 
 
-def test():
-    global p, q, r
-    p = Posiform({("x",): 1, ("y",): 1, None: 0})
-    q = Posiform({("y",): 1, ("z",): 1, None: 0})
-    r = Posiform({("x",): 1, ("z",): 1, None: 0})
-
-
-if __name__ == "__main__":
-    test()
+__all__ = ["Posiform"]

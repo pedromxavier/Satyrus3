@@ -46,7 +46,7 @@ def def_constraint(
     name: Var,
     loops: list,
     expr: Expr,
-    level: {Number, Var},
+    level: Number,
 ):
     """
     Parameters
@@ -61,7 +61,7 @@ def def_constraint(
             Nested replication loops.
     expr : Expr
             Inner constraint expression.
-    level : {Number, Var}
+    level : Number, Var
             Constraint's penalty level.
     """
     if type(level) is not Number:
@@ -90,14 +90,6 @@ def def_constraint(
     # At each level we have:
     # Loop(type, var, indices, conds)
     stack = Stack()
-
-    # Loop Queue
-    queue = Queue()
-
-    # Holds loop variables
-    variables = set()
-
-    def_constraint_stack(compiler, cons_type, name, loops, level, stack, variables)
 
     compiler.checkpoint()
 
@@ -137,31 +129,6 @@ def def_constraint(
 
     compiler.checkpoint()
 
-    def_constraint_build(compiler, name, cons_type, level, stack, queue, expr)
-
-def def_constraint_stack(
-    compiler: SatCompiler,
-    cons_type: String,
-    name: Var,
-    loops: list,
-    level: {Number, Var},
-    stack: Stack,
-    variables: set,
-) -> Stack:
-    """
-    Parameters
-    ----------
-    compiler : SatCompiler
-        Satyrus Compiler instance.
-    cons_type : String
-        Constraint type: either 'int' or 'opt'.
-    name : Var
-        Constraint name.
-    loops : list
-        Nested repetition loop stack.
-    level : Number, Var
-        Constraint Penalty level.
-    """
     # extract loop properties
     for (l_type, l_var, l_bounds, l_conds) in loops:
 
@@ -211,7 +178,7 @@ def def_constraint_stack(
             # Compile condition expressions
             cond = reduce(
                 lambda x, y: x._AND_(y),
-                [compiler.evaluate(c, miss=False, calc=True) for c in l_conds],
+                [compiler.evaluate(c, miss=False, calc  =True) for c in l_conds],
                 Number.T,
             )
         else:
@@ -231,11 +198,6 @@ def def_constraint_build(
     expr: Expr,
 ) -> None:
     """"""
-    stdlog[3] << f"\nBUILD CONSTRAINT ({cons_type}) {name} [{level}]:"
-    stdlog[3] << f"STACK:\n{stack}"
-    stdlog[3] << f"QUEUE:\n{queue}"
-    stdlog[3] << f"EXPR: {expr}"
-
     while stack:
         # Retrieve loop from stack
         loop: Loop = stack.pop()
@@ -243,26 +205,11 @@ def def_constraint_build(
         if loop.type in {T_EXISTS, T_FORALL}:
             queue.push(loop)
         elif loop.type in {T_UNIQUE}:
-            def_constraint_wta_fork(
-                compiler=compiler,
-                name=name,
-                cons_type=cons_type,
-                level=level,
-                stack=stack.copy(),
-                queue=queue.copy(),
-                loop=loop,
-                expr=expr
-            )
             queue.push(Loop())
         else:
             raise ValueError(f"Invalid Loop type {loop.type}")
     else:
         compiler.checkpoint()
-
-    stdlog[3] << f"\nAFTER STACK PUSH ({cons_type}) {name} [{level}]:"
-    stdlog[3] << f"STACK:\n{stack}"
-    stdlog[3] << f"QUEUE:\n{queue}"
-    stdlog[3] << f"EXPR: {expr}"
 
     ## Create constraint object
     constraint = Constraint(name, cons_type, level)
@@ -273,15 +220,8 @@ def def_constraint_build(
     ## Sets expression for this constraint in the Conjunctive Normal Form (C.N.F.)
     if str(cons_type) == CONS_INT:
         indexer.negate()
-        if stdlog[3]:
-            stdlog[3] << f"\n@{constraint.name}(D.N.F. + Negation):\n\t{indexer.expr}"
-            stdlog[3] << f"\n@{constraint.name}(Loop Stack):"
-            stdlog[3] << '\n'.join(map(str, indexer.loops))
     elif str(cons_type) == CONS_OPT:
-        if stdlog[3]:
-            stdlog[3] << f"\n@{constraint.name}(D.N.F.):\n\t{indexer.expr}"
-            stdlog[3] << f"\n@{constraint.name}(Loop Stack):"
-            stdlog[3] << '\n'.join(map(str, indexer.loops))
+        pass
     else:
         raise NotImplementedError(f"There are no extra constraint types yet, just 'int' or 'opt', not '{cons_type}'.")
 
@@ -295,17 +235,8 @@ def def_constraint_build(
 
     compiler.checkpoint()
 
-    ## Verbose
-    # if stdlog[3]: stdlog[3] << f"\n@{constraint.name}(indexed):\n\t{expr}"
-
     ## One last time after indexing
     expr: Expr = Expr.calculate(expr)
-
-    compiler.checkpoint()
-    
-    constraint.set_expr(expr)
-
-    # if stdlog[3]: stdlog[3] << f"\n@{constraint.name}(final):\n\t{expr}"
 
     compiler.checkpoint()
 
@@ -317,40 +248,3 @@ def def_constraint_build(
     compiler.memset(constraint.name, constraint)
 
     compiler.checkpoint()
-
-def def_constraint_wta_fork(
-    compiler: SatCompiler,
-    name: Var,
-    cons_type: String,
-    level: Number,
-    stack: Stack,
-    queue: Queue,
-    loop: Loop,
-    expr: Expr,
-) -> None:
-    """"""
-
-    wta_name = Var(f"{name}-wta")
-    wta_level = level + 1
-    wta_bounds = tuple(loop.bounds)
-
-    wta_ivar = Var(f"{loop.var}")
-    wta_icond = loop.cond
-    wta_iloop = Loop(type=T_FORALL, var=wta_ivar, bounds=wta_bounds, cond=wta_icond)
-
-    wta_jvar = Var(f"{loop.var}{T_IJK}")
-    if loop.cond is None:
-        wta_jcond = Expr(T_NE, wta_ivar, wta_jvar)
-    else:
-        wta_jcond = Expr(T_AND, Expr(T_NE, wta_ivar, wta_jvar), loop.cond)
-    wta_jloop = Loop(type=T_FORALL, var=wta_jvar, bounds=wta_bounds, cond=wta_jcond)
-
-    wta_stack = stack
-    wta_queue = queue
-
-    wta_expr = Expr(T_NOT, Expr(T_AND, expr, Expr.sub(expr, wta_ivar, wta_jvar)))
-
-    wta_queue.push(wta_iloop)
-    wta_queue.push(wta_jloop)
-
-    def_constraint_build(compiler, wta_name, cons_type, wta_level, wta_stack, wta_queue, wta_expr)

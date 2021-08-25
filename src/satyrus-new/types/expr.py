@@ -1,5 +1,10 @@
-# Standard Library
+"""
+"""
+# Typing
+from __future__ import annotations
 from typing import Callable
+
+# Standard Library
 import itertools as it
 
 # Local
@@ -27,7 +32,7 @@ from ..symbols import (
     T_LT,
 )
 
-## pylint:disable=no-self-argument
+
 class Expr(SatType, tuple):
     """
     This is one of the core elements of the system. This is used to represent ASTs.
@@ -107,7 +112,7 @@ class Expr(SatType, tuple):
                     )
                     for p in tail
                 ],
-                key=cls.SORT,
+                key=cls.sorting,
             )
         else:
             return tail
@@ -131,9 +136,6 @@ class Expr(SatType, tuple):
         else:
             return tail
 
-    @classmethod
-    def sorting(cls, sort: callable):
-        cls.SORT = sort
 
     # -*- Parenthesis -*-
     PARENTHESIS = {  ## precedence groups
@@ -325,7 +327,7 @@ class Expr(SatType, tuple):
             return f(e, *a, **kw)
 
     @classmethod
-    def apply(cls, e: SatType, f: Callable, *a: tuple, **kw: dict):
+    def apply(cls, e: SatType, f: Callable, *a: tuple, **kw: dict) -> SatType:
         """\
             Forward-applies function `f` to `e`.
 
@@ -396,7 +398,7 @@ class Expr(SatType, tuple):
     def _IDX_(self, i: tuple):
         raise SatTypeError(f"Can not index object of type `{type(self)}`.", target=self)
 
-    ## Some aliases
+    # -*- Python Magic Method Aliases -*-
     def __invert__(self):
         return self._NOT_()
 
@@ -418,8 +420,8 @@ class Expr(SatType, tuple):
     def __mul__(self, other):
         return self._MUL_(other)
 
-    def _IDX_(e, i: tuple):
-        return Expr(T_IDX, e, *i)
+    def _IDX_(self, i: tuple):
+        return Expr(T_IDX, self, *i)
 
     FORMAT_PATTERNS = {
         ## Logical
@@ -441,10 +443,9 @@ class Expr(SatType, tuple):
         T_NE: "{1} {0} {2}",
     }
 
-    FORMAT_SPECIAL = {T_ADD: F_ADD}
-
     FORMAT_FUNCTIONS = {
         ## Arithmetic
+        T_ADD: (lambda head, *tail: (join(f" {head} ", tail))),
         T_MUL: (lambda head, *tail: (join(f" {head} ", tail))),
         ## Logical
         T_AND: (lambda head, *tail: (join(f" {head} ", tail))),
@@ -726,8 +727,6 @@ SatExpr.TABLE["NOT"] = {
     T_NOT: (lambda A: A),
 }
 
-
-@SatExpr.sorting
 def sorting(p: SatType):
     if type(p) is Number:
         return (0, float(p))

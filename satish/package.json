@@ -1,0 +1,26 @@
+{
+    "name": "satish",
+    "displayName": "SATish",
+    "description": "SATish language syntax highlighting",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.59.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "satish",
+            "aliases": ["SATish", "satish"],
+            "extensions": [".sat"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "satish",
+            "scopeName": "source.sat",
+            "path": "./syntaxes/satish.tmLanguage.json"
+        }]
+    },
+    "icon": "https://github.com/pedromxavier/Satyrus3/satish/satish.png"
+}

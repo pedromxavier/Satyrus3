@@ -1,6 +1,6 @@
 ?prec: 16; # Precision
+?alpha: 30;    #
 ?epsilon: 1E-03;
-#?alpha: 30;
 
 # Total number of verties in the graph.
 n = 5;
@@ -49,21 +49,19 @@ LOW = 1;
 HIGH = 2;
 
 (int) color_all_once[LOW]:
-    @{i = [1:n]}
-    @{k = [1:n]}
+    forall {i = [1:n]}
+    forall {k = [1:n]}
     vc[i][k];
 
 (int) use_color[LOW]:
-    @{i = [1:n]}
-    @{k = [1:n]}
+    forall{i = [1:n]}
+    forall{k = [1:n]}
     vc[i][k] -> col[k];
-
+    
 (int) neighbour_coloring[HIGH]:
-    @{i = [1:n]}
-    @{j = [1:n], j != i}
-    @{k = [1:n]}
-    neigh[i][j] -> ~(vc[i][k] & vc[j][k]);
+    forall{i = [1:n]}
+    forall{j = [1:n], j != i}
+    forall{k = [1:n]}
+    neigh[i][j] -> ~(vc[i][k] & vc[j][k]) + 2;
 
-(opt) cost:
-    ${k = [1:n]}
-    col[k];
+(opt) cost: ${k = [1:n]} col[k];

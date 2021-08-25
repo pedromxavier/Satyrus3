@@ -1,0 +1,91 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "SATish",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#comments"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#variables"
+		},
+		{
+			"include": "#constants"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [
+				{
+					"name": "keyword.operator.satish",
+					"match": "(\\~|\\&|\\^|\\<\\-\\>|\\<\\-|\\-\\>|\\=\\=|\\!\\=|\\!|\\@|\\$\\!|\\$)"
+				},
+				{
+					"name": "keyword.other.satish",
+					"match": "\\b(not|and|xor|xnr|or|imp|iff|forall|exists|unique)\\b"
+				}
+			]
+		},
+		"comments": {
+			"patterns": [
+				{
+					"name": "comment.block.satish",
+					"begin": "\\#\\{",
+					"end": "\\}\\#"
+				},
+				{
+					"name": "comment.line.satish",
+					"begin": "#",
+					"end": "\n"
+				}
+			]
+		},
+		"strings": {
+			"patterns": [
+				{
+					"name": "string.quoted.single.satish",
+					"begin": "'",
+					"end": "'"
+				},
+				{
+					"name": "string.quoted.double.satish",
+					"begin": "\"",
+					"end": "\""
+				}
+			]
+		},
+		"variables": {
+			"patterns": [
+				{
+					"name": "variable.other.satish",
+					"match": "\\b[a-zA-Z][a-zA-Z0-9_]*\\b"
+				},
+				{
+					"name": "variable.parameter.directive.satish",
+					"match": "\\?(prec|alpha|epsilon)"
+				},
+				{
+					"match": "\\((int|opt)\\)[^\\S\\r\\n]*([a-zA-Z_][a-zA-Z0-9_]*)",
+					"captures": {
+						"1": {"name": "variable.parameter.constraint.satish"},
+						"2": {"name": "entity.name.function"}
+					}
+				}
+			]
+		},
+		"constants": {
+			"patterns": [
+				{
+					"name": "constant.numeric.satish",
+					"match": "[0-9]*\\.?[0-9]+([Ee][+-][0-9]+)?"
+				}
+			]
+		}
+	},
+	"scopeName": "source.sat"
+}

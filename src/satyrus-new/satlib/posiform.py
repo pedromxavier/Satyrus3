@@ -241,12 +241,12 @@ class Posiform(dict):
         """
         if X is None or len(X) <= 2:
             return self.cls({X: a})
-        elif len(X) >= 3:
+        else:
             ## Reduction by minimum selection
             w = self.aux
             x, y, *z = X
 
-            if self.minimum_selection():  ## minimum selection
+            if self.__minimum_selection():  ## minimum selection
                 if a < 0:
                     ## if a < 0: a (x y z) => a w (x + y + z - 2)
                     return self.cls({(x, w): a, (y, w): a, (*z, w): a, (w,): -2.0 * a})
@@ -268,20 +268,22 @@ class Posiform(dict):
                         + self.__reduce_term((*z, w), a)
                         + self.__reduce_term((*z,), -a)
                     )
-            elif self.substitution():
+            elif self.__substitution():
                 alpha = 2.0  ## TODO: How can I compute alpha? (besides alpha > 1)
-                return self.__reduce_term((*z, w), 1.0) + alpha * self.P(x, y, w)
+                return self.__reduce_term((*z, w), 1.0) + alpha * self.__P(x, y, w)
             else:
                 raise NotImplementedError("Not an option.")
-        else:
-            raise NotImplementedError(
-                "Reducing any amount of terms (greater than 3) is not implemented yet"
-            )  #
 
-    def minimum_selection(self, *args) -> bool:
+    @classmethod
+    def __P(cls: type, x: str, y: str, w: str):
+        """"""
+        return cls({(x, y): 1.0, (x, w): -2.0, (y, w): -2.0, (w,): 3.0})
+
+    def __minimum_selection(self, *args) -> bool:
         return True
 
-    def substitution(self, *args) -> bool:
+
+    def __substitution(self, *args) -> bool:
         return True
 
     @property
@@ -292,16 +294,12 @@ class Posiform(dict):
     def cls(self):
         return self.__class__
 
-    @classmethod
-    def P(cls: type, x: str, y: str, w: str):
-        """"""
-        return cls({(x, y): 1.0, (x, w): -2.0, (y, w): -2.0, (w,): 3.0})
 
-    def qubo(self):
+    def qubo(self) -> tuple[dict[str, int], np.ndarray[float], float]:
         """
         Returns
         -------
-        dict[str] -> int
+        dict[str, int]
             Mapping between variables and respective indexes.
         np.ndarray
             Symmetric Matrix representing QUBO instance.

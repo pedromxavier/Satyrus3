@@ -16,81 +16,11 @@ from functools import wraps, reduce
 
 os.path.join = posixpath.join
 
-
-def kwget(key, kwargs: dict, default=None):
-    try:
-        return kwargs[key]
-    except KeyError:
-        return default
-
-
-def load(fname: str, **kwargs):
-    with open(fname, "r", **kwargs) as file:
-        return file.read()
-
-
-def dump(fname: str, s: str, **kwargs):
-    with open(fname, "w", **kwargs) as file:
-        file.write(s)
-
-
-def pkload(fname: str, **kwargs):
-    with open(fname, "rb", **kwargs) as pkfile:
-        while True:
-            try:
-                yield pickle.load(pkfile)
-            except EOFError:
-                break
-
-
-def pkdump(fname: str, *args, **kwargs):
-    with open(fname, "wb", **kwargs) as pkfile:
-        for obj in args:
-            pickle.dump(obj, pkfile)
-
-
-def threaded(callback):
-    @wraps(callback)
-    def new_callback(*args, **kwargs):
-        return thread.start_new_thread(callback, args, kwargs)
-
-    return new_callback
-
-
-def func_type(cls):
-    def decor(callback):
-        @wraps(callback)
-        def new_callback(*args, **kwargs):
-            answer = callback(*args, **kwargs)
-            try:
-                return cls(answer)
-            except TypeError:
-                return answer
-
-        return new_callback
-
-    return decor
-
-
-def keep_type(callbacks: set):
-    def class_decor(cls):
-        ftype = func_type(cls)
-        for name in callbacks:
-            if hasattr(cls, name):
-                setattr(cls, name, ftype(getattr(cls, name)))
-        return cls
-
-    return class_decor
-
-
 def compose(*funcs: callable):
     """`compose(f, g, h)` is equivalent to `lambda *args, **kwargs: f(g(h(*args, **kwargs)))`"""
     return reduce(lambda f, g: (lambda *x, **kw: f(g(*x, **kw))), funcs)
 
-
-def join(
-    glue: {str, callable}, args: list, func: callable = str, enum: bool = False
-) -> str:
+def join(glue: str, args: list, func=str, enum: bool = False) -> str:
     """"""
     if type(glue) is str:
         if enum:
@@ -115,15 +45,7 @@ def join(
     else:
         raise TypeError()
 
-
-def log(fname: str = "sat", mode: str = "w"):
-    trace = traceback.format_exc()
-    with open(f"{fname}.log", mode=mode) as file:
-        file.write(trace)
-    return trace
-
-
-def arange(start: object, stop: object=None, step: object=None):
+def arange(start: object, stop: object = None, step: object = None):
     """arange(stop) -> [0, 1, ..., stop]
     arange(start, stop) -> [start, start + 1, ..., stop]
     arange(start, stop, step) -> [start, start + step, ..., stop]
@@ -168,3 +90,5 @@ def arange(start: object, stop: object=None, step: object=None):
         while x >= stop:
             yield x
             x += step
+
+__all__ = ['arange', 'join', 'compose']

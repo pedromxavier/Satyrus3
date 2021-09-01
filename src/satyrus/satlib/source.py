@@ -1,110 +1,185 @@
 ## Standard Library
-from functools import wraps
 import itertools as it
-import os
-
-class EOFType(object):
-
-    def __init__(self, lexinfo: dict):
-        ## Add tracking information
-        self.lineno = lexinfo['lineno']
-        self.lexpos = lexinfo['lexpos']
-        self.chrpos = lexinfo['chrpos']
-        self.source = lexinfo['source']
-
-        self.lexinfo = lexinfo
+from pathlib import Path
 
 class Source(str):
-    """ This source code object aids the tracking of tokens in order to
-        indicate error position on exception handling.
+    """This source code object aids the tracking of tokens in order to
+    indicate error position on exception handling.
     """
 
-    def __new__(cls, fname :str, buffer: str=None):
-        """ This object is a string itself with additional features for
-            position tracking.
+    def __new__(cls, *, fname: str = None, buffer: str = None, offset: int = 0, length: int = None):
+        """This object is a string itself with additional features for
+        position tracking.
         """
-        if fname is not None:
-            with open(fname, mode='r') as file:
-                return str.__new__(cls, file.read())
+        if fname is not None and buffer is not None:
+            raise ValueError("Can't work with both 'fname' and 'buffer' parameters, choose one option.")
+
+        elif fname is not None:
+            if not isinstance(fname, (str, Path)):
+                raise TypeError(
+                    f"Invalid type '{type(fname)}' for 'fname'. Must be 'str' or 'Path'."
+                )
+
+            fpath = Path(fname)
+
+            if not fpath.exists() or not fpath.is_file():
+                raise FileNotFoundError(f"Invalid file path '{fname}'.")
+
+            with open(fpath, mode="r", encoding="utf-8") as file:
+                return super(Source, cls).__new__(cls, file.read())
+
+        elif buffer is not None:
+            if not isinstance(buffer, str):
+                raise TypeError(
+                    f"Invalid type '{type(buffer)}' for 'buffer'. Must be 'str'."
+                )
+
+            return super(Source, cls).__new__(cls, buffer)
         else:
-            return str.__new__(cls, buffer)
+            raise ValueError("Either 'fname' or 'buffer' must be provided.")
 
+    def __init__(self, *, fname: str = None, buffer: str = None, offset: int = 0, length: int = None):
+        """Separates the source code in multiple lines. A blank first line is added for the indexing to start at 1 instead of 0. `self.table` keeps track of the (cumulative) character count."""
+        if not isinstance(offset, int) or offset < 0:
+            raise TypeError("'offset' must be a positive integer (int).")
+        elif length is None:
+            length = len(self)
+        elif not isinstance(length, int) or length < 0:
+            raise TypeError("'length' must be a positive integer (int) or 'None'.")
 
-    def __repr__(self):
-        return f"<source @ {self.fname}>"
+        self.offset = min(offset, len(self))
+        self.length = min(length, len(self) - self.offset)
 
-    def __bool__(self):
-        """ Truth-value for emptiness checking.
-        """
-        return (str(self) != "")
-
-    def __init__(self, fname : str, buffer: str=None):
-        """ Separates the source code in multiple lines. First line is discarded for
-            the indexing to start at 1 instead of 0. `self.table` keeps track of the
-            (cumulative) character count.
-        """
-        self.fname = os.path.abspath(fname) if (fname is not None) else "string"
-        self.lines = ['', *str.split(self, '\n')]
+        self.fpath = Path(fname).resolve(strict=True) if (fname is not None) else "<string>"
+        self.lines = [""] + self.split("\n")
         self.table = list(it.accumulate([(len(line) + 1) for line in self.lines]))
 
-    @classmethod
-    def from_str(cls, buffer: str):
-        return cls(None, buffer=buffer)
 
-    @staticmethod
-    def load(fname : str):
-        return Source(fname)
+    def __str__(self):
+        return self[self.offset:self.offset+self.length]
+
+    def __repr__(self):
+        return f"Source @ '{self.fpath}'"
+
+    def __bool__(self):
+        """Truth-value for emptiness checking."""
+        return self.__len__() > 0
+
+    def getlex(self, lexpos: int = None) -> dict:
+        """Retrieves lexinfo dictionary from lexpos."""
+        if lexpos is None:
+            return self.eof.lexinfo
+        elif not isinstance(lexpos, int):
+            raise TypeError("'lexpos' must be an integer (int).")
+        elif not 0 <= lexpos <= self.length:
+            return self.eof.lexinfo
+        
+        lexpos = lexpos + self.offset + 1
+
+        lineno = 1
+        while lineno < len(self.table) and lexpos >= self.table[lineno]:
+            lineno += 1
+
+        if lineno == len(self.table):
+            return self.eof.lexinfo
+        else:
+            return {
+                'lineno': lineno,
+                'lexpos': lexpos,
+                'chrpos': lexpos - self.table[lineno - 1],
+                'source': self,
+            }
+
+    def slice(self, offset: int = 0, length: int = None):
+        return self.__class__(fname=self.fpath, offset=offset, length=length)
+
+    def error(self, msg: str, *, target: object = None, name: str = None):
+        if target is None or not TrackType.trackable(target):
+            if name is not None:
+                return (
+                        f"In '{self.fpath}':\n"
+                        f"{name}: {msg}\n"
+                    )
+            else:
+                return (
+                        f"In '{self.fpath}':\n"
+                        f"{msg}\n"
+                    )
+        else:
+            if name is not None:
+                return (
+                        f"In '{self.fpath}' at line {target.lineno}:\n"
+                        f"{self.lines[target.lineno]}\n"
+                        f"{' ' * target.chrpos}^\n"
+                        f"{name}: {msg}\n"
+                    )
+            else:
+                return (
+                        f"In '{self.fpath}' at line {target.lineno}:\n"
+                        f"{self.lines[target.lineno]}\n"
+                        f"{' ' * target.chrpos}^\n"
+                        f"{msg}\n"
+                    )
 
     @property
     def eof(self):
-        """ Virtual object to represent the End-of-File for the given source
-            object. It's an anonymously created 
+        """Virtual object to represent the End-of-File for the given source
+        object. It's an anonymously created EOFType instance.
         """
-
-        ## SatType lexinfo interface
-        lineno = len(self.lines) - 1
-        lexpos = len(self.lines[lineno]) - 1
-        chrpos = (lexpos - self.table[lineno - 1] + 1)
-
-        lexinfo = {
-            'lineno': lineno,
-            'lexpos': lexpos,
-            'chrpos' : chrpos,
-            'source' : self
-        }
-
         ## Anonymous object
-        return EOFType(lexinfo)
+        return TrackType(self, len(self))
 
-def trackable(cls: type):
+class TrackType(object):
 
-    init_func = cls.__init__
+    KEYS = {'lexpos', 'chrpos', 'lineno', 'source'}
     
-    @wraps(init_func)
-    def __init__(self, *args, **kwargs):
-        init_func(self, *args, **kwargs)
-        setattr(self, 'lexinfo', {
-            'lineno': 0,
-            'lexpos': 0,
-            'chrpos': 0,
-            'source': None
-        })
+    def __init__(self, source: Source, lexpos: int):
+        ## Add tracking information
+        self.lexinfo: dict = source.getlex(lexpos)
 
-    setattr(cls, '__init__', __init__)
-
-    setattr(cls, 'lineno', property(lambda self: getattr(self, 'lexinfo')['lineno']))
-    setattr(cls, 'lexpos', property(lambda self: getattr(self, 'lexinfo')['lexpos']))
-    setattr(cls, 'chrpos', property(lambda self: getattr(self, 'lexinfo')['chrpos']))
-    setattr(cls, 'source', property(lambda self: getattr(self, 'lexinfo')['source']))
-
-    return cls
-
-def track(from_: object, to_: object, out: bool=False):
-    if hasattr(from_, 'lexinfo'):
-        if hasattr(to_, 'lexinfo'):
-            to_.lexinfo.update(from_.lexinfo)
-            if out: return to_
+    @classmethod
+    def trackable(cls, o: object, *, strict: bool = False):
+        if cls._trackable(o):
+            return True
+        elif strict:
+            raise TypeError(f"Object '{o}' of type '{type(o)}' is not trackable.")
         else:
-            raise AttributeError('`to_` is not trackable, i.e. has no attribute `lexinfo`.')
-    else:
-        raise AttributeError('`from_` is not trackable, i.e. has no attribute `lexinfo`.')
+            return False
+
+    @classmethod
+    def _trackable(cls, o: object):       
+        if not hasattr(o, 'lexinfo') or not isinstance(o.lexinfo, dict):
+            return False
+        else:
+            if any(key not in o.lexinfo for key in cls.KEYS):
+                return False
+            else:
+                if not hasattr(o, 'lineno') or not isinstance(o.lineno, int) or o.lineno < 0:
+                    return False
+                elif not hasattr(o, 'lexpos') or not isinstance(o.lexpos, int) or o.lexpos < 0:
+                    return False
+                elif not hasattr(o, 'chrpos') or not isinstance(o.chrpos, int) or o.chrpos < 0:
+                    return False
+                elif not hasattr(o, 'source') or not isinstance(o.source, Source):
+                    return False
+                else:
+                    return True
+                
+    @property
+    def lineno(self):
+        return self.lexinfo['lineno']
+
+    @property
+    def lexpos(self):
+        return self.lexinfo['lexpos']
+
+    @property
+    def chrpos(self):
+        return self.lexinfo['chrpos']
+
+    @property
+    def source(self):
+        return self.lexinfo['source']
+
+
+__all__ = ["Source", "TrackType"]

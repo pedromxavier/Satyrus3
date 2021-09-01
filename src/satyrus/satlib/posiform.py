@@ -1,30 +1,37 @@
+""""""
+# Future
+from __future__ import annotations
+
 # Standard Library
 from numbers import Number as ABC_NUM
 
 # Third-Party
 import numpy as np
 
+
 class Posiform(dict):
-    r"""This object is intended to represent a sum of products under a psudo-boolean domain.
+    """\
+    This object is intended to represent a sum of products under a psudo-boolean domain.
 
     Assumptions
     -----------
     1. Every variable is boolean (i.e. $x \in \{0, 1\}$)
+    2. Posiform is a mutable type.
     """
 
-    def __init__(self, d: dict = None):
-        """
+    def __init__(self, buffer: dict = None):
+        """\
         Parameters
         ----------
-        d : dict
-            Dictionary to be used as buffer.
+        buffer : dict
+            Dictionary containing pairs (variables, constant).
         """
-        if d is not None:
-            if not isinstance(d, dict):
+        if buffer is not None:
+            if not isinstance(buffer, dict):
                 raise TypeError("Posiform buffer must be of type 'dict' or 'None'.")
             else:
                 buffer = {}
-                for k, v in d.items():
+                for k, v in buffer.items():
                     if not isinstance(v, ABC_NUM) or isinstance(v, complex):
                         raise TypeError("Posiform buffer values must be real numbers")
                     elif float(v) == 0.0:
@@ -54,18 +61,22 @@ class Posiform(dict):
         else:
             return "0.0"
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({dict.__repr__(self)})"
+
     def __iter__(self):
         return iter(dict.items(self))
 
-    def copy(self):
+    def copy(self) -> Posiform:
+        """Deep Posiform copy."""
         return Posiform({k: v for k, v in self})
 
-    def __add__(self, other):
+    def __add__(self, other) -> Posiform:
         posiform = self.copy()
         posiform = posiform.__iadd__(other)
         return posiform
 
-    def __iadd__(self, other):
+    def __iadd__(self, other) -> Posiform:
         if isinstance(other, dict):
             try:
                 other = self.cls(other)
@@ -93,18 +104,21 @@ class Posiform(dict):
         else:
             return NotImplemented
 
-    def __neg__(self):
+    def __neg__(self) -> Posiform:
         posiform = self.cls()
         for k, v in self:
             posiform[k] = -v
         return posiform
 
-    def __sub__(self, other):
+    def __rsub__(self, other) -> Posiform:
+        return self.__sub__(other).__neg__()
+
+    def __sub__(self, other) -> Posiform:
         posiform = self.copy()
         posiform = posiform.__isub__(other)
         return posiform
 
-    def __isub__(self, other):
+    def __isub__(self, other) -> Posiform:
         if isinstance(other, dict):
             try:
                 other = self.cls(other)
@@ -132,7 +146,23 @@ class Posiform(dict):
         else:
             return NotImplemented
 
-    def __mul__(self, other):
+    def __truediv__(self, other) -> Posiform:
+        posiform = self.copy()
+        posiform /= other
+        return posiform
+
+    def __itruediv__(self, other) -> Posiform:
+        if isinstance(other, ABC_NUM):
+            c = float(other)
+            if c != 0.0:
+                for k, v in self:
+                    self[k] = v / c
+            else:
+                raise ZeroDivisionError("division by zero")
+        else:
+            return NotImplemented
+
+    def __mul__(self, other) -> Posiform:
         posiform = self.copy()
         posiform *= other
         return posiform
@@ -143,7 +173,7 @@ class Posiform(dict):
                 other = self.cls(other)
             except TypeError as type_error:
                 raise TypeError(
-                    "Unable to cast operand to Posiform type."
+                    "Unable to cast operand to Posiform type"
                 ) from type_error
         if isinstance(other, type(self)):
             posiform = Posiform()
@@ -182,11 +212,11 @@ class Posiform(dict):
     __rmul__ = __mul__
 
     @property
-    def aux(self):
+    def aux(self) -> str:
         self.__aux += 1
         return f"${self.__aux}"
 
-    def reduce_degree(self):
+    def reduce_degree(self) -> Posiform:
         """"""
         ## Reset ancillary variable counter
         self.__aux = 0
@@ -196,7 +226,7 @@ class Posiform(dict):
             posiform += self.__reduce_term(X, a)
         return posiform
 
-    def __reduce_term(self, X: frozenset, a: float):
+    def __reduce_term(self, X: frozenset, a: float) -> Posiform:
         """
         Parameters
         ----------
@@ -211,12 +241,12 @@ class Posiform(dict):
         """
         if X is None or len(X) <= 2:
             return self.cls({X: a})
-        elif len(X) >= 3:
+        else:
             ## Reduction by minimum selection
             w = self.aux
             x, y, *z = X
 
-            if self.minimum_selection():  ## minimum selection
+            if self.__minimum_selection():  ## minimum selection
                 if a < 0:
                     ## if a < 0: a (x y z) => a w (x + y + z - 2)
                     return self.cls({(x, w): a, (y, w): a, (*z, w): a, (w,): -2.0 * a})
@@ -238,20 +268,22 @@ class Posiform(dict):
                         + self.__reduce_term((*z, w), a)
                         + self.__reduce_term((*z,), -a)
                     )
-            elif self.substitution():
+            elif self.__substitution():
                 alpha = 2.0  ## TODO: How can I compute alpha? (besides alpha > 1)
-                return self.__reduce_term((*z, w), 1.0) + alpha * self.P(x, y, w)
+                return self.__reduce_term((*z, w), 1.0) + alpha * self.__P(x, y, w)
             else:
                 raise NotImplementedError("Not an option.")
-        else:
-            raise NotImplementedError(
-                "Reducing any amount of terms (greater than 3) is not implemented yet."
-            )  #
 
-    def minimum_selection(self, *args) -> bool:
+    @classmethod
+    def __P(cls: type, x: str, y: str, w: str):
+        """"""
+        return cls({(x, y): 1.0, (x, w): -2.0, (y, w): -2.0, (w,): 3.0})
+
+    def __minimum_selection(self, *args) -> bool:
         return True
 
-    def substitution(self, *args) -> bool:
+
+    def __substitution(self, *args) -> bool:
         return True
 
     @property
@@ -262,16 +294,12 @@ class Posiform(dict):
     def cls(self):
         return self.__class__
 
-    @classmethod
-    def P(cls: type, x: str, y: str, w: str):
-        """"""
-        return cls({(x, y): 1.0, (x, w): -2.0, (y, w): -2.0, (w,): 3.0})
 
-    def qubo(self):
+    def qubo(self) -> tuple[dict[str, int], np.ndarray[float], float]:
         """
         Returns
         -------
-        dict[str] -> int
+        dict[str, int]
             Mapping between variables and respective indexes.
         np.ndarray
             Symmetric Matrix representing QUBO instance.
@@ -304,12 +332,4 @@ class Posiform(dict):
         return x, Q, c
 
 
-def test():
-    global p, q, r
-    p = Posiform({("x",): 1, ("y",): 1, None: 0})
-    q = Posiform({("y",): 1, ("z",): 1, None: 0})
-    r = Posiform({("x",): 1, ("z",): 1, None: 0})
-
-
-if __name__ == "__main__":
-    test()
+__all__ = ["Posiform"]

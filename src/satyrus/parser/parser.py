@@ -9,11 +9,11 @@ from ply import lex, yacc
 from cstream import stderr, stdout
 
 ## Local
-from ..satlib import Source, Stack, PythonShell, PythonError, track, Timing
-from ..types.error import SatParserError, SatLexerError, SatTypeError, SatSyntaxError, SatValueError, SatPythonError, SatExit
+from ..satlib import Source, Stack, PythonShell, PythonError, Timing
+from ..error import SatParserError, SatLexerError, SatTypeError, SatSyntaxError, SatValueError, SatPythonError, SatExit
 from ..types import Expr, Var, Number, String, SatType, PythonObject
-from ..types.symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, CMD_PYTHON
-from ..types.symbols.tokens import T_IDX, T_ADD, T_NEG
+from ..symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, CMD_PYTHON
+from ..symbols import T_IDX, T_ADD, T_NEG
 
 def regex(pattern: str):
     def decor(callback):

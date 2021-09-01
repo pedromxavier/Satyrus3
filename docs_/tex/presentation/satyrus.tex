@@ -2,78 +2,82 @@
 
 \usetheme{OsloMet}
 \usepackage{homework}
+\usepackage{multicol}
 \usepackage{style}
 \usepackage{bm}
 
 \author[Pedro Maciel]
-{Pedro Maciel Xavier\\{\scriptsize sob orientação de Priscila Machado Vieira Lima}}
+{Pedro Maciel Xavier\break{\scriptsize sob orientação de Priscila Machado Vieira Lima}}
 \title{Satyrus III}
 \subtitle{\small }
 
 \begin{document}
-    % Use
-    %
-    %     \begin{frame}[allowframebreaks]
-    %
-    % if the TOC does not fit one frame.
-    \begin{frame}%%[allowframebreaks]%%
-        {Sumário}
+% Use
+%
+%     \begin{frame}[allowframebreaks]
+%
+% if the TOC does not fit one frame.
+
+\begin{frame}[fragile]{Sumário}%%
+    \begin{multicols}{2}
         \tableofcontents
-    \end{frame}
-
-    %% Disable the logo in the lower right corner:
-    \hidelogo
-
-    %% Enable the logo in the lower right corner:
-    \section{Fundamentos}
-    \SectionPage
-
-    \subsection{}
-    \begin{frame}{}
-    \end{frame}
-
-    \section{O Compilador}
-    \SectionPage
-
-    \subsection{Mapeamento}
-    \newcommand{\HH}[1]{\text{H}\left(#1\right)}
-    \begin{frame}{Mapeamento}
-        \begin{align*}
-            \HH{\text{F}} &= 0\\
-            \HH{\text{V}} &= 1\\
-            \HH{\neg p} &= 1 - \HH{p}\\
-            \HH{p \wedge q} &= \HH{p} \HH{q}\\
-            \HH{p \vee q} &= \HH{p} + \HH{q} - \HH{p} \HH{q}
-        \end{align*}
-    \end{frame}
+    \end{multicols}
+\end{frame}
 
 
-    \subsection{Penalidades}
-    \begin{frame}{Penalidades}
-        No contexto do Satyrus, temos uma equação de energia a minimizar dada por
-            \begin{align*}
-                \mathbb{E} &= \mathbb{E}_\text{opt} + \mathbb{E}_\text{int}\\
-                        &= \sum_{i} \HH{\varphi_i} %%
-                        + \sum_j \pmb{\lambda}_j \HH{\neg \varphi_j}
-            \end{align*}
-        onde $\lambda_j$ é a penalidade associada à $j$-ésima restrição de integridade e $\HH{\,\cdot\,}$ é o mapeamento. Portanto, é possível escrever um problema modelado pelo Satyrus como
-            \begin{align*}
-                \text{minimizar } &f(\mathbf{x}) + \pmb{\lambda} \cdot g(\mathbf{x})\\
-                \text{sujeito a } &\mathbf{x} \in \{0, 1\}^{n}
-            \end{align*}
-    \end{frame}
+%% Disable the logo in the lower right corner:
+\hidelogo
+
+%% Enable the logo in the lower right corner:
+\section{Fundamentos}
+\SectionPage
+
+\subsection{}
+\begin{frame}{}
+\end{frame}
+
+\section{O Compilador}
+\SectionPage
+
+\subsection{Mapeamento}
+\newcommand{\HH}[1]{\text{H}\left(#1\right)}
+\begin{frame}{Mapeamento}
+    \begin{align*}
+        \HH{\text{F}}   & = 0                               \\
+        \HH{\text{V}}   & = 1                               \\
+        \HH{\neg p}     & = 1 - \HH{p}                      \\
+        \HH{p \wedge q} & = \HH{p} \HH{q}                   \\
+        \HH{p \vee q}   & = \HH{p} + \HH{q} - \HH{p} \HH{q}
+    \end{align*}
+\end{frame}
 
 
-    \begin{frame}{Penalidades}%%
-        Resta saber se é possível escrever
-            $f(\vet{x}) + \pmb{\lambda} \cdot g(\vet{x}) = \vet{x}\T \vet{Q}\, \vet{x}$.
-        Como, por construção, tanto $f(\vet{x})$ quanto $g(\vet{x})$ são polinômios nas componentes de $\vet{x}$, isso pode ser feito ao aplicar uma redução dos termos com três ou mais variáveis.
-    \end{frame}
+\subsection{Penalidades}
+\begin{frame}{Penalidades}
+    No contexto do Satyrus, temos uma equação de energia a minimizar dada por
+    \begin{align*}
+        \mathbb{E} & = \mathbb{E}_\text{opt} + \mathbb{E}_\text{int} \\
+                   & = \sum_{i} \HH{\varphi_i}                       %%
+        + \sum_j \pmb{\lambda}_j \HH{\neg \varphi_j}
+    \end{align*}
+    onde $\lambda_j$ é a penalidade associada à $j$-ésima restrição de integridade e $\HH{\,\cdot\,}$ é o mapeamento. Portanto, é possível escrever um problema modelado pelo Satyrus como
+    \begin{align*}
+        \text{minimizar } & f(\mathbf{x}) + \pmb{\lambda} \cdot g(\mathbf{x}) \\
+        \text{sujeito a } & \mathbf{x} \in \{0, 1\}^{n}
+    \end{align*}
+\end{frame}
 
-    \subsection{Restrições}
-    \begin{frame}[fragile]{Restrições}%%
-        \begin{enumerate}
-            \item Integridade
+
+\begin{frame}{Penalidades}%%
+    Resta saber se é possível escrever
+    $f(\vet{x}) + \pmb{\lambda} \cdot g(\vet{x}) = \vet{x}\T \vet{Q}\, \vet{x}$.
+    Como, por construção, tanto $f(\vet{x})$ quanto $g(\vet{x})$ são polinômios nas componentes de $\vet{x}$, isso pode ser feito ao aplicar uma redução dos termos com três ou mais variáveis.
+\end{frame}
+
+\subsection{Restrições}
+\begin{frame}[fragile]{Restrições}%%
+    \begin{enumerate}
+        \item Integridade
         \begin{lstlisting}[style=SATStyle, gobble=8]
         (int) constraint_X[1]:
             forall {i = [1:n]}
@@ -81,107 +85,107 @@
             unique {k = [1:n]}
             (x[i] & y[j]) -> z[k];
         \end{lstlisting}
-            \item Otimalidade
+        \item Otimalidade
         \begin{lstlisting}[style=SATStyle, gobble=8]
         (opt) constraint_Y: exists {i = [1:n]} c[i];
         \end{lstlisting}
-        \end{enumerate}
-        
-    \end{frame}
+    \end{enumerate}
+
+\end{frame}
 
 
-    \section{Exemplos de Modelagem}
-    \SectionPage
+\section{Exemplos de Modelagem}
+\SectionPage
 
-    \subsection{Coloração de Grafos}
-    \begin{frame}{Coloração de Grafos}
+\subsection{Coloração de Grafos}
+\begin{frame}{Coloração de Grafos}
 
-    \end{frame}
+\end{frame}
 
-    \subsection{TSP}
-    \begin{frame}{TSP}
-        
-    \end{frame}
+\subsection{TSP}
+\begin{frame}{TSP}
 
-    \subsection{Caixeiro Pintor}
-    \begin{frame}{Caixeiro Pintor}
-        
-    \end{frame}
+\end{frame}
 
-    \section{Instruções}
+\subsection{Caixeiro Pintor}
+\begin{frame}{Caixeiro Pintor}
 
-    \subsection{Instalação}
-    \begin{frame}%%
-        {Instalação}
+\end{frame}
 
-        \begin{enumerate}
-            \item Através do \textit{Python Package Index} (PyPI)\\%%
-            \texttt{%%
-                \$ pip install satyrus\\%%
-                \$ satyrus --help\\%%
-                \$ python -m satyrus --help
-            }
-            \item Por meio do código-fonte\\%%
-            \texttt{%%
-                \$ git clone https://github.com/pedromxavier/Satyrus3\\%%
-                \$ cd Satyrus3\\%%
-                \$ python setup.py install
-            }
-        \end{enumerate}
-    \end{frame}
+\section{Instruções}
 
-    \subsection{Uso}
-    \begin{frame}%%
-        {Uso}
+\subsection{Instalação}
+\begin{frame}%%
+    {Instalação}
 
-        \texttt{%%
-            \$ satyrus problem.sat -o \{text, csv, gurobi, dwave, ...\}%%
-        }
+    \begin{enumerate}
+        \item Através do \textit{Python Package Index} (PyPI)\\%%
+              \texttt{%%
+                  \$ pip install satyrus\\%%
+                  \$ satyrus --help\\%%
+                  \$ python -m satyrus --help
+              }
+        \item Por meio do código-fonte\\%%
+              \texttt{%%
+                  \$ git clone https://github.com/pedromxavier/Satyrus3\\%%
+                  \$ cd Satyrus3\\%%
+                  \$ python setup.py install
+              }
+    \end{enumerate}
+\end{frame}
 
-    \end{frame}
+\subsection{Uso}
+\begin{frame}%%
+    {Uso}
 
-    \section{Conclusão}
-    \begin{frame}{Conclusão}
-        
-    \end{frame}
+    \texttt{%%
+        \$ satyrus problem.sat -o \{text, csv, gurobi, dwave, ...\}%%
+    }
 
-    \section*{Referências}
-    \begin{frame}%%[allowframebreaks]%%
-        {Referências}
+\end{frame}
 
-        \begin{thebibliography}{}
+\section{Conclusão}
+\begin{frame}{Conclusão}
 
-            % Article is the default.
-            \setbeamertemplate{bibliography item}[article]
+\end{frame}
 
-            \bibitem{glover:2016}
-            Fred Glover, Gary Kochenberger, Yu Du
-            \newblock \emph{Quantum Bridge Analytics I: A Tutorial on Formulating and Using QUBO Models.}
-            % \newblock \emph{Optimization Letters}.
-            % \newblock Springer-Verlag, 2011.
+\section*{Referências}
+\begin{frame}%%[allowframebreaks]%%
+    {Referências}
 
-            % \setbeamertemplate{bibliography item}[book]
+    \begin{thebibliography}{}
 
-            % \bibitem{luenberger:2008}
-            % David G. Luenberger, Yiniu Ye
-            % \newblock \emph{Linear and Nonlinear Programming}
-            % \newblock Springer-Verlag, 2008.
+        % Article is the default.
+        \setbeamertemplate{bibliography item}[article]
+
+        \bibitem{glover:2016}
+        Fred Glover, Gary Kochenberger, Yu Du
+        \newblock \emph{Quantum Bridge Analytics I: A Tutorial on Formulating and Using QUBO Models.}
+        % \newblock \emph{Optimization Letters}.
+        % \newblock Springer-Verlag, 2011.
+
+        % \setbeamertemplate{bibliography item}[book]
+
+        % \bibitem{luenberger:2008}
+        % David G. Luenberger, Yiniu Ye
+        % \newblock \emph{Linear and Nonlinear Programming}
+        % \newblock Springer-Verlag, 2008.
 
 
-            \setbeamertemplate{bibliography item}[online]
+        \setbeamertemplate{bibliography item}[online]
 
-            \bibitem{dwave:2016}
-            D-Wave Systems
-            \newblock \emph{Problem-Solving Handbook}
-            \newblock \url{https://docs.dwavesys.com/docs/latest/c_handbook_3.html}
+        \bibitem{dwave:2016}
+        D-Wave Systems
+        \newblock \emph{Problem-Solving Handbook}
+        \newblock \url{https://docs.dwavesys.com/docs/latest/c_handbook_3.html}
 
-            \setbeamertemplate{bibliography item}[article]
+        \setbeamertemplate{bibliography item}[article]
 
-            \bibitem{boros:2002}
-            Endre Boros, Peter L. Hammer
-            \newblock \emph{Pseudo-Boolean optimization}
-            \newblock Elsevier, Discrete Applied Mathematics, 2002.
-        \end{thebibliography}
-    \end{frame}
+        \bibitem{boros:2002}
+        Endre Boros, Peter L. Hammer
+        \newblock \emph{Pseudo-Boolean optimization}
+        \newblock Elsevier, Discrete Applied Mathematics, 2002.
+    \end{thebibliography}
+\end{frame}
 
 \end{document}

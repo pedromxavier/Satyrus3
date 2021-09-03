@@ -6,7 +6,7 @@
 
 from ..compiler import SatCompiler
 from ...types import Var, Array, Number, PythonObject
-from ...types.error import SatTypeError, SatValueError
+from ...error import SatTypeError, SatValueError
 
 def def_array(compiler: SatCompiler, name: Var, shape: tuple, buffer: list):
     """ Array definition

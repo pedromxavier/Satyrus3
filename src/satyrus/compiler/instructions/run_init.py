@@ -1,26 +1,20 @@
-""" :: RUN_INIT ::
-	====================
-
-	STATUS: COMPLETE
+"""
 """
 
 from ..compiler import SatCompiler
-from ..components.mapping import RelaxedMapping
 from ...types import Number
-from ...types.symbols import PREC, DIR, LOAD, OPT, EPSILON, ALPHA, MAPPING
+from ...symbols import PREC, OPT, EPSILON, ALPHA
+
 
 def run_init(compiler: SatCompiler, *args: tuple):
-    """ RUN_INIT
-        ========
-        
-        Initializes compiler env
+    """\
+    Initializes compiler environment
     """
     default_env = [
         (PREC, 16),
         (OPT, 0),
-        (ALPHA, Number('1.0')),
-        (EPSILON, Number('1E-4')),
-        (MAPPING, RelaxedMapping),
+        (ALPHA, Number("1.0")),
+        (EPSILON, Number("1E-4")),
     ]
 
     for key, val in default_env:

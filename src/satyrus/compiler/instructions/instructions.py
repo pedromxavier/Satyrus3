@@ -4,7 +4,7 @@ from .def_constant import def_constant
 from .def_constraint import def_constraint
 from .run_init import run_init
 from .run_script import run_script
-from ...types.symbols import SYS_CONFIG, DEF_ARRAY, DEF_CONSTANT, DEF_CONSTRAINT, RUN_SCRIPT, RUN_INIT
+from ...symbols import SYS_CONFIG, DEF_ARRAY, DEF_CONSTANT, DEF_CONSTRAINT, RUN_SCRIPT, RUN_INIT
 
 instructions = {
     RUN_INIT: run_init,

@@ -6,25 +6,23 @@
 ## Standard Library
 import itertools as it
 from functools import reduce
-from dataclasses import dataclass
 
 ## Third-Party
 from cstream import stdlog, stdout, stdwar, stderr
 
 ## Local
 from ..compiler import SatCompiler
-from ..components.components import Loop
-from ..components.indexer import SatIndexer
-from ..components.mapping import SatMapping
 from ...satlib import arange, Stack, Queue, join, track
-from ...types.error import (
+from ...error import (
     SatValueError,
     SatTypeError,
     SatReferenceError,
     SatExprError,
     SatWarning,
 )
-from ...types.symbols.tokens import (
+from ...symbols import (
+    CONS_INT,
+    CONS_OPT,
     T_EXISTS,
     T_UNIQUE,
     T_FORALL,
@@ -34,11 +32,11 @@ from ...types.symbols.tokens import (
     T_NOT,
     T_NE,
 )
-from ...types.symbols import CONS_INT, CONS_OPT, INDEXER
-from ...types import Expr, Var, String, Number, Array, Constraint
+from ...types import Expr, Var, String, Number, Array
 
 LOOP_TYPES = {T_EXISTS, T_UNIQUE, T_FORALL}
 CONST_TYPES = {CONS_INT, CONS_OPT}
+
 
 def def_constraint(
     compiler: SatCompiler,
@@ -178,7 +176,7 @@ def def_constraint(
             # Compile condition expressions
             cond = reduce(
                 lambda x, y: x._AND_(y),
-                [compiler.evaluate(c, miss=False, calc  =True) for c in l_conds],
+                [compiler.evaluate(c, miss=False, calc=True) for c in l_conds],
                 Number.T,
             )
         else:
@@ -187,6 +185,7 @@ def def_constraint(
         stack.push(Loop(type=l_type, var=l_var, bounds=(start, stop, step), cond=cond))
 
     compiler.checkpoint()
+
 
 def def_constraint_build(
     compiler: SatCompiler,
@@ -223,12 +222,17 @@ def def_constraint_build(
     elif str(cons_type) == CONS_OPT:
         pass
     else:
-        raise NotImplementedError(f"There are no extra constraint types yet, just 'int' or 'opt', not '{cons_type}'.")
+        raise NotImplementedError(
+            f"There are no extra constraint types yet, just 'int' or 'opt', not '{cons_type}'."
+        )
 
     compiler.checkpoint()
 
     if not indexer.in_dnf:
-        compiler < SatWarning(f"In Constraint `{constraint.name}` the expression indexed by '{indexer}' is not in the C.N.F.\nThis will require (probably many) extra steps to evaluate.\nThus, you may press Ctrl+X/Ctrl+C to interrupt compilation.", target=constraint.var)
+        compiler < SatWarning(
+            f"In Constraint `{constraint.name}` the expression indexed by '{indexer}' is not in the C.N.F.\nThis will require (probably many) extra steps to evaluate.\nThus, you may press Ctrl+X/Ctrl+C to interrupt compilation.",
+            target=constraint.var,
+        )
 
     # Retrieve Indexed expression
     expr: Expr = indexer.index(ensure_dnf=True)
@@ -242,8 +246,11 @@ def def_constraint_build(
 
     ## Register Constraint
     if constraint.name in compiler:
-        compiler < SatWarning(f"Variable redefinition in constraint '{constraint.name}'.", target=constraint.name)
-    
+        compiler < SatWarning(
+            f"Variable redefinition in constraint '{constraint.name}'.",
+            target=constraint.name,
+        )
+
     ## Endpoint
     compiler.memset(constraint.name, constraint)
 

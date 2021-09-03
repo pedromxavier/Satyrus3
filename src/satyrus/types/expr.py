@@ -111,7 +111,7 @@ class Expr(SatType, tuple):
 
     @classmethod
     def sort(cls, head: str, tail: list) -> list:
-        """Returns sorted tail according to key function defined by `cls.SORT: object -> object`."""
+        """Returns sorted tail according to key function defined by `cls.sorting: object -> object`."""
         if head in cls.DO_SORT:
             return sorted(
                 [

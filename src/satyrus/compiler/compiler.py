@@ -1,19 +1,16 @@
 """
 """
+# Future Import
 from __future__ import annotations
 
 # Standard Library
-import traceback
-import os
-import math
 
 # Third-Party
 from cstream import stderr, stdlog, stdout, stdwar
 
 # Local
 from .memory import Memory
-from ..satlib import log, Source, Stack, join, Posiform, Timing
-from ..satlib import track as sat_track
+from ..satlib import Source, Stack, Posiform, Timing
 from ..parser import SatParser
 from ..parser.legacy import SatLegacyParser
 from ..error import (
@@ -45,7 +42,7 @@ class SatCompiler:
         """
         ## Build Instruction Set
         if type(instructions) is not dict:
-            raise TypeError("`instructions` must be of type `dict`.")
+            raise TypeError("'instructions' must be of type 'dict'.")
         elif not instructions:
             raise ValueError("Empty Instruction Set.")
         else:
@@ -56,7 +53,7 @@ class SatCompiler:
             self.parser = SatParser()
         elif type(parser) is not SatParser and type(parser) is not SatLegacyParser:
             raise TypeError(
-                f"`parser` must be of type `SatParser` or `SatLegacyParser, not {type(parser)}`."
+                f"'parser' must be of type 'SatParser' or 'SatLegacyParser, not {type(parser)}'."
             )
         else:
             self.parser = parser
@@ -74,7 +71,7 @@ class SatCompiler:
             self.env = dict(env)
 
         ## Output
-        self.output = Posiform()
+        self.energy = Posiform()
 
         ## Exit code
         self.code = 0
@@ -98,7 +95,7 @@ class SatCompiler:
         Parameters
         ----------
         error: SatError
-                Error to be raised in the next `compiler.checkpoint()` call.
+                Error to be raised in the next 'compiler.checkpoint()' call.
         """
         self.error_stack.push(error)
 
@@ -126,22 +123,22 @@ class SatCompiler:
 
         Example
         -------
-        This requires optimization level to be at least `n` to execute block.
+        This requires optimization level to be at least 'n' to execute block.
         >>> if compiler[n]:
                         block
         """
         return self.env[OPT] >= opt_level
 
-    def __call__(self, output: Posiform | None):
-        self.output = output
+    def __call__(self, energy: Posiform | None):
+        self.energy = energy
 
     @Timing.timer(level=1, section="Compiler.compile")
-    def compile(self, source: Source) -> int:
+    def compile(self, source: Source) -> Posiform:
         """
         Parameters
         ----------
         source: Source
-                String-like object created from `.sat` source-code file.
+                String-like object created from '.sat' source-code file.
 
         Returns
         -------
@@ -154,22 +151,21 @@ class SatCompiler:
             self.source = source
             ## Adds special instructions RUN_INIT, RUN_SCRIPT in both ends
             self.execute([CMD_INIT, *self.parse(source), CMD_SCRIPT])
-            return self.code
         except SatExit as error:
             self.code = error.code
-            self.output = self.source = None
+            self.energy = self.source = None
             return self.code
         except SatError as error:
             stderr[0] << error
             self.code = error.code
-            self.output = self.source = None
+            self.energy = self.source = None
             return self.code
         except Exception as error:
             self.code = 1
-            self.output = self.source = None
+            self.energy = self.source = None
             raise error
         else:
-            return self.code
+            return self.energy
 
     def parse(self, source: Source, load: bool = False) -> list:
         """Parses source into bytecode.
@@ -177,7 +173,7 @@ class SatCompiler:
         Parameters
         ----------
         source : Source
-                String-like object created from `.sat` source-code file.
+                String-like object created from '.sat' source-code file.
 
         Returns
         -------
@@ -276,7 +272,7 @@ class SatCompiler:
         null : bool
                 If True, allows Python null (None) to be bypassed during evaluation. Otherwise, raises (critical) ValueError.
         track : bool
-                If True, attempts to propagate `lexinfo` into evaluation results.
+                If True, attempts to propagate 'lexinfo' into evaluation results.
         context : dict
                 Temporary memory scope to be pushed into memory stack before evaluation and released just after.
 
@@ -299,7 +295,7 @@ class SatCompiler:
             result = self._evaluate(item, miss, calc, null)
 
         if track:
-            sat_track(item, result)
+            self.source.propagate(item, result)
 
         return result
 
@@ -311,7 +307,7 @@ class SatCompiler:
             if null:
                 return None
             else:
-                raise ValueError("Invalid None appearance in compiler `evaluate`.")
+                raise ValueError("Invalid None appearance in compiler 'evaluate'.")
         elif type(item) is Expr:
             if calc:
                 return Expr.calculate(
@@ -337,11 +333,11 @@ class SatCompiler:
                 self.checkpoint()
         else:
             raise TypeError(
-                f"Invalid Type `{type(item)}` for `{item!r}` in `compiler.evaluate`."
+                f"Invalid Type '{type(item)}' for '{item!r}' in 'compiler.evaluate'."
             )
 
     def push(self, context: dict = None):
-        """Adds new scope to the top of the memory stack. Variable definition is done by `SatCompiler.memset` and will follow its rules for referencing.
+        """Adds new scope to the top of the memory stack. Variable definition is done by 'SatCompiler.memset' and will follow its rules for referencing.
 
         Parameters
         ----------
@@ -373,7 +369,7 @@ class SatCompiler:
             self.exit(1)
 
     def checkpoint(self):
-        """If there is any unhandled exception in the compiler's error stack, interrupts compilation via a `SatCompiler.interrupt` call"""
+        """If there is any unhandled exception in the compiler's error stack, interrupts compilation via a 'SatCompiler.interrupt' call"""
         if self.status:
             self.interrupt()
 

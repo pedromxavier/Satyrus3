@@ -51,6 +51,16 @@
     \end{align*}
 \end{frame}
 
+\begin{frame}{Mapeamento}
+    \begin{align*}
+        \HH{\text{F}}   & = 0                               \\
+        \HH{\text{V}}   & = 1                               \\
+        \HH{\neg p}     & = 1 - \HH{p}                      \\
+        \HH{p \wedge q} & = \HH{p} \HH{q}                   \\
+        \HH{p \vee q}   & = \HH{p} + \HH{q} - \HH{p} \HH{q}
+    \end{align*}
+\end{frame}
+
 
 \subsection{Penalidades}
 \begin{frame}{Penalidades}
@@ -122,8 +132,8 @@
         \item Através do \textit{Python Package Index} (PyPI)\\%%
               \texttt{%%
                   \$ pip install satyrus\\%%
-                  \$ satyrus --help\\%%
-                  \$ python -m satyrus --help
+                  \$ satyrus {-}{-}help\\%%
+                  \$ python -m satyrus {-}{-}help
               }
         \item Por meio do código-fonte\\%%
               \texttt{%%

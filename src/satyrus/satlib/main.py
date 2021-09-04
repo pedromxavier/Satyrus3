@@ -1,24 +1,24 @@
 """
 """
 ## Standard Library
-import sys
 import os
-import re
 import posixpath
 import traceback
-import pickle
-import shutil
-import warnings
 import itertools as it
 import _thread as thread
+from pathlib import Path
 from io import StringIO
 from functools import wraps, reduce
 
 os.path.join = posixpath.join
 
+
 def compose(*funcs: callable):
-    """`compose(f, g, h)` is equivalent to `lambda *args, **kwargs: f(g(h(*args, **kwargs)))`"""
+    """\
+    `compose(f, g, h)` is equivalent to `lambda *args, **kwargs: f(g(h(*args, **kwargs)))`
+    """
     return reduce(lambda f, g: (lambda *x, **kw: f(g(*x, **kw))), funcs)
+
 
 def join(glue: str, args: list, func=str, enum: bool = False) -> str:
     """"""
@@ -45,8 +45,10 @@ def join(glue: str, args: list, func=str, enum: bool = False) -> str:
     else:
         raise TypeError()
 
+
 def arange(start: object, stop: object = None, step: object = None):
-    """arange(stop) -> [0, 1, ..., stop]
+    """\
+    arange(stop) -> [0, 1, ..., stop]
     arange(start, stop) -> [start, start + 1, ..., stop]
     arange(start, stop, step) -> [start, start + step, ..., stop]
     """
@@ -91,4 +93,14 @@ def arange(start: object, stop: object = None, step: object = None):
             yield x
             x += step
 
-__all__ = ['arange', 'join', 'compose']
+
+def log(target: str = "satyrus.log") -> str:
+    """\
+    """
+    trace: str = traceback.format_exc()
+    with open(target, "w", encoding="utf8") as file:
+        file.write(trace)
+    return trace
+
+
+__all__ = ["arange", "join", "compose", "log"]

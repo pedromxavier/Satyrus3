@@ -1,12 +1,10 @@
-""" :: Memory ::
-	============
-
-	STATUS: OK
+"""
+satyrus/compiler/memory.py
+--------------------------
 """
 
 ## Local
-from ..satlib import Stack, join
-from ..types.error import SatReferenceError
+from ..error import SatReferenceError
 from ..types import Var, SatType
 
 class Memory(object):
@@ -16,7 +14,7 @@ class Memory(object):
 		self.__memory = [{} if defaults is None else defaults]
 
 	def __str__(self):
-		return join(">\n", [join("\n", (f"{key}:\t{val}" for key, val in layer.items())) for layer in self.__memory])
+		return ">\n".join("\n".join(f"{key}:\t{val}" for key, val in layer.items()) for layer in self.__memory)
 
 	def __iter__(self):
 		i = len(self.__memory) - 1
@@ -67,10 +65,10 @@ class Memory(object):
 	def clear(self):
 		"""
 		"""
-		## Clear list
+		# Clear list
 		del self.__memory[:]
 		
-		## Add global scope
+		# Add global scope
 		self.__memory.append({})
 
 	def memset(self, name: Var, value: SatType):

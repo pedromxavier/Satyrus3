@@ -9,7 +9,7 @@ import itertools as it
 from functools import reduce
 
 # Local
-from .base import SatType
+from .base import SatType, MetaSatType
 from ..satlib import Source, join, Posiform
 from ..symbols import (
     T_IDX,
@@ -38,7 +38,7 @@ from ..symbols import (
 )
 
 
-class Expr(SatType, tuple):
+class Expr(SatType, tuple, metaclass=MetaSatType):
     """
     This is one of the core elements of the system. This is used to represent ASTs.
     """

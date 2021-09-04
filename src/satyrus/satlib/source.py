@@ -2,17 +2,29 @@
 import itertools as it
 from pathlib import Path
 
+
 class Source(str):
     """This source code object aids the tracking of tokens in order to
     indicate error position on exception handling.
     """
 
-    def __new__(cls, *, fname: str = None, buffer: str = None, offset: int = 0, length: int = None):
+    LEXKEYS = {"lexpos", "chrpos", "lineno", "source"}
+
+    def __new__(
+        cls,
+        *,
+        fname: str = None,
+        buffer: str = None,
+        offset: int = 0,
+        length: int = None,
+    ):
         """This object is a string itself with additional features for
         position tracking.
         """
         if fname is not None and buffer is not None:
-            raise ValueError("Can't work with both 'fname' and 'buffer' parameters, choose one option.")
+            raise ValueError(
+                "Can't work with both 'fname' and 'buffer' parameters, choose one option."
+            )
 
         elif fname is not None:
             if not isinstance(fname, (str, Path)):
@@ -38,7 +50,14 @@ class Source(str):
         else:
             raise ValueError("Either 'fname' or 'buffer' must be provided.")
 
-    def __init__(self, *, fname: str = None, buffer: str = None, offset: int = 0, length: int = None):
+    def __init__(
+        self,
+        *,
+        fname: str = None,
+        buffer: str = None,
+        offset: int = 0,
+        length: int = None,
+    ):
         """Separates the source code in multiple lines. A blank first line is added for the indexing to start at 1 instead of 0. `self.table` keeps track of the (cumulative) character count."""
         if not isinstance(offset, int) or offset < 0:
             raise TypeError("'offset' must be a positive integer (int).")
@@ -50,16 +69,17 @@ class Source(str):
         self.offset = min(offset, len(self))
         self.length = min(length, len(self) - self.offset)
 
-        self.fpath = Path(fname).resolve(strict=True) if (fname is not None) else "<string>"
+        self.fpath = (
+            Path(fname).resolve(strict=True) if (fname is not None) else "<string>"
+        )
         self.lines = [""] + self.split("\n")
         self.table = list(it.accumulate([(len(line) + 1) for line in self.lines]))
 
-
     def __str__(self):
-        return self[self.offset:self.offset+self.length]
+        return self[self.offset : self.offset + self.length]
 
     def __repr__(self):
-        return f"Source @ '{self.fpath}'"
+        return f"{self.__class__.__name__}({self.fpath!r})"
 
     def __bool__(self):
         """Truth-value for emptiness checking."""
@@ -70,10 +90,10 @@ class Source(str):
         if lexpos is None:
             return self.eof.lexinfo
         elif not isinstance(lexpos, int):
-            raise TypeError("'lexpos' must be an integer (int).")
+            raise TypeError(f"'lexpos' must be an integer (int), not ({type(lexpos)}).")
         elif not 0 <= lexpos <= self.length:
             return self.eof.lexinfo
-        
+
         lexpos = lexpos + self.offset + 1
 
         lineno = 1
@@ -84,58 +104,74 @@ class Source(str):
             return self.eof.lexinfo
         else:
             return {
-                'lineno': lineno,
-                'lexpos': lexpos,
-                'chrpos': lexpos - self.table[lineno - 1],
-                'source': self,
+                "lineno": lineno,
+                "lexpos": lexpos,
+                "chrpos": lexpos - self.table[lineno - 1],
+                "source": self,
             }
 
     def slice(self, offset: int = 0, length: int = None):
         return self.__class__(fname=self.fpath, offset=offset, length=length)
 
     def error(self, msg: str, *, target: object = None, name: str = None):
-        if target is None or not TrackType.trackable(target):
+        if target is None or not self.trackable(target):
             if name is not None:
-                return (
-                        f"In '{self.fpath}':\n"
-                        f"{name}: {msg}\n"
-                    )
+                return f"In '{self.fpath}':\n" f"{name}: {msg}\n"
             else:
-                return (
-                        f"In '{self.fpath}':\n"
-                        f"{msg}\n"
-                    )
+                return f"In '{self.fpath}':\n" f"{msg}\n"
         else:
             if name is not None:
                 return (
-                        f"In '{self.fpath}' at line {target.lineno}:\n"
-                        f"{self.lines[target.lineno]}\n"
-                        f"{' ' * target.chrpos}^\n"
-                        f"{name}: {msg}\n"
-                    )
+                    f"In '{self.fpath}' at line {target.lineno}:\n"
+                    f"{self.lines[target.lineno]}\n"
+                    f"{' ' * target.chrpos}^\n"
+                    f"{name}: {msg}\n"
+                )
             else:
                 return (
-                        f"In '{self.fpath}' at line {target.lineno}:\n"
-                        f"{self.lines[target.lineno]}\n"
-                        f"{' ' * target.chrpos}^\n"
-                        f"{msg}\n"
-                    )
+                    f"In '{self.fpath}' at line {target.lineno}:\n"
+                    f"{self.lines[target.lineno]}\n"
+                    f"{' ' * target.chrpos}^\n"
+                    f"{msg}\n"
+                )
+
+    class EOF(object):
+        pass
 
     @property
     def eof(self):
         """Virtual object to represent the End-of-File for the given source
         object. It's an anonymously created EOFType instance.
         """
-        ## Anonymous object
-        return TrackType(self, len(self))
+        eof = self.EOF()
 
-class TrackType(object):
+        self.track(eof, len(self))
 
-    KEYS = {'lexpos', 'chrpos', 'lineno', 'source'}
-    
-    def __init__(self, source: Source, lexpos: int):
-        ## Add tracking information
-        self.lexinfo: dict = source.getlex(lexpos)
+        return eof
+
+    # -*- Tracking -*-
+    def track(self, o: object, lexpos: int = None):
+        """"""
+        setattr(o, "lexinfo", self.getlex(lexpos))
+
+        cls: type = o.__class__
+
+        if not hasattr(cls, '__lextrack__'):
+            setattr(cls, "chrpos", property(lambda this: this.lexinfo["chrpos"]))
+            setattr(cls, "lineno", property(lambda this: this.lexinfo["lineno"]))
+            setattr(cls, "lexpos", property(lambda this: this.lexinfo["lexpos"]))
+            setattr(cls, "source", property(lambda this: this.lexinfo["source"]))
+            setattr(cls, "__lextrack__", None)
+
+    def propagate(self, x: object, y: object):
+        if self.trackable(x) and self.trackable(y):
+            y.lexinfo.update(x.lexinfo)
+        else:
+            print(x.lexinfo)
+            print(y.lexinfo)
+            raise TypeError(
+                f"Can't propagate lexinfo between types {type(x)} and {type(y)}"
+            )
 
     @classmethod
     def trackable(cls, o: object, *, strict: bool = False):
@@ -147,39 +183,36 @@ class TrackType(object):
             return False
 
     @classmethod
-    def _trackable(cls, o: object):       
-        if not hasattr(o, 'lexinfo') or not isinstance(o.lexinfo, dict):
+    def _trackable(cls, o: object):
+        if not hasattr(o, "lexinfo") or not isinstance(o.lexinfo, dict):
+            
             return False
         else:
-            if any(key not in o.lexinfo for key in cls.KEYS):
+            if any(key not in o.lexinfo for key in cls.LEXKEYS):
                 return False
             else:
-                if not hasattr(o, 'lineno') or not isinstance(o.lineno, int) or o.lineno < 0:
+                if (
+                    not hasattr(o, "lineno")
+                    or not isinstance(o.lineno, int)
+                    or o.lineno < 0
+                ):
                     return False
-                elif not hasattr(o, 'lexpos') or not isinstance(o.lexpos, int) or o.lexpos < 0:
+                elif (
+                    not hasattr(o, "lexpos")
+                    or not isinstance(o.lexpos, int)
+                    or o.lexpos < 0
+                ):
                     return False
-                elif not hasattr(o, 'chrpos') or not isinstance(o.chrpos, int) or o.chrpos < 0:
+                elif (
+                    not hasattr(o, "chrpos")
+                    or not isinstance(o.chrpos, int)
+                    or o.chrpos < 0
+                ):
                     return False
-                elif not hasattr(o, 'source') or not isinstance(o.source, Source):
+                elif not hasattr(o, "source") or not isinstance(o.source, Source):
                     return False
                 else:
                     return True
-                
-    @property
-    def lineno(self):
-        return self.lexinfo['lineno']
-
-    @property
-    def lexpos(self):
-        return self.lexinfo['lexpos']
-
-    @property
-    def chrpos(self):
-        return self.lexinfo['chrpos']
-
-    @property
-    def source(self):
-        return self.lexinfo['source']
 
 
-__all__ = ["Source", "TrackType"]
+__all__ = ["Source"]

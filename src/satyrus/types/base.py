@@ -1,36 +1,35 @@
 """
 """
 ## Local
-from ..satlib import Source, TrackType
+from ..satlib import Source
 
 
 class MetaSatType(type):
 
-    __base_type__ = None
+    base_type = None
 
     def __new__(cls, name: str, bases: tuple, namespace: dict):
-        if cls.__base_type__ is None:
+        if cls.base_type is None:
             if name == "SatType":
-                cls.__base_type__ = type.__new__(name, bases, namespace)
-                return cls.__base_type__
+                cls.base_type = type(name, bases, namespace)
+                return cls.base_type
             else:
                 raise NotImplementedError(
                     f"'SatType must be implemented before '{name}'"
                 )
         else:
             if name == "Number":
-                cls.__base_type__.Number = type.__new__(name, bases, namespace)
-                return cls.__base_type__.Number
+                cls.base_type.Number = type(name, bases, namespace)
+                return cls.base_type.Number
             else:
-                return type.__new__(name, bases, namespace)
+                return type(name, bases, namespace)
 
-
-class SatType(TrackType, metaclass=MetaSatType):
+class SatType(metaclass=MetaSatType):
     """"""
 
     def __init__(self, *, source: Source = None, lexpos: int = None):
         if isinstance(source, Source):
-            TrackType.__init__(self, source, lexpos)
+            source.track(self, lexpos)
         elif source is None:
             pass
         else:

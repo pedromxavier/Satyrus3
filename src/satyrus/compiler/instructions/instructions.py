@@ -6,7 +6,7 @@ from .run_init import run_init
 from .run_script import run_script
 from ...symbols import SYS_CONFIG, DEF_ARRAY, DEF_CONSTANT, DEF_CONSTRAINT, RUN_SCRIPT, RUN_INIT
 
-instructions = {
+INSTRUCTIONS = {
     RUN_INIT: run_init,
     SYS_CONFIG: sys_config,
     DEF_ARRAY: def_array,
@@ -14,3 +14,5 @@ instructions = {
     DEF_CONSTRAINT: def_constraint,
     RUN_SCRIPT: run_script
 }
+
+__all__ = ["INSTRUCTIONS"]

@@ -12,7 +12,7 @@ from cstream import stdlog, stdout, stdwar, stderr
 
 ## Local
 from ..compiler import SatCompiler
-from ...satlib import arange, Stack, Queue, join, track
+from ...satlib import arange, Stack, Queue
 from ...error import (
     SatValueError,
     SatTypeError,
@@ -27,7 +27,6 @@ from ...symbols import (
     T_UNIQUE,
     T_FORALL,
     T_IDX,
-    T_IJK,
     T_AND,
     T_NOT,
     T_NE,

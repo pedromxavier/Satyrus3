@@ -188,7 +188,7 @@ class SatLexer(object):
     def t_NAME(self, t):
         if t.value in self.reserved:
             t.type = self.reserved[t.value]
-            t.value = self.op_map[t.value]
+            t.value = self.op_map[t.type]
         else:
             t.value = String(t.value)
         t.value = String(t.value)
@@ -196,7 +196,7 @@ class SatLexer(object):
 
     @regex(r"[-+]?[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
     def t_NUMBER(self, t):
-        t.value = Number(t.value)
+        t.value = Number(t.value, source=self.source, lexpos=t.lexpos)
         return t
 
     # String containing ignored characters between tokens
@@ -317,29 +317,6 @@ class SatParser(object):
     def run(self, code : list):
         self.bytecode = [cmd for cmd in code if cmd is not None]
 
-    def get_arg(self, p, index: int=None, track: bool=True):
-        if index is None:
-            value = p
-            if track:
-                value.lexinfo = {
-                    'lineno' : None,
-                    'lexpos' : None,
-                    'chrpos' : None,
-                    'source' : self.source,
-                }
-        else:
-            value = p[index]
-            if track:
-                lineno = p.lineno(index)
-                lexpos = p.lexpos(index)
-                value.lexinfo = {
-                    'lineno' : lineno,
-                    'lexpos' : lexpos,
-                    'chrpos' : self.chrpos(lineno, lexpos),
-                    'source' : self.source,
-                }
-        return value
-
     def cast_type(self, x: object, type_caster: type):
         """ Casts type according to `type_caster(x: object) -> y: object`
             copying `lexinfo` data, if available.
@@ -408,9 +385,7 @@ class SatParser(object):
     def p_def_constant(self, p):
         """ def_constant : varname ASSIGN expr
         """
-        name = self.get_arg(p, 1)
-        value = self.get_arg(p, 3)
-        p[0] = (DEF_CONSTANT, name, value)
+        p[0] = (DEF_CONSTANT, p[1], p[3])
 
     def p_literal(self, p):
         """ literal : constant
@@ -422,12 +397,12 @@ class SatParser(object):
     def p_constant(self, p):
         """ constant : NUMBER
         """
-        p[0] = self.get_arg(p, 1)
+        p[0] = p[1]
 
     def p_varname(self, p):
         """ varname : NAME
         """
-        p[0] = self.cast_type(self.get_arg(p, 1, track=True), Var)
+        p[0] = Var(p[1], source=self.source, lexpos=p.lexpos(1))
 
     def p_python_literal(self, p):
         """ python_literal : PYTHON
@@ -441,7 +416,7 @@ class SatParser(object):
         finally:
             self.checkpoint()
         
-        track(py_code, py_object)
+        self.source.propagate(py_code, py_object)
 
         p[0] = py_object
 
@@ -449,7 +424,7 @@ class SatParser(object):
         """ def_array : varname shape ASSIGN array_buffer
                       | varname shape
         """
-        name = self.get_arg(p, 1)
+        name = p[1]
         shape = p[2]
 
         if len(p) == 5: # array declared
@@ -514,17 +489,17 @@ class SatParser(object):
         """ def_constraint : LPAR NAME RPAR varname LBRA literal RBRA DOTS loops expr
                            | LPAR NAME RPAR varname DOTS loops expr
         """
-        type_= self.get_arg(p, 2)
-        name = self.get_arg(p, 4, track=False)
+        type_= String(p[2], source=self.source, lexpos=p.lexpos(2))
+        name = p[4]
         
         if len(p) == 11:
-            level = self.get_arg(p, 6, track=False)
-            loops = self.get_arg(p, 9, track=False)
-            expr  = self.get_arg(p, 10, track=False)
+            level = p[6]
+            loops = p[9]
+            expr  = p[10]
         else:
             level = None
-            loops = self.get_arg(p, 6, track=False)
-            expr  = self.get_arg(p, 7, track=False)
+            loops = p[6]
+            expr  = p[7]
 
         p[0] = (DEF_CONSTRAINT, type_, name, loops, expr, level)
 
@@ -560,7 +535,7 @@ class SatParser(object):
                   | EXISTS
                   | UNIQUE
         """
-        p[0] = self.get_arg(p, 1, track=False)
+        p[0] = p[1]
 
     def p_domain(self, p):
         """ domain : LBRA expr DOTS expr DOTS expr RBRA

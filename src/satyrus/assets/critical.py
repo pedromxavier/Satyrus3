@@ -19,7 +19,7 @@
 ╚██████╔╝██║                ███████╗╚██████╔╝╚██████╔╝██║╚██████╗            ╚═╝╚██╗               
  ╚═════╝ ╚═╝                ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝ ╚═════╝                ╚═╝        
 
-   | Please send the error log file "sat.log" to
+   | Please send the error file "satyrus.log" to
    | email:pedromxavier@poli.ufrj.br
    |
    | I'm sorry."""

@@ -1,5 +1,11 @@
-r"""Satyrus optimization framework compiler.
+"""\
+Satyrus Compiler v{version}
 """
+from __future__ import annotations
+from re import T
+
+__version__ = "3.0.1"
+
 ## Standard Library
 import argparse
 import json
@@ -14,7 +20,7 @@ from cstream import Stream, stdlog, stdout, stdwar, stderr
 ## Local
 from .help import HELP
 from ..api import SatAPI
-from ..assets import SAT_BANNER
+from ..assets import SAT_BANNER, SAT_CRITICAL
 from ..satlib import Timing, log
 
 
@@ -176,10 +182,10 @@ class CLI:
         -a, --api : str
             If present, include solver interfaces defined in python file.
         -p, --params : str
-            Path to JSON file containing parameters for Solver API.
+            Path to JSON file containing parameters for passing to Solver API.
         """
 
-        params = {"prog": "satyrus", "description": __doc__}
+        params = {"prog": "satyrus", "description": __doc__.format(version=__version__)}
 
         parser = ArgParser(**params)
 
@@ -228,6 +234,9 @@ class CLI:
             "-p", "--params", dest="params", help=HELP["params"], action=readParams
         )
 
+        # Set base output verbosity level
+        Stream.set_lvl(1)
+
         if argv is None:
             args = parser.parse_args()
         else:
@@ -240,9 +249,9 @@ class CLI:
             stdwar[0] << f"Warning: Debug mode enabled."
 
         ## Check source path
-        source_path: Path = args.source
+        source_path = Path(args.source)
 
-        if not os.path.exists(source_path):
+        if not source_path.exists() or not source_path.is_file():
             stderr[0] << f"File Error: File '{source_path.absolute()}' doesn't exists"
             exit(1)
 
@@ -269,23 +278,21 @@ class CLI:
 
         # Compile Problem
         try:
-            sat_api = SatAPI(source_path=source_path, legacy=legacy)
+            sat_api = SatAPI(path=source_path, legacy=legacy)
 
             # Solve in desired way
             answer: tuple[dict, float] = sat_api[output].solve()
 
             # Failure
             if answer is None:
-                return None
+                exit(1)
         except Exception:
-            trace = log()
+            trace = log(target="satyrus.log")
             if debug:
                 stderr[0] << trace
             else:
-                from ..assets import SAT_CRITICAL
-
                 stderr[0] << SAT_CRITICAL
-            return None
+            exit(1)
         else:
             # Output
             if SatAPI.complete(answer):

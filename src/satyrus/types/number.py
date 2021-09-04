@@ -2,13 +2,16 @@
 import decimal
 import numbers
 import re
+from sys import meta_path
 
 # Local
+from .base import SatType, MetaSatType
 from .expr import Expr
 from ..error import SatValueError
+from ..satlib import Source
 
 
-class Number(Expr, decimal.Decimal):
+class Number(decimal.Decimal, SatType):
     """"""
 
     context = decimal.getcontext()
@@ -16,12 +19,15 @@ class Number(Expr, decimal.Decimal):
 
     regex = re.compile(r"(\.[0-9]*[1-9])(0+)|(\.0*)$")
 
+    def __new__(cls, value: numbers.Real, source: Source = None, lexpos: int = None):
+        return decimal.Decimal.__new__(cls, value)
+
+    def __init__(self, value: numbers.Real, source: Source = None, lexpos: int = None):
+        SatType.__init__(self, source=source, lexpos=lexpos)
+
     @classmethod
     def numeric(cls, x: object) -> bool:
-        return isinstance(x, numbers.Real)
-
-    def __init__(self, value: numbers.Real):
-        pass
+        return isinstance(x, (cls, numbers.Real))
 
     def __str__(self):
         return self.regex.sub(r"\1", decimal.Decimal.__str__(self))
@@ -297,9 +303,25 @@ class Number(Expr, decimal.Decimal):
             cls.context.prec = value
         return int(cls.context.prec)
 
+    # -*- Type Checking -*-
     @property
     def is_int(self) -> bool:
         return self == decimal.Decimal.__floordiv__(self, 1)
 
+    @property
+    def is_array(self) -> bool:
+        return False
+
+    @property
+    def is_var(self) -> bool:
+        return False
+
+    @property
+    def is_number(self) -> bool:
+        return True
+
+    @property
+    def is_expr(self) -> bool:
+        return False
 
 __all__ = ["Number"]

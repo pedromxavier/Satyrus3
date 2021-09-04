@@ -6,9 +6,13 @@ satyrus/api/api.py
 from __future__ import annotations
 
 # Standard Library
+import importlib.util
 from abc import abstractmethod
+from pathlib import Path
+from typing import Callable
 
 # Third-Party
+from cstream import stdout, devnull, stderr
 
 # Local
 from ..satyrus import Satyrus
@@ -41,7 +45,26 @@ class MetaSatAPI(type):
                 f"Method solve(self, posiform: Posiform, **params: dict) -> tuple[dict, float] | object must be implemented for '{name}'."
             )
         else:
-            cls.subclasses[name] = type.__new__(cls, name, bases, namespace)
+            imports = []
+            missing = []
+            if "require" in namespace:
+                for package in namespace["require"]:
+                    if importlib.util.find_spec(package) is None:
+                        missing.append(package)
+                    else:
+                        imports.append(package)
+
+            if missing:
+                cls.subclasses[name] = None
+            else:
+                # Import required packages - Not neccessary
+                # globals().update(
+                #     {package: importlib.import_module(package) for package in imports}
+                # )
+
+                # Register new class
+                cls.subclasses[name] = type.__new__(cls, name, bases, namespace)
+
             return cls.subclasses[name]
 
 
@@ -49,11 +72,15 @@ class SatAPI(metaclass=MetaSatAPI):
 
     subclasses = {}
 
-    @abstractmethod
-    def solve(self, posiform: Posiform, **params: dict) -> tuple[dict, float] | object:
-        pass
+    class SatAPISolver:
+        def __init__(self, energy: Posiform, method):
+            self.method = method
+            self.energy = energy
 
-    def __init__(self, source_path: str, **params: dict):
+        def solve(self, **params: dict):
+            return self.method(self.energy, **params)
+
+    def __init__(self, *, path: str = None, satyrus: Satyrus = None, **params: dict):
         """\
         Parameters
         ----------
@@ -89,19 +116,47 @@ class SatAPI(metaclass=MetaSatAPI):
         It is not necessary to import SatAPI in this case.
         
         """
-        self.satyrus = Satyrus(source_path, **params)
+
+        if isinstance(satyrus, Satyrus):
+            if path is None:
+                self.satyrus = satyrus
+            else:
+                raise ValueError("Can't handle both 'path' and 'satyrus' options")
+        elif isinstance(path, Path):
+            if satyrus is None:
+                self.satyrus = Satyrus(path=path, **params)
+            else:
+                raise ValueError("Can't handle both 'path' and 'satyrus' options")
+        else:
+            raise ValueError("Either 'path' or 'satyrus' must be provided")
 
     def __getitem__(self, key: str):
         if key in self.subclasses:
-            return self.subclasses[key](source_path=self.source_path, **self.kwargs)
+            if self.subclasses[key] is not None:
+                return self.subclasses[key](satyrus=self.satyrus).__solver()
+            else:
+                raise NotImplementedError(
+                    f"Missing requirements for Solver Interface '{key}'"
+                )
         else:
             raise NotImplementedError(
-                f"Unknown solver interface `{key}`. Available options are: {set(self.options)}"
+                f"Unknown solver interface '{key}'. Available options are: {self.options()}"
             )
+
+    def __solver(self) -> SatAPISolver:
+        if not self.satyrus.ready():
+            self.satyrus.compile()
+
+        return self.SatAPISolver(self.satyrus.energy(), self.solve)
 
     @classmethod
     def options(cls) -> set:
         return set(cls.subclasses.keys())
+
+    @abstractmethod
+    def solve(self, posiform: Posiform, **params: dict) -> tuple[dict, float] | object:
+        pass
+
 
 # NOTE: DO NOT EDIT ABOVE THIS LINE
 # ---------------------------------
@@ -112,3 +167,97 @@ class text(SatAPI):
 
     def solve(self, posiform: Posiform, **params: dict) -> str:
         return str(posiform)
+
+
+# CSV Table Output
+class csv(SatAPI):
+    def solve(self, posiform: Posiform, **params: dict) -> str:
+        lines = []
+
+        for term, cons in posiform:
+            if term is None:
+                lines.append(f"{cons:.5f}")
+            else:
+                lines.append(",".join([f"{cons:.5f}", *term]))
+
+        return "\n".join(lines)
+
+
+## cvxpy - gurobi
+class gurobi(SatAPI):
+    ## https://www.cvxpy.org/tutorial/advanced/index.html#mixed-integer-programs
+
+    requires = ["cvxpy", "gurobipy"]
+
+    def solve(self, posiform: Posiform, **params: dict) -> tuple[dict, float]:
+        """"""
+        import cvxpy as cp
+
+        x, Q, c = posiform.qubo()
+
+        X = cp.Variable(len(x), boolean=True)
+        P = cp.Problem(cp.Minimize(cp.quad_form(X, Q)), constraints=None)
+
+        try:
+            with devnull:  # Silenced output
+                P.solve(solver=cp.GUROBI)
+            y, e = X.value, P.value
+            s = {k: int(y[i]) for k, i in x.items()}
+            return (s, e + c)
+        except cp.error.DCPError:
+            self.error("Solver Error: Function is not convex")
+        except Exception as error:
+            self.error(error)
+
+
+class dwave(SatAPI):
+
+    requires = ["neal"]
+
+    def solve(
+        self, posiform: Posiform, *, num_reads=1_000, num_sweeps=1_000, **params: dict
+    ) -> tuple[dict, float]:
+        """
+        Parameters
+        ----------
+        posiform : Posiform
+            Input Expression
+        params : dict (optional)
+            num_reads : int = 1_000
+            num_sweeps : int = 1_000
+        """
+        import neal
+
+        # Parameter check
+        self.check_params(**params)
+
+        self.warn(
+            "Warning: D-Wave option currently running local simulated annealing since remote connection to quantum host is unavailable"
+        )
+
+        sampler = neal.SimulatedAnnealingSampler()
+
+        x, Q, c = posiform.qubo()
+
+        sampleset = sampler.sample_qubo(Q, **params)
+
+        y, e, *_ = sampleset.record[0]
+
+        s = {k: y[i] for k, i in x.items()}
+
+        return (s, e + c)
+
+    def check_params(self, **params: dict):
+        if "num_reads" in params:
+            num_reads = params["num_reads"]
+            if not isinstance(num_reads, int) or num_reads <= 0:
+                self.error("Parameter 'num_reads' must be a positive integer")
+        else:
+            self.error("Missing parameter 'num_reads'")
+
+        if "num_sweeps" in params:
+            num_sweeps = params["num_sweeps"]
+            if not isinstance(num_sweeps, int) or num_sweeps <= 0:
+                self.error("Parameter 'num_sweeps' must be a positive integer")
+        else:
+            self.error("Missing parameter 'num_sweeps'")

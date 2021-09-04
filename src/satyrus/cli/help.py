@@ -8,5 +8,6 @@ HELP = {
     'opt': 'Compiler optimization degree, from 0 (default, no actions taken) to 3.',
     'verbose': 'Compiler output verbosity, from 0 (default, no output, except errors and results) to 3 (complete compiler log).',
     'report': 'Shows detailed sectioned elapsed time.',
+    'params': 'Path to JSON file containing parameters for passing to Solver API.',
     'api': 'Selects Python file (.py, .pyw) where SatAPI interfaces are declared.'
 }

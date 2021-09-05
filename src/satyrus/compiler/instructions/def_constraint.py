@@ -95,7 +95,7 @@ def def_constraint(
         stdlog[3] << f"\n@{name}(raw):\n\t{expr}"
 
     ## Simplify
-    expr = track(expr, Expr.calculate(expr), out=True)
+    expr = compiler.source.propagate(expr, Expr.calculate(expr), out=True)
 
     if stdlog[3]:
         stdlog[3] << f"\n@{name}(simplified):\n\t{expr}"
@@ -112,7 +112,7 @@ def def_constraint(
     # Adds inner scope where inside-loop variables point to themselves. This prevents both
     # older variables from interfering in evaluation and also undefined loop variables.
     # Last but not least, automatically removes this artificial scope.
-    expr: Expr = track(
+    expr: Expr = compiler.source.propagate(
         expr,
         compiler.evaluate(
             expr,

@@ -31,7 +31,7 @@ class SatType(metaclass=MetaSatType):
         if isinstance(source, Source):
             source.track(self, lexpos)
         elif source is None:
-            pass
+            Source.blank(self)
         else:
             raise TypeError(f"Invalid type '{type(source)}' for 'source' argument")
 

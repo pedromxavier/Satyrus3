@@ -1,4 +1,9 @@
-## Standard Library
+"""
+"""
+# Future Imports
+from __future__ import annotations
+
+# Standard Library
 import itertools as it
 from pathlib import Path
 
@@ -154,21 +159,48 @@ class Source(str):
         """"""
         setattr(o, "lexinfo", self.getlex(lexpos))
 
-        cls: type = o.__class__
+        if not hasattr(o.__class__, "__lextrack__"):
+            setattr(
+                o.__class__, "chrpos", property(lambda this: this.lexinfo["chrpos"])
+            )
+            setattr(
+                o.__class__, "lineno", property(lambda this: this.lexinfo["lineno"])
+            )
+            setattr(
+                o.__class__, "lexpos", property(lambda this: this.lexinfo["lexpos"])
+            )
+            setattr(
+                o.__class__, "source", property(lambda this: this.lexinfo["source"])
+            )
+            setattr(o.__class__, "__lextrack__", None)
 
-        if not hasattr(cls, '__lextrack__'):
-            setattr(cls, "chrpos", property(lambda this: this.lexinfo["chrpos"]))
-            setattr(cls, "lineno", property(lambda this: this.lexinfo["lineno"]))
-            setattr(cls, "lexpos", property(lambda this: this.lexinfo["lexpos"]))
-            setattr(cls, "source", property(lambda this: this.lexinfo["source"]))
-            setattr(cls, "__lextrack__", None)
+    @classmethod
+    def blank(cls, o: object):
+        setattr(o, "lexinfo", {"chrpos": 0, "lineno": 0, "lexpos": 0, "source": None})
 
-    def propagate(self, x: object, y: object):
-        if self.trackable(x) and self.trackable(y):
+        if not hasattr(o.__class__, "__lextrack__"):
+            setattr(
+                o.__class__, "chrpos", property(lambda this: this.lexinfo["chrpos"])
+            )
+            setattr(
+                o.__class__, "lineno", property(lambda this: this.lexinfo["lineno"])
+            )
+            setattr(
+                o.__class__, "lexpos", property(lambda this: this.lexinfo["lexpos"])
+            )
+            setattr(
+                o.__class__, "source", property(lambda this: this.lexinfo["source"])
+            )
+            setattr(o.__class__, "__lextrack__", None)
+
+    def propagate(self, x: object, y: object, *, out: bool = False) -> object | None:
+        if self.trackable(x, strict=True) and self.trackable(y):
             y.lexinfo.update(x.lexinfo)
+            if out:
+                return y
+            else:
+                return None
         else:
-            print(x.lexinfo)
-            print(y.lexinfo)
             raise TypeError(
                 f"Can't propagate lexinfo between types {type(x)} and {type(y)}"
             )
@@ -178,6 +210,7 @@ class Source(str):
         if cls._trackable(o):
             return True
         elif strict:
+            print(o, o.lexinfo)
             raise TypeError(f"Object '{o}' of type '{type(o)}' is not trackable.")
         else:
             return False
@@ -185,7 +218,6 @@ class Source(str):
     @classmethod
     def _trackable(cls, o: object):
         if not hasattr(o, "lexinfo") or not isinstance(o.lexinfo, dict):
-            
             return False
         else:
             if any(key not in o.lexinfo for key in cls.LEXKEYS):
@@ -209,7 +241,11 @@ class Source(str):
                     or o.chrpos < 0
                 ):
                     return False
-                elif not hasattr(o, "source") or not isinstance(o.source, Source):
+                elif (
+                    not hasattr(o, "source")
+                    or not isinstance(o.source, Source)
+                    and not o.source is None
+                ):
                     return False
                 else:
                     return True

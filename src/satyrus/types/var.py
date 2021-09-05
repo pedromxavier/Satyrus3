@@ -2,6 +2,7 @@ from .base import SatType
 from .expr import Expr
 from ..error import SatValueError
 from ..satlib import Source
+from ..symbols import T_IDX
 
 # pylint:disable=no-self-argument
 class Var(str, SatType):
@@ -25,6 +26,6 @@ class Var(str, SatType):
                         f"Index must be a positive integer, not '{j}'.", target=j
                     )
             else:
-                return Expr._IDX_(Var(r), j, *i)
+                return Expr(T_IDX, Var(r), j, *i)
         else:
             return Var(r)

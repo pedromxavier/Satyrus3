@@ -15,7 +15,7 @@ class Number(decimal.Decimal, SatType):
     """"""
 
     context = decimal.getcontext()
-    context.prec = 16
+    context.prec = 32
 
     regex = re.compile(r"(\.[0-9]*[1-9])(0+)|(\.0*)$")
 

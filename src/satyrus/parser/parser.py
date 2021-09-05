@@ -568,7 +568,7 @@ class SatParser(object):
                  | expr LE expr
                  | expr NE expr
         """
-        p[0] = Expr(p[2], p[1], p[3])
+        p[0] = Expr(p[2], p[1], p[3], source=self.source, lexpos=p.lexpos(2))
 
     def p_expr(self, p):
         """ expr : literal
@@ -580,7 +580,7 @@ class SatParser(object):
                  | ADD expr
                  | SUB expr
         """
-        p[0] = Expr(p[1], p[2])
+        p[0] = Expr(p[1], p[2], source=self.source, lexpos=p.lexpos(1))
 
     def p_expr2(self, p):
         """ expr : expr AND expr
@@ -596,14 +596,14 @@ class SatParser(object):
                  | expr IFF expr
         """
         if p[2] == T_NEG:
-            p[0] = Expr(T_ADD, p[1], Expr(T_NEG, p[3]))
+            p[0] = Expr(T_ADD, p[1], Expr(T_NEG, p[3], source=self.source, lexpos=p.lexpos(2)), source=self.source, lexpos=p.lexpos(2))
         else:
-            p[0] = Expr(p[2], p[1], p[3])
+            p[0] = Expr(p[2], p[1], p[3], source=self.source, lexpos=p.lexpos(2))
 
     def p_expr_index(self, p):
         """ expr : expr LBRA expr RBRA
         """
-        p[0] = Expr(T_IDX, p[1], p[3])
+        p[0] = Expr(T_IDX, p[1], p[3], source=self.source, lexpos=p.lexpos(2))
 
     def p_expr_par(self, p):
         """ expr : LPAR expr RPAR
@@ -614,22 +614,10 @@ class SatParser(object):
         stderr[3] << f"Error Token: `{t}`"
         target = SatType()
         if t:
-            target.lexinfo = {
-                'lineno' : t.lineno,
-                'lexpos' : t.lexpos,
-                'chrpos' : self.chrpos(t.lineno, t.lexpos),
-                'source' : self.source,
-            }
+            target.lexinfo = self.source.getlex(t.lexpos)
             msg = "Invalid Syntax"
         else:
-            lineno = len(self.source.lines) - 1
-            lexpos = len(self.source.lines[lineno]) - 1
-            target.lexinfo = {
-                'lineno' : lineno,
-                'lexpos' : lexpos,
-                'chrpos' : self.chrpos(lineno, lexpos),
-                'source' : self.source,
-            }
+            target = self.source.eof
             msg = "Unexpected End Of File."
         self << SatSyntaxError(msg=msg, target=target)
         return None

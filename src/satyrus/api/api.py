@@ -153,6 +153,15 @@ class SatAPI(metaclass=MetaSatAPI):
     def options(cls) -> set:
         return set(cls.subclasses.keys())
 
+    @classmethod
+    def complete(cls, answer: tuple[dict, float] | object) -> bool:
+        return (
+            isinstance(answer, tuple)
+            and len(answer) == 2
+            and isinstance(answer[0], dict)
+            and isinstance(answer[1], float)
+        )
+
     @abstractmethod
     def solve(self, posiform: Posiform, **params: dict) -> tuple[dict, float] | object:
         pass

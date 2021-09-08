@@ -10,6 +10,7 @@ from functools import reduce
 
 # Local
 from .base import SatType, MetaSatType
+from .number import Number
 from ..satlib import Source, join, Posiform
 from ..symbols import (
     T_IDX,
@@ -38,7 +39,7 @@ from ..symbols import (
 )
 
 
-class Expr(SatType, tuple, metaclass=MetaSatType):
+class Expr(tuple, SatType, metaclass=MetaSatType):
     """
     This is one of the core elements of the system. This is used to represent ASTs.
     """
@@ -261,29 +262,29 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
         return self._hash_
 
     # -*- Computation Rules -*-
-    @classmethod
+    @staticmethod
     def R_OR(cls: type, *tail: SatType) -> SatType:
         expr_table = {}
         cons_table = []
 
         for p in tail:
             if p.is_number:
-                if p == cls.Number("0"):
+                if p == Number("0"):
                     continue
-                elif p == cls.Number("1"):
-                    return cls.Number("1")
+                elif p == Number("1"):
+                    return Number("1")
                 else:
                     cons_table.append(p)
             else:
                 expr_table[hash(p)] = p
 
-        cons = reduce(lambda x, y: x._OR_(y), cons_table, cls.Number("0"))
+        cons = reduce(lambda x, y: x._OR_(y), cons_table, Number("0"))
 
-        if cons == cls.Number("1"):
-            return cls.Number("1")
-        elif cons == cls.Number("0"):
+        if cons == Number("1"):
+            return Number("1")
+        elif cons == Number("0"):
             if len(expr_table) == 0:
-                return cls.Number("0")
+                return Number("0")
             elif len(expr_table) == 1:
                 return expr_table.pop(next(iter(expr_table.keys())))
             else:
@@ -294,29 +295,29 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
             else:
                 return cls(T_OR, cons, *expr_table.values())
 
-    @classmethod
+    @staticmethod
     def R_AND(cls: type, *tail: SatType) -> SatType:
         expr_table = {}
         cons_table = []
 
         for p in tail:
             if p.is_number:
-                if p == cls.Number("1"):
+                if p == Number("1"):
                     continue
-                elif p == cls.Number("0"):
-                    return cls.Number("0")
+                elif p == Number("0"):
+                    return Number("0")
                 else:
                     cons_table.append(p)
             else:
                 expr_table[hash(p)] = p
 
-        cons = reduce(lambda x, y: x._AND_(y), cons_table, cls.Number("1"))
+        cons = reduce(lambda x, y: x._AND_(y), cons_table, Number("1"))
 
-        if cons == cls.Number("0"):
-            return cls.Number("0")
-        elif cons == cls.Number("1"):
+        if cons == Number("0"):
+            return Number("0")
+        elif cons == Number("1"):
             if len(expr_table) == 0:
-                return cls.Number("1")
+                return Number("1")
             elif len(expr_table) == 1:
                 return expr_table.pop(next(iter(expr_table.keys())))
             else:
@@ -327,7 +328,7 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
             else:
                 return cls(T_AND, cons, *expr_table.values())
 
-    @classmethod
+    @staticmethod
     def R_NOT(cls: type, x: SatType) -> SatType:
         if x.is_expr:
             if x.head == T_NOT:
@@ -341,7 +342,7 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
         else:
             return x._NOT_()
 
-    @classmethod
+    @staticmethod
     def R_ADD(cls: type, *tail: SatType) -> SatType:
         hash_table = {}
         expr_table = {}
@@ -363,39 +364,39 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
                     hash_table[hash(q)] = q
                     expr_table[hash(q)] = c
             elif hash(p) in hash_table:
-                expr_table[hash(p)] += cls.Number("1")
+                expr_table[hash(p)] += Number("1")
             else:
                 hash_table[hash(p)] = p
-                expr_table[hash(p)] = cls.Number("1")
+                expr_table[hash(p)] = Number("1")
 
-        cons = reduce(lambda x, y: x._ADD_(y), cons_table, cls.Number("0"))
+        cons = reduce(lambda x, y: x._ADD_(y), cons_table, Number("0"))
 
         tail = [
-            (hash_table[h] if (c == cls.Number("1")) else cls(T_MUL, c, hash_table[h]))
+            (hash_table[h] if (c == Number("1")) else cls(T_MUL, c, hash_table[h]))
             for h, c in expr_table.items()
         ]
 
-        if cons != cls.Number("0"):
+        if cons != Number("0"):
             if len(tail) == 0:
                 return cons
             else:
                 return cls(T_ADD, cons, *tail)
         else:
             if len(tail) == 0:
-                return cls.Number("0")
+                return Number("0")
             elif len(tail) == 1:
                 return tail[0]
             else:
                 return cls(T_ADD, *tail)
 
-    @classmethod
+    @staticmethod
     def R_NEG(cls: type, x: SatType) -> SatType:
         if x.is_expr and x.head in cls.TABLE[T_NEG]:
             return cls.TABLE[T_NEG][x.head](cls, *x.tail)
         else:
             return x._NEG_()
 
-    @classmethod
+    @staticmethod
     def R_MUL(cls: type, *tail: SatType):
         cons_table = []
         expr_table = []
@@ -415,9 +416,9 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
             else:
                 expr_table.append(p)
 
-        cons = reduce(lambda x, y: x._MUL_(y), cons_table, cls.Number("1"))
+        cons = reduce(lambda x, y: x._MUL_(y), cons_table, Number("1"))
 
-        if cons != cls.Number("1"):
+        if cons != Number("1"):
             if len(expr_table) == 0:
                 return cons if even else -cons
             else:
@@ -428,7 +429,7 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
                 )
         else:
             if len(expr_table) == 0:
-                return cls.Number("1") if even else cls.Number("-1")
+                return Number("1") if even else Number("-1")
             elif len(expr_table) == 1:
                 return expr_table[0] if even else cls(T_NEG, expr_table[0])
             else:
@@ -438,7 +439,7 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
                     else cls(T_MUL, cls(T_NEG, expr_table[0]), *expr_table[1:])
                 )
 
-    @classmethod
+    @staticmethod
     def R_MUL_EXPAND(cls: type, *tail: tuple):
         fulltail = []
 
@@ -460,37 +461,41 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
         fulltail = [q[0] if (len(q) == 1) else cls(T_MUL, *q) for q in fulltail]
 
         if len(fulltail) == 0:
-            return cls.Number("1")
+            return Number("1")
         elif len(fulltail) == 1:
             return fulltail[0]
         else:
             return cls(T_ADD, *fulltail)
 
-    RULES = {
-        ## Logical
-        T_OR: [R_OR],
-        T_AND: [R_AND],
-        T_NOT: [R_NOT],
-        T_XOR: [lambda cls, x, y: x._XOR_(y)],
-        T_IMP: [lambda cls, x, y: x._IMP_(y)],
-        T_RIMP: [lambda cls, x, y: y._IMP_(x)],
-        T_IFF: [lambda cls, x, y: x._IFF_(y)],
-        ## Arithmetic
-        T_ADD: [R_ADD],
-        T_NEG: [R_NEG],
-        T_MUL: [R_MUL, R_MUL_EXPAND],
-        T_DIV: [lambda cls, x, y: x._DIV_(y)],
-        T_MOD: [lambda cls, x, y: x._MOD_(y)],
-        ## Comparisons
-        T_EQ: [lambda cls, x, y: x._EQ_(y)],
-        T_NE: [lambda cls, x, y: x._NE_(y)],
-        T_GE: [lambda cls, x, y: x._GE_(y)],
-        T_LE: [lambda cls, x, y: x._LE_(y)],
-        T_GT: [lambda cls, x, y: x._GT_(y)],
-        T_LT: [lambda cls, x, y: x._LT_(y)],
-        ## Indexing
-        T_IDX: [lambda cls, x, *i: x._IDX_(i)],
-    }
+    RULES = {}
+
+    @classmethod
+    def get_rules(cls) -> dict:
+        return {
+            ## Logical
+            T_OR: [cls.R_OR],
+            T_AND: [cls.R_AND],
+            T_NOT: [cls.R_NOT],
+            T_XOR: [lambda _, x, y: x._XOR_(y)],
+            T_IMP: [lambda _, x, y: x._IMP_(y)],
+            T_RIMP: [lambda _, x, y: y._IMP_(x)],
+            T_IFF: [lambda _, x, y: x._IFF_(y)],
+            ## Arithmetic
+            T_ADD: [cls.R_ADD],
+            T_NEG: [cls.R_NEG],
+            T_MUL: [cls.R_MUL, cls.R_MUL_EXPAND],
+            T_DIV: [lambda _, x, y: x._DIV_(y)],
+            T_MOD: [lambda _, x, y: x._MOD_(y)],
+            ## Comparisons
+            T_EQ: [lambda _, x, y: x._EQ_(y)],
+            T_NE: [lambda _, x, y: x._NE_(y)],
+            T_GE: [lambda _, x, y: x._GE_(y)],
+            T_LE: [lambda _, x, y: x._LE_(y)],
+            T_GT: [lambda _, x, y: x._GT_(y)],
+            T_LT: [lambda _, x, y: x._LT_(y)],
+            ## Indexing
+            T_IDX: [lambda _, x, *i: x._IDX_(i)],
+        }
 
     @classmethod
     def apply_rule(cls, expr: SatType) -> SatType:
@@ -638,7 +643,7 @@ class Expr(SatType, tuple, metaclass=MetaSatType):
         **kw : dict (optional)
             `f`'s key-word arguments
         """
-        return cls.apply(e, lambda z: ((y if (z == x) else z) if z.is_var else z))
+        return cls.apply(e, lambda z: y if z == x else z)
 
     # -*- Subtype Checking -*-
     @property

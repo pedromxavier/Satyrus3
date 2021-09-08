@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 # Standard Library
+import json
 from numbers import Number as ABC_NUM
 
 # Third-Party
@@ -282,7 +283,6 @@ class Posiform(dict):
     def __minimum_selection(self, *args) -> bool:
         return True
 
-
     def __substitution(self, *args) -> bool:
         return True
 
@@ -294,6 +294,21 @@ class Posiform(dict):
     def cls(self):
         return self.__class__
 
+    def toJSON(self) -> str:
+        return json.dumps(
+            [{"term": list(k) if k is not None else None, "cons": v} for k, v in self]
+        )
+
+    @classmethod
+    def fromJSON(cls, data: str) -> Posiform:
+        return cls(
+            {
+                (tuple(item["term"]) if item["term"] is not None else None): item[
+                    "cons"
+                ]
+                for item in json.loads(data)
+            }
+        )
 
     def qubo(self) -> tuple[dict[str, int], np.ndarray[float], float]:
         """

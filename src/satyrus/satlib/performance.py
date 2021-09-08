@@ -74,7 +74,7 @@ class Timing(object):
         @classmethod
         def __bar(cls, t: float, T: float):
             x = (t / T) if T else 0.0
-            return f"[{cls.__full(x)}{cls.ARROW}{cls.__empty()}]{t:6.2f}s ({x * 100.0:6.2f}%)"
+            return f"[{cls.__full(x)}{cls.ARROW}{cls.__empty(x)}]{t:6.2f}s ({x * 100.0:6.2f}%)"
 
         @classmethod
         def __full(cls, x: float) -> str:

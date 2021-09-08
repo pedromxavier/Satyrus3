@@ -5,8 +5,7 @@ import re
 from sys import meta_path
 
 # Local
-from .base import SatType, MetaSatType
-from .expr import Expr
+from .base import SatType
 from ..error import SatValueError
 from ..satlib import Source
 
@@ -24,6 +23,9 @@ class Number(decimal.Decimal, SatType):
 
     def __init__(self, value: numbers.Real, source: Source = None, lexpos: int = None):
         SatType.__init__(self, source=source, lexpos=lexpos)
+
+    def __hash__(self) -> int:
+        return decimal.Decimal.__hash__(self)
 
     @classmethod
     def numeric(cls, x: object) -> bool:

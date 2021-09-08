@@ -1,18 +1,19 @@
-""" :: DEF_CONSTRAINT ::
-    ====================
-
-    STATUS: INCOMPLETE
 """
+"""
+# Future Imports
+from __future__ import annotations
+
 ## Standard Library
 import itertools as it
 from functools import reduce
+from typing import Callable
 
 ## Third-Party
 from cstream import stdlog, stdout, stdwar, stderr
 
 ## Local
 from ..compiler import SatCompiler
-from ...satlib import arange, Stack, Queue
+from ...satlib import arange, Stack, Queue, Posiform
 from ...error import (
     SatValueError,
     SatTypeError,
@@ -34,12 +35,12 @@ from ...symbols import (
 from ...types import Expr, Var, String, Number, Array
 
 LOOP_TYPES = {T_EXISTS, T_UNIQUE, T_FORALL}
-CONST_TYPES = {CONS_INT, CONS_OPT}
+CONS_TYPES = {CONS_INT, CONS_OPT}
 
 
 def def_constraint(
     compiler: SatCompiler,
-    cons_type: String,
+    constype: String,
     name: Var,
     loops: list,
     expr: Expr,
@@ -50,7 +51,7 @@ def def_constraint(
     ----------
     compiler : SatCompiler
             Current running compiler instance.
-    cons_type : String
+    constype : String
             Either 'opt' or 'int'.
     name : Var
             Constraint identifier.
@@ -61,100 +62,63 @@ def def_constraint(
     level : Number, Var
             Constraint's penalty level.
     """
-    if type(level) is not Number:
+
+    # -*- Penalty Level -*-
+    if level is None:
+        pass
+    elif isinstance(level, Number):
+        pass
+    elif isinstance(level, (Var, Expr)):
         level = compiler.evaluate(level, miss=True, calc=True, null=True)
+    else:
+        raise TypeError(f"'level' must be 'Number', 'Var' or 'Expr', not ({type(level)})")
 
-    ## Check constraint type and level
-    if str(cons_type) not in CONST_TYPES:
+    # -*- Constraint Type & Level Consistency Check -*-
+    if str(constype) not in CONS_TYPES:
         compiler << SatTypeError(
-            f"Invalid constraint type {cons_type}. Options are: `int`, `opt`.",
-            target=cons_type,
+            f"Invalid constraint type '{constype}'. Options are: {CONS_TYPES}",
+            target=constype,
         )
 
-    if str(cons_type) == CONS_OPT and level is not None:
-        compiler << SatTypeError(
-            "Invalid penalty level for optimality constraint.", target=level
-        )
+    if str(constype) == CONS_OPT and level is not None:
+        compiler << SatTypeError("Invalid penalty level for optimality constraint.", target=level)
 
-    if str(cons_type) == CONS_INT and (level < 0 or not level.is_int):
-        compiler << SatValueError(
-            f"Invalid penalty level {level}. Must be positive integer.", target=level
-        )
+    if str(constype) == CONS_INT and (level < 0 or not level.is_int):
+        compiler << SatValueError(f"Penalty level must be a positive integer", target=level)
 
     compiler.checkpoint()
 
-    # Loop Stack
-    # At each level we have:
-    # Loop(type, var, indices, conds)
+    # -*- Quantifier Replication Stack -*-
     stack = Stack()
 
-    compiler.checkpoint()
+    # -*- Variable Accountance -*-
+    var_bag = set()
 
-    ## Begin expr analysis
-    if stdlog[3]:
-        stdlog[3] << f"\n@{name}(raw):\n\t{expr}"
+    # -*- Stacking Quantifiers -*-
+    l_type: String
+    l_var: Var
+    l_bounds: tuple[Number, Number, Number]
+    l_conds: list[Callable]
 
-    ## Simplify
-    expr = compiler.source.propagate(expr, Expr.calculate(expr), out=True)
-
-    if stdlog[3]:
-        stdlog[3] << f"\n@{name}(simplified):\n\t{expr}"
-
-    if str(cons_type) == CONS_INT and not expr.logical:
-        compiler << SatExprError(
-            "Integrity constraint expressions must be purely logical i.e. no arithmetic operations allowed.",
-            target=expr,
-        )
-
-    compiler.checkpoint()
-
-    # Checks for undefined variables + evaluate constants
-    # Adds inner scope where inside-loop variables point to themselves. This prevents both
-    # older variables from interfering in evaluation and also undefined loop variables.
-    # Last but not least, automatically removes this artificial scope.
-    expr: Expr = compiler.source.propagate(
-        expr,
-        compiler.evaluate(
-            expr,
-            miss=True,
-            calc=True,
-            null=False,
-            context={var: var for var in variables},
-        ),
-        out=True,
-    )
-
-    compiler.checkpoint()
-
-    # extract loop properties
     for (l_type, l_var, l_bounds, l_conds) in loops:
-
-        # Check for earlier variable definitions
-        if l_var in variables:
-            compiler << SatExprError(
-                f"Loop variable '{l_var}' repetition.", target=l_var
-            )
+        if l_var in var_bag:
+            compiler << SatExprError(f"Loop variable '{l_var}' repetition.", target=l_var)
         elif l_var in compiler:
             compiler < SatWarning(
                 f"Variable '{l_var}' redefinition. Global values are set into the expression before loop variables.",
                 target=l_var,
             )
 
-        # account for variable in loop scope
-        variables.add(l_var)
-
         compiler.checkpoint()
 
-        # check for boundary consistency
-        # extract loop boundaries
+        var_bag.add(l_var)
+
+        # -*- Extract Loop Bounds -*-
         start, stop, step = l_bounds
 
-        # evaluate variables
         start = compiler.evaluate(start, miss=True, calc=True)
         stop = compiler.evaluate(stop, miss=True, calc=True)
-        step = compiler.evaluate(
-            step, miss=True, calc=True, null=True
-        )  ## accepts null (None) as possible value
+        step = compiler.evaluate(step, miss=True, calc=True, null=True)
 
         if step is None:
             if start <= stop:
@@ -170,87 +134,124 @@ def def_constraint(
 
         compiler.checkpoint()
 
-        # define condition
+        # -*- Condition Compilation -*-
         if l_conds is not None:
             # Compile condition expressions
             cond = reduce(
                 lambda x, y: x._AND_(y),
                 [compiler.evaluate(c, miss=False, calc=True) for c in l_conds],
-                Number.T,
+                Number("1"),
             )
         else:
             cond = None
 
-        stack.push(Loop(type=l_type, var=l_var, bounds=(start, stop, step), cond=cond))
+        # -*- Stack in reverse order -*-
+        stack.push({"type": l_type, "var": l_var, "bounds": (start, stop, step), "cond": cond})
+
+    # -*- Expression Analysis -*-
+    if stdlog[3]:
+        stdlog[3] << f"\n@{name}(raw):\n\t{expr}"
+
+    # -*- Simplify -*-
+    expr = compiler.source.propagate(expr, Expr.calculate(expr), out=True)
+
+    if stdlog[3]:
+        stdlog[3] << f"\n@{name}(simplified):\n\t{expr}"
+
+    if str(constype) == CONS_INT and not expr.logical:
+        compiler << SatExprError(
+            "Integrity constraint expressions must be purely logical i.e. no arithmetic operations allowed.",
+            target=expr,
+        )
 
     compiler.checkpoint()
 
+    # Checks for undefined variables + evaluate constants
+    # Adds inner scope where inside-loop variables point to themselves. This prevents both
+    # older variables from interfering in evaluation and also undefined loop variables.
+    # Last but not least, automatically removes this artificial scope
+    expr: Expr = compiler.source.propagate(
+        expr,
+        compiler.evaluate(
+            expr,
+            miss=True,
+            calc=True,
+            null=False,
+            context={var: var for var in var_bag},
+        ),
+        out=True,
+    )
 
-def def_constraint_build(
-    compiler: SatCompiler,
-    name: Var,
-    cons_type: String,
-    level: Number,
-    stack: Stack,
-    queue: Queue,
-    expr: Expr,
-) -> None:
-    """"""
-    while stack:
-        # Retrieve loop from stack
-        loop: Loop = stack.pop()
+    if expr.is_expr:
+        build(compiler, constype, stack, Stack(), level, expr.cnf)
+    else:
+        # Here I'm supposing that everything that is not an 'Expr' is in the C.N.F.
+        # (Also in any other normal form)
+        build(compiler, constype, stack, Stack(), level, expr)
 
-        if loop.type in {T_EXISTS, T_FORALL}:
-            queue.push(loop)
-        elif loop.type in {T_UNIQUE}:
-            queue.push(Loop())
+
+def build(compiler: SatCompiler, constype: str, A: Stack, B: Stack, level: Number, expr: Expr):
+
+    if A:
+        # -*- Retrieve Innermost Quatifier -*-
+        item = A.pop()
+
+        if constype == CONS_INT:
+            if item["type"] == T_UNIQUE:
+                # -*- Winner Takes All -*-
+                R = A.copy()
+                S = B.copy()
+
+                B.push({**item, "type": T_FORALL})
+                build(compiler, constype, A, B, level, expr)
+
+                var = Var(f"${item['var']}")
+
+                if item["cond"] is None:
+                    cond = Expr(T_NE, item["var"], var)
+                else:
+                    cond = Expr(T_AND, Expr.sub(item["cond"], item["var"], var), Expr(T_NE, item["var"], var))
+
+                S.push({"type": T_FORALL, "var": var, "bounds": item["bounds"], "cond": cond})
+                S.push({**item, "type": T_FORALL})
+
+                build(compiler, constype, R, S, level + 1, Expr(T_NOT, Expr(T_AND, expr, Expr.sub(expr, item["var"], var))))
+            elif item["type"] == T_FORALL:
+                B.push({**item, "type": T_EXISTS})
+                build(compiler, constype, A, B, level, expr)
+            elif item["type"] == T_EXISTS:
+                B.push({**item, "type": T_FORALL})
+                build(compiler, constype, A, B, level, expr)
+            else:
+                raise ValueError(f"Invalid quatifier {item['type']}")
+        elif constype == CONS_OPT:
+            if item["type"] == T_UNIQUE:
+                pass
+            elif item["type"] == T_FORALL:
+                B.push(item)
+                build(compiler, constype, A, B, level, expr)
+            elif item["type"] == T_EXISTS:
+                B.push(item)
+                build(compiler, constype, A, B, level, expr)
+            else:
+                raise ValueError(f"Invalid quatifier {item['type']}")
         else:
-            raise ValueError(f"Invalid Loop type {loop.type}")
+            raise ValueError(f"Invalid constraint type '{constype}'")
     else:
-        compiler.checkpoint()
+        if constype == CONS_INT:
+            unstack(compiler, constype, B, level, Expr.calculate(~expr))
+        elif constype == CONS_OPT:
+            unstack(compiler, constype, B, level, expr)
+        else:
+            raise ValueError(f"Invalid constraint type '{constype}'")
 
-    ## Create constraint object
-    constraint = Constraint(name, cons_type, level)
 
-    ## Setup Indexer
-    indexer = SatIndexer(compiler, list(queue), Expr.dnf(expr))
-
-    ## Sets expression for this constraint in the Conjunctive Normal Form (C.N.F.)
-    if str(cons_type) == CONS_INT:
-        indexer.negate()
-    elif str(cons_type) == CONS_OPT:
-        pass
+def unstack(compiler, constype: str, stack: Stack, level: Number, expr: Expr):
+    stdout[3] << f"({constype}, {level}) {expr}"
+    for item in stack:
+        if item["cond"] is None:
+            stdout[3] << "{type} :: {var} @{bounds}".format(**item)
+        else:
+            stdout[3] << "{type} :: {var} @{bounds} if {cond}".format(**item)
     else:
-        raise NotImplementedError(
-            f"There are no extra constraint types yet, just 'int' or 'opt', not '{cons_type}'."
-        )
-
-    compiler.checkpoint()
-
-    if not indexer.in_dnf:
-        compiler < SatWarning(
-            f"In Constraint `{constraint.name}` the expression indexed by '{indexer}' is not in the C.N.F.\nThis will require (probably many) extra steps to evaluate.\nThus, you may press Ctrl+X/Ctrl+C to interrupt compilation.",
-            target=constraint.var,
-        )
-
-    # Retrieve Indexed expression
-    expr: Expr = indexer.index(ensure_dnf=True)
-
-    compiler.checkpoint()
-
-    ## One last time after indexing
-    expr: Expr = Expr.calculate(expr)
-
-    compiler.checkpoint()
-
-    ## Register Constraint
-    if constraint.name in compiler:
-        compiler < SatWarning(
-            f"Variable redefinition in constraint '{constraint.name}'.",
-            target=constraint.name,
-        )
-
-    ## Endpoint
-    compiler.memset(constraint.name, constraint)
-
-    compiler.checkpoint()
+        stdout[3]

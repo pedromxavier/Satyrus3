@@ -22,16 +22,14 @@ def run_script(compiler: SatCompiler, *args: tuple):
     ## Setup compiler environment
     run_script_setup(compiler)
 
-    constraints = {}
     ## Retrieve constraints
-    run_script_constraints(compiler, constraints)
+    run_script_constraints(compiler)
 
-    penalties = {}
     ## Compute penalties
-    run_script_penalties(compiler, constraints, penalties)
+    run_script_penalties(compiler)
 
     ## Generate Energy Equations
-    run_script_energy(compiler, constraints, penalties)
+    run_script_energy(compiler)
 
 
 def run_script_setup(compiler: SatCompiler):
@@ -47,56 +45,45 @@ def run_script_setup(compiler: SatCompiler):
     ## Parameter validation
     if compiler.env[EPSILON] < pow(10, -Number.prec(None)):
         compiler << SatValueError(
-            "Tiebraker `epsilon` is neglected due to numeric precision.",
+            "Tiebraker 'epsilon' was neglected due to numeric precision. Choose a greater value",
             target=compiler.env[EPSILON],
         )
 
     compiler.checkpoint()
 
 
-def run_script_constraints(compiler: SatCompiler, constraints: dict):
-    """Constraint compilation"""
+def run_script_constraints(compiler: SatCompiler):
+    """ """
 
-    ## Retrieve constraints
-    all_constraints = [item for item in compiler.memory if (type(item) is Constraint)]
-
-    constraints.update(
-        {
-            CONS_INT: [cons for cons in all_constraints if (cons.type == CONS_INT)],
-            CONS_OPT: [cons for cons in all_constraints if (cons.type == CONS_OPT)],
-        }
-    )
-
-    if len(constraints[CONS_INT]) + len(constraints[CONS_OPT]) == 0:
+    # -*- Constraint Validation -*-
+    if len(compiler.constraints[CONS_INT]) + len(compiler.constraints[CONS_OPT]) == 0:
         compiler << SatCompilerError(
-            "No problem defined. Maybe you are just fine.", target=compiler.source.eof
+            "No problem defined. Maybe you are just fine :)", target=compiler.source.eof
         )
-    elif len(constraints[CONS_INT]) == 0:
+    elif len(compiler.constraints[CONS_INT]) == 0:
         compiler < SatWarning(
             "No Integrity condition defined.", target=compiler.source.eof
         )
-    elif len(constraints[CONS_OPT]) == 0:
+    elif len(compiler.constraints[CONS_OPT]) == 0:
         compiler << SatCompilerError(
             "No Optmization condition defined.", target=compiler.source.eof
         )
 
-    stdlog[3] << compiler.memory
-
     compiler.checkpoint()
 
 
-def run_script_penalties(compiler: SatCompiler, constraints: dict, penalties: dict):
+def run_script_penalties(compiler: SatCompiler):
     """ """
-    ## Penalties
-    penalties.update({0: compiler.env[ALPHA]})
+    # -*- Penalty Computarion -*-
+    compiler.penalties.update({0: compiler.env[ALPHA]})
 
-    levels = {0: sum(len(cons.clauses) for cons in constraints[CONS_OPT])}
+    levels = {0: sum(clauses for level, energy, clauses in compiler.constraints[CONS_OPT])}
 
-    for cons in constraints[CONS_INT]:
-        if cons.level not in levels:
-            levels[cons.level] = len(cons.clauses)
+    for level, energy, clauses in compiler.constraints[CONS_INT]:
+        if level not in levels:
+            levels[level] = clauses
         else:
-            levels[cons.level] += len(cons.clauses)
+            levels[level] += clauses
     else:
         levels = sorted(levels.items())
 
@@ -108,21 +95,23 @@ def run_script_penalties(compiler: SatCompiler, constraints: dict, penalties: di
         (level_k, n_k), (level_j, n_j) = (level_j, n_j), levels[i]
 
         if i == 1:
-            penalties[level_j] = penalties[level_k] * n_k + compiler.env[EPSILON]
+            compiler.penalties[level_j] = (
+                compiler.penalties[level_k] * n_k + compiler.env[EPSILON]
+            )
         else:
-            penalties[level_j] = penalties[level_k] * (n_k + 1)
+            compiler.penalties[level_j] = compiler.penalties[level_k] * (n_k + 1)
 
-    ## Print penalty table
-    with stdlog[2] as stream:
-        stream << " PENALTY TABLE"
-        stream << tabulate(
-            [(f"{k:6d}", f"{n:d}", penalties[k]) for k, n in levels],
+    # -*- Penalty Table Exhibition -*-
+    if stdlog[2]:
+        stdlog[2] << "PENALTY TABLE"
+        stdlog[2] << tabulate(
+            [(f"{k:6d}", f"{n:d}", compiler.penalties[k]) for k, n in levels],
             headers=["lvl", "n", "value"],
             tablefmt="pretty",
         )
-        stream << ""
-        stream << " CONSTANTS"
-        stream << tabulate(
+        stdlog[2] << ""
+        stdlog[2] << "CONSTANTS"
+        stdlog[2] << tabulate(
             [[compiler.env[EPSILON], compiler.env[ALPHA]]],
             headers=["ε", "α"],
             tablefmt="pretty",
@@ -131,36 +120,12 @@ def run_script_penalties(compiler: SatCompiler, constraints: dict, penalties: di
     compiler.checkpoint()
 
 
-def run_script_energy(compiler: SatCompiler, constraints: dict, penalties: dict):
+def run_script_energy(compiler: SatCompiler):
     """"""
+    # Integrity
+    Ei = sum((compiler.penalties[level] * energy for level, energy in compiler.constraints[CONS_INT]), 0.0)
 
-    if compiler[1]:
-        raise NotImplementedError(
-            "Compiler Optimization not implemented for energy equation generation."
-        )
-    else:
-        ## Integrity
-        Ei = Expr.calculate(
-            sum(
-                (
-                    penalties[cons.level] * mapping(cons.expr)
-                    for cons in constraints[CONS_INT]
-                ),
-                Number("0"),
-            )
-        )
+    # Optimality
+    Eo = sum((compiler.penalties[level] * energy for level, energy in compiler.constraints[CONS_OPT]), 0.0)
 
-        ## Optimality
-        Eo = Expr.calculate(
-            sum(
-                (
-                    penalties[cons.level] * mapping(cons.expr)
-                    for cons in constraints[CONS_OPT]
-                ),
-                Number("0"),
-            )
-        )
-
-        E = Expr.calculate(Ei + Eo)
-
-    compiler(Expr.posiform(E, boolean=True))
+    compiler.energy = (Ei + Eo)

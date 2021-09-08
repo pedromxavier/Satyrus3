@@ -58,25 +58,29 @@ class SatCompiler:
         else:
             self.parser = parser
 
-        ## Eventual source
+        # Source Code
         self.source: Source = None
 
-        ## Compiler Memory
+        # Compiler Memory
         self.memory = Memory()
 
-        ## Compiler Environment
+        # Compiler Environment Variables
         if env is None:
             self.env = {}
         else:
             self.env = dict(env)
 
-        ## Output
+        # Constraints & Penalty Levels
+        self.constraints = {CONS_INT: [], CONS_OPT: []}
+        self.penalties = {}
+
+        # Output
         self.energy = Posiform()
 
-        ## Exit code
+        # ? Exit code ?
         self.code = 0
 
-        ## Errors
+        # Errors
         self.error_stack = Stack()
 
     def __enter__(self, *args, **kwargs):
@@ -125,7 +129,7 @@ class SatCompiler:
         -------
         This requires optimization level to be at least 'n' to execute block.
         >>> if compiler[n]:
-                        block
+        ...     block
         """
         return self.env[OPT] >= opt_level
 

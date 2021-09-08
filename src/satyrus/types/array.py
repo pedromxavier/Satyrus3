@@ -5,6 +5,7 @@ from .expr import Expr
 from .number import Number
 from .var import Var
 from ..error import SatIndexError
+from ..symbols import T_IDX
 
 class Array(SatType):
     """ :: Array ::
@@ -44,7 +45,7 @@ class Array(SatType):
                 else:
                     raise SatIndexError(f"Index {i} is out of bounds [1, {n}].", target=i)
         elif type(i) is Var:
-            return Expr._IDX_(self, i)
+            return Expr(T_IDX, self, i)
         else:
             raise SatIndexError(f"Invalid index `{i}` of type `{type(i)}`.", target=i)
 

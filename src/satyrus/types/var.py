@@ -14,6 +14,9 @@ class Var(str, SatType):
     def __init__(self, name: str, *, source: Source = None, lexpos: int = None):
         SatType.__init__(self, source=source, lexpos=lexpos)
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({str.__repr__(self)})"
+
     def _IDX_(s, i: tuple):
         r = str(s)
         while i:

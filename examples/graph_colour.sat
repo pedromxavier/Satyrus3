@@ -49,7 +49,6 @@ HIGH = 2;
 
 (int) color_all_once[LOW]:
     forall {i = [1:n]}
-    exists {j = [1:n]}
     unique {k = [1:n]}
     vc[i][k];
 

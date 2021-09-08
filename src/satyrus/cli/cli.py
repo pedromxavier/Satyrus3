@@ -110,7 +110,7 @@ class IncludeSatAPI(argparse._StoreAction):
             SatAPI.include(str.strip(fname))
 
 
-class SetOutput(argparse._StoreAction):
+class SetSolver(argparse._StoreAction):
     @wraps(argparse._StoreAction.__init__)
     def __init__(self, *args, **kwargs):
         argparse._StoreAction.__init__(self, *args, **kwargs)
@@ -122,7 +122,7 @@ class SetOutput(argparse._StoreAction):
         output = str.strip(getattr(namespace, self.dest))
         if output not in SatAPI.options:
             parser.error(
-                f"Invalid output choice '{output}' (choose from {SatAPI.options()!r})"
+                f"Invalid solver choice '{output}' (choose from {SatAPI.options()!r})"
             )
 
 
@@ -214,9 +214,24 @@ class CLI:
             "-a", "--api", type=str, dest="api", help=HELP["api"], action=IncludeSatAPI
         )
 
-        # Optional - Output format
+        # Optional - Solver Option
         parser.add_argument(
-            "-o", "--out", type=str, dest="out", help=HELP["out"], action=SetOutput
+            "-s",
+            "--solver",
+            type=str,
+            dest="solver",
+            help=HELP["solver"],
+            action=SetSolver,
+        )
+
+        # Optional - Output File
+        parser.add_argument(
+            "-o",
+            "--output",
+            type=str,
+            dest="output",
+            help=HELP["output"],
+            action="store",
         )
 
         # Optional - Legacy Syntax
@@ -235,7 +250,7 @@ class CLI:
         )
 
         # Set base output verbosity level
-        Stream.set_lvl(1)
+        Stream.set_lvl(0)
 
         if argv is None:
             args = parser.parse_args()
@@ -261,14 +276,24 @@ class CLI:
         if legacy:
             stdwar[0] << f"Warning: Parser is in legacy mode."
 
-        ## Report performance
+        # Performance Report
         report: bool = args.report
 
-        ## Output selection
-        output: str = args.out
+        # Output File Destination
+        if args.output is None:
+            output = Path.cwd().joinpath(f"{source_path.stem}.json")
+        else:
+            output = Path(args.output)
+            try:
+                output.touch(exist_ok=True)
+            except FileNotFoundError:
+                parser.error(f"Invalid output path '{output}'")
 
-        if output is None:
-            output = "text"
+        # Solver Interface
+        if args.solver is None:
+            solver = "text"
+        else:
+            solver = args.solver
 
         ## Exhibits Compiler Command line arguments
         if stdlog[3]:
@@ -278,10 +303,11 @@ class CLI:
 
         # Compile Problem
         try:
+            # Launch API
             sat_api = SatAPI(path=source_path, legacy=legacy)
 
             # Solve in desired way
-            answer: tuple[dict, float] = sat_api[output].solve()
+            answer: tuple[dict, float] = sat_api[solver].solve()
 
             # Failure
             if answer is None:
@@ -294,20 +320,12 @@ class CLI:
                 stderr[0] << SAT_CRITICAL
             exit(1)
         else:
-            # Output
-            if SatAPI.complete(answer):
-                x, e = answer
-                for var, val in x.items():
-                    # Variable choice
-                    stdout[0] << f"{var}\t{val}"
-                else:
-                    # Total energy for given configuration
-                    stdout[0] << f"E = {e}"
-            else:  # Partial Solution
-                stdout[0] << answer
+            with output.open(mode="w") as file:
+                file.write(answer)
         finally:
             if report:
                 Timing.timer.show_report()
+            exit(0)
 
 
 __all__ = ["CLI"]

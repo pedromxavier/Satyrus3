@@ -21,18 +21,8 @@ from ...error import (
     SatExprError,
     SatWarning,
 )
-from ...symbols import (
-    CONS_INT,
-    CONS_OPT,
-    T_EXISTS,
-    T_UNIQUE,
-    T_FORALL,
-    T_IDX,
-    T_AND,
-    T_NOT,
-    T_NE,
-)
-from ...types import Expr, Var, String, Number, Array
+from ...symbols import CONS_INT, CONS_OPT, T_EXISTS, T_UNIQUE, T_FORALL, T_AND, T_OR, T_NOT, T_NE, T_ADD, T_MUL
+from ...types import Expr, Var, String, Number, SatType
 
 LOOP_TYPES = {T_EXISTS, T_UNIQUE, T_FORALL}
 CONS_TYPES = {CONS_INT, CONS_OPT}
@@ -182,21 +172,44 @@ def def_constraint(
         out=True,
     )
 
-    if expr.is_expr:
-        build(compiler, constype, stack, Stack(), level, expr.cnf)
-    else:
-        # Here I'm supposing that everything that is not an 'Expr' is in the C.N.F.
-        # (Also in any other normal form)
-        build(compiler, constype, stack, Stack(), level, expr)
+    build(compiler, constype, stack, Stack(), level, expr)
 
 
 def build(compiler: SatCompiler, constype: str, A: Stack, B: Stack, level: Number, expr: Expr):
-
+    """"""
     if A:
         # -*- Retrieve Innermost Quatifier -*-
         item = A.pop()
 
         if constype == CONS_INT:
+            if item["type"] == T_UNIQUE:
+                # -*- Winner Takes All -*-
+                R = A.copy()
+                S = B.copy()
+
+                B.push({**item, "type": T_EXISTS})
+                build(compiler, constype, A, B, level, expr)
+
+                var = Var(f"${item['var']}")
+
+                if item["cond"] is None:
+                    cond = Expr(T_NE, item["var"], var)
+                else:
+                    cond = Expr(T_AND, Expr.sub(item["cond"], item["var"], var), Expr(T_NE, item["var"], var))
+
+                S.push({"type": T_EXISTS, "var": var, "bounds": item["bounds"], "cond": cond})
+                S.push({**item, "type": T_EXISTS})
+
+                build(compiler, constype, R, S, level + 1, Expr(T_NOT, Expr(T_AND, expr, Expr.sub(expr, item["var"], var))).dnf)
+            elif item["type"] == T_FORALL:
+                B.push({**item, "type": T_EXISTS})
+                build(compiler, constype, A, B, level, expr)
+            elif item["type"] == T_EXISTS:
+                B.push({**item, "type": T_FORALL})
+                build(compiler, constype, A, B, level, expr)
+            else:
+                raise ValueError(f"Invalid quatifier {item['type']}")
+        elif constype == CONS_OPT:
             if item["type"] == T_UNIQUE:
                 # -*- Winner Takes All -*-
                 R = A.copy()
@@ -215,18 +228,7 @@ def build(compiler: SatCompiler, constype: str, A: Stack, B: Stack, level: Numbe
                 S.push({"type": T_FORALL, "var": var, "bounds": item["bounds"], "cond": cond})
                 S.push({**item, "type": T_FORALL})
 
-                build(compiler, constype, R, S, level + 1, Expr(T_NOT, Expr(T_AND, expr, Expr.sub(expr, item["var"], var))))
-            elif item["type"] == T_FORALL:
-                B.push({**item, "type": T_EXISTS})
-                build(compiler, constype, A, B, level, expr)
-            elif item["type"] == T_EXISTS:
-                B.push({**item, "type": T_FORALL})
-                build(compiler, constype, A, B, level, expr)
-            else:
-                raise ValueError(f"Invalid quatifier {item['type']}")
-        elif constype == CONS_OPT:
-            if item["type"] == T_UNIQUE:
-                pass
+                build(compiler, constype, R, S, level + 1, Expr(T_NOT, Expr(T_AND, expr, Expr.sub(expr, item["var"], var))).dnf)
             elif item["type"] == T_FORALL:
                 B.push(item)
                 build(compiler, constype, A, B, level, expr)
@@ -239,19 +241,93 @@ def build(compiler: SatCompiler, constype: str, A: Stack, B: Stack, level: Numbe
             raise ValueError(f"Invalid constraint type '{constype}'")
     else:
         if constype == CONS_INT:
-            unstack(compiler, constype, B, level, Expr.calculate(~expr))
+            expr = Expr.calculate(~expr)
+            if expr.is_expr:
+                energy = unstack(compiler, B, expr.dnf, {})
+            else:
+                # Here I'm supposing that everything that is not an 'Expr' is in the C.N.F.
+                # (Also in any other normal form, such as D.N.F.)
+                energy = unstack(compiler, B, expr, {})
         elif constype == CONS_OPT:
-            unstack(compiler, constype, B, level, expr)
+            if expr.is_expr:
+                energy = unstack(compiler, B, expr.dnf, {})
+            else:
+                energy = unstack(compiler, B, expr, {})
         else:
             raise ValueError(f"Invalid constraint type '{constype}'")
 
-
-def unstack(compiler, constype: str, stack: Stack, level: Number, expr: Expr):
-    stdout[3] << f"({constype}, {level}) {expr}"
-    for item in stack:
-        if item["cond"] is None:
-            stdout[3] << "{type} :: {var} @{bounds}".format(**item)
+        if None in energy:
+            clauses = len(energy) - 1
         else:
-            stdout[3] << "{type} :: {var} @{bounds} if {cond}".format(**item)
+            clauses = len(energy)
+
+        if level is None:
+            level = 0
+
+        if stdlog[3]:
+            stdlog[3] << energy
+
+        compiler.constraints[constype].append((level, energy, clauses))
+
+
+def unstack(compiler: SatCompiler, stack: Stack, expr: Expr, context: dict) -> tuple[int, Posiform]:
+    """"""
+
+    if stack:
+        # -*- Retrieve Innermost Quatifier -*-
+        item = stack.pop()
+
+        var: Var = item["var"]
+
+        if item["type"] == T_FORALL:
+            energy = Posiform(1.0)
+            for i in arange(*item["bounds"]):
+                context[var] = i
+                if item["cond"] is None or compiler.evaluate(item["cond"], context=context):
+                    energy *= unstack(compiler, stack, expr, context)
+            else:
+                del context[var]
+
+        elif item["type"] == T_EXISTS:
+            energy = Posiform(0.0)
+            for i in arange(*item["bounds"]):
+                context[var] = i
+                if item["cond"] is None or compiler.evaluate(item["cond"], context=context):
+                    energy += unstack(compiler, stack, expr, context)
+            else:
+                del context[var]
+        else:
+            raise ValueError(f"Invalid Quantifier '{item['type']}'")
+
+        # -*- Get Quantifier Back -*-
+        stack.push(item)
+
+        return energy
     else:
-        stdout[3]
+        return H(compiler.evaluate(expr, context=context))
+
+
+def H(x: SatType) -> Posiform:
+    """"""
+
+    if x.is_expr:
+        if x.head == T_NOT:
+            return 1.0 - H(x[1])
+        elif x.head == T_AND or x.head == T_MUL:
+            e = Posiform(1.0)
+            for y in x.tail:
+                e *= H(y)
+            return e
+        elif x.head == T_OR or x.head == T_ADD:
+            e = Posiform(0.0)
+            for y in x.tail:
+                e += H(y)
+            return e
+        else:
+            raise ValueError(f"Unable to map '{x.head}' into energy equation")
+    elif x.is_number:
+        return Posiform(x)
+    elif x.is_var:
+        return Posiform({(x,): 1.0})
+    else:
+        raise ValueError(f"Unable to map '{x}' into energy equation")

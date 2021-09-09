@@ -105,7 +105,7 @@ def run_script_penalties(compiler: SatCompiler):
     if stdlog[2]:
         stdlog[2] << "PENALTY TABLE"
         stdlog[2] << tabulate(
-            [(f"{k:6d}", f"{n:d}", compiler.penalties[k]) for k, n in levels],
+            [(f"{k}", f"{n}", compiler.penalties[k]) for k, n in levels],
             headers=["lvl", "n", "value"],
             tablefmt="pretty",
         )
@@ -123,9 +123,9 @@ def run_script_penalties(compiler: SatCompiler):
 def run_script_energy(compiler: SatCompiler):
     """"""
     # Integrity
-    Ei = sum((compiler.penalties[level] * energy for level, energy in compiler.constraints[CONS_INT]), 0.0)
+    Ei = sum((compiler.penalties[level] * energy for level, energy, clauses in compiler.constraints[CONS_INT]), 0.0)
 
     # Optimality
-    Eo = sum((compiler.penalties[level] * energy for level, energy in compiler.constraints[CONS_OPT]), 0.0)
+    Eo = sum((compiler.penalties[level] * energy for level, energy, clauses in compiler.constraints[CONS_OPT]), 0.0)
 
     compiler.energy = (Ei + Eo)

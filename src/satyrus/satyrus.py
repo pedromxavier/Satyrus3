@@ -25,7 +25,7 @@ class Satyrus:
         self.path = Path(path)
 
         if not self.path.exists() or not self.path.is_file():
-            raise FileNotFoundError(f"Source File '{self.path}' doesn't exists")
+            raise FileNotFoundError(f"Source File '{self.path}' does not exists")
 
         if legacy:
             from .parser.legacy import SatLegacyParser

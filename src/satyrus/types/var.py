@@ -32,3 +32,19 @@ class Var(str, SatType):
                 return Expr(T_IDX, Var(r), j, *i)
         else:
             return Var(r)
+
+    @property
+    def is_var(self) -> bool:
+        return True
+
+    @property
+    def is_expr(self) -> bool:
+        return False
+
+    @property
+    def is_array(self) -> bool:
+        return False
+
+    @property
+    def is_number(self) -> bool:
+        return False

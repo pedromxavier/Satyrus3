@@ -52,11 +52,12 @@ class SatCompiler:
         if parser is None:
             self.parser = SatParser()
         elif type(parser) is not SatParser and type(parser) is not SatLegacyParser:
-            raise TypeError(
-                f"'parser' must be of type 'SatParser' or 'SatLegacyParser, not {type(parser)}'."
-            )
+            raise TypeError(f"'parser' must be of type 'SatParser' or 'SatLegacyParser, not {type(parser)}'.")
         else:
             self.parser = parser
+
+        # -*- Flags -*-
+        self.__flags__ = {"slow": False}
 
         # Source Code
         self.source: Source = None
@@ -136,7 +137,17 @@ class SatCompiler:
     def __call__(self, energy: Posiform | None):
         self.energy = energy
 
-    @Timing.timer(level=1, section="Compiler.compile")
+    def flag(self, key: str, value: bool = None) -> bool:
+        if value is None:
+            if key in self.__flags__:
+                return self.__flags__[key]
+            else:
+                return False
+        else:
+            self.__flags__[key] = value
+            return value
+
+    @Timing.Timer(level=2, section="Compiler.compile")
     def compile(self, source: Source) -> Posiform:
         """
         Parameters
@@ -197,9 +208,7 @@ class SatCompiler:
         """
 
         for stmt in bytecode:
-            stdlog[3] << "\n\t".join(
-                [f"CMD {stmt[0]}", *(f"{i} {x}" for i, x in enumerate(stmt[1:]))]
-            )
+            stdlog[3] << "\n\t".join([f"CMD {stmt[0]}", *(f"{i} {x}" for i, x in enumerate(stmt[1:]))])
             self.exec(stmt)
         else:
             stdlog[3] << ""
@@ -303,9 +312,7 @@ class SatCompiler:
 
         return result
 
-    def _evaluate(
-        self, item: SatType, miss: bool = True, calc: bool = True, null: bool = False
-    ) -> SatType:
+    def _evaluate(self, item: SatType, miss: bool = True, calc: bool = True, null: bool = False) -> SatType:
         """ """
         if item is None:
             if null:
@@ -314,13 +321,9 @@ class SatCompiler:
                 raise ValueError("Invalid None appearance in compiler 'evaluate'.")
         elif type(item) is Expr:
             if calc:
-                return Expr.calculate(
-                    Expr(item.head, *(self._evaluate(p, miss, calc) for p in item.tail))
-                )
+                return Expr.calculate(Expr(item.head, *(self._evaluate(p, miss, calc) for p in item.tail)))
             else:
-                return Expr(
-                    item.head, *(self._evaluate(p, miss, calc) for p in item.tail)
-                )
+                return Expr(item.head, *(self._evaluate(p, miss, calc) for p in item.tail))
         elif type(item) is Number:
             return item
         elif type(item) is Array:
@@ -336,9 +339,7 @@ class SatCompiler:
             finally:
                 self.checkpoint()
         else:
-            raise TypeError(
-                f"Invalid Type '{type(item)}' for '{item!r}' in 'compiler.evaluate'."
-            )
+            raise TypeError(f"Invalid Type '{type(item)}' for '{item!r}' in 'compiler.evaluate'.")
 
     def push(self, context: dict = None):
         """Adds new scope to the top of the memory stack. Variable definition is done by 'SatCompiler.memset' and will follow its rules for referencing.

@@ -11,10 +11,9 @@ class Timing(object):
 
     class Timer(object):
         """"""
-
-        ARROW = "■"
         BAR = "■"
-        BARS = 25
+        BARS = 24
+        EMPTY = " "
 
         def __init__(self, prec=2, *, bar: str = None, arrow: str = None):
             self.pattern = f"Time elapsed @ {{}}:  {{:.{prec}f}}s"
@@ -74,15 +73,19 @@ class Timing(object):
         @classmethod
         def __bar(cls, t: float, T: float):
             x = (t / T) if T else 0.0
-            return f"[{cls.__full(x)}{cls.ARROW}{cls.__empty(x)}]{t:6.2f}s ({x * 100.0:6.2f}%)"
+            return f"[{cls.__full(x)}{cls.__empty(x)}]{t:6.2f}s ({x * 100.0:6.2f}%)"
+
+        @classmethod
+        def __bars(cls, x: float) -> int:
+            return int(cls.BARS * x)
 
         @classmethod
         def __full(cls, x: float) -> str:
-            return cls.BAR * int(cls.BARS * x - 1.0)
+            return cls.BAR * cls.__bars(x)
 
         @classmethod
         def __empty(cls, x: float) -> str:
-            return " " * int(cls.BARS * (1.0 - x))
+            return cls.EMPTY * (cls.BARS - cls.__bars(x))
 
     timer = Timer()
 

@@ -291,7 +291,7 @@ class SatParser(object):
         """
         if self.error_stack: self.interrupt()
 
-    @Timing.timer(level=1, section="Parser.parse")
+    @Timing.Timer(level=2, section="Parser.parse")
     def parse(self, source: Source):
         ## Input
         self.source = source

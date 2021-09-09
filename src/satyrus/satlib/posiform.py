@@ -4,7 +4,7 @@ from __future__ import annotations
 
 # Standard Library
 import json
-from numbers import Number as ABC_NUM
+import numbers
 
 # Third-Party
 import numpy as np
@@ -20,7 +20,7 @@ class Posiform(dict):
     2. Posiform is a mutable type.
     """
 
-    def __init__(self, buffer: dict = None):
+    def __init__(self, buffer: dict | float = None):
         """\
         Parameters
         ----------
@@ -28,37 +28,53 @@ class Posiform(dict):
             Dictionary containing pairs (variables, constant).
         """
         if buffer is not None:
-            if not isinstance(buffer, dict):
-                raise TypeError("Posiform buffer must be of type 'dict' or 'None'.")
-            else:
-                buffer = {}
+            if isinstance(buffer, dict):
+                __buffer = {}
                 for k, v in buffer.items():
-                    if not isinstance(v, ABC_NUM) or isinstance(v, complex):
+                    if not isinstance(v, numbers.Number) or isinstance(v, complex):
                         raise TypeError("Posiform buffer values must be real numbers")
                     elif float(v) == 0.0:
                         continue
 
                     if k is None:
-                        buffer[k] = float(v)
+                        __buffer[k] = float(v)
                     else:
-                        if not isinstance(k, (list, tuple, set, frozenset)) or not all(
-                            isinstance(s, str) for s in k
-                        ):
-                            raise TypeError(
-                                "Posiform buffer keys must be 'None' or be of type 'list', 'tuple' or 'set' and contain only 'strings'."
-                            )
+                        if not isinstance(k, (list, tuple, set, frozenset)) or not all(isinstance(s, str) for s in k):
+                            raise TypeError("Posiform buffer keys must be 'None' or be of type 'list', 'tuple' or 'set' and contain only 'strings'.")
                         else:
-                            buffer[frozenset(map(str, k))] = float(v)
+                            __buffer[frozenset(map(str, k))] = float(v)
+            elif isinstance(buffer, numbers.Number):
+                if buffer == 0.0:
+                    __buffer = {}
+                else:
+                    __buffer = {None: float(buffer)}
+            else:
+                raise TypeError("Posiform buffer must be of type 'dict' or 'None'.")
         else:
-            buffer = {}
-        dict.__init__(self, buffer)
+            __buffer = {}
+        dict.__init__(self, __buffer)
         self.__aux = 0
 
     def __str__(self) -> str:
         if self:
-            return " + ".join(
-                [" * ".join([str(v), *k]) if k is not None else str(v) for k, v in self]
-            )
+            terms = []
+            for k,v in self:
+                if k is None:
+                    if v >= 0.0:
+                        terms.extend(["+", str(v)])
+                    else:
+                        terms.extend(["-", str(abs(v))])
+                else:
+                    if v == 1.0:
+                        terms.extend(["+", " * ".join(k)])
+                    elif v == -1.0:
+                        terms.extend(["-", " * ".join(k)])
+                    elif v >= 0.0:
+                        terms.extend(["+", " * ".join([str(v), *k])])
+                    else:
+                        terms.extend(["-", " * ".join([str(abs(v)), *k])])
+            else:
+                return " ".join(terms[1:] if terms[0] == "+" else terms)
         else:
             return "0.0"
 
@@ -82,9 +98,7 @@ class Posiform(dict):
             try:
                 other = self.cls(other)
             except TypeError as type_error:
-                raise TypeError(
-                    "Unable to cast operand to Posiform type."
-                ) from type_error
+                raise TypeError("Unable to cast operand to Posiform type.") from type_error
         if isinstance(other, type(self)):
             for k, v in other:
                 if k in self:
@@ -96,7 +110,7 @@ class Posiform(dict):
                 else:
                     self[k] = v
             return self
-        elif isinstance(other, ABC_NUM) and not isinstance(other, complex):
+        elif isinstance(other, numbers.Number) and not isinstance(other, complex):
             if None in self:
                 self[None] += float(other)
             else:
@@ -124,9 +138,7 @@ class Posiform(dict):
             try:
                 other = self.cls(other)
             except TypeError as type_error:
-                raise TypeError(
-                    "Unable to cast operand to Posiform type."
-                ) from type_error
+                raise TypeError("Unable to cast operand to Posiform type.") from type_error
         if isinstance(other, type(self)):
             for k, v in other.items():
                 if k in self:
@@ -136,13 +148,13 @@ class Posiform(dict):
                     else:
                         self[k] = w
                 else:
-                    self[k] = v
+                    self[k] = - v
             return self
-        elif isinstance(other, ABC_NUM) and not isinstance(other, complex):
+        elif isinstance(other, numbers.Number) and not isinstance(other, complex):
             if None in self:
                 self[None] -= float(other)
             else:
-                self[None] = float(other)
+                self[None] = -float(other)
             return self
         else:
             return NotImplemented
@@ -153,7 +165,7 @@ class Posiform(dict):
         return posiform
 
     def __itruediv__(self, other) -> Posiform:
-        if isinstance(other, ABC_NUM):
+        if isinstance(other, numbers.Number):
             c = float(other)
             if c != 0.0:
                 for k, v in self:
@@ -173,9 +185,7 @@ class Posiform(dict):
             try:
                 other = self.cls(other)
             except TypeError as type_error:
-                raise TypeError(
-                    "Unable to cast operand to Posiform type"
-                ) from type_error
+                raise TypeError("Unable to cast operand to Posiform type") from type_error
         if isinstance(other, type(self)):
             posiform = Posiform()
             for kx, vx in self:
@@ -198,7 +208,7 @@ class Posiform(dict):
                     else:
                         posiform[k] = v
             return posiform
-        elif isinstance(other, ABC_NUM) and not isinstance(other, complex):
+        elif isinstance(other, numbers.Number) and not isinstance(other, complex):
             w = float(other)
             if w == 0.0:
                 self.clear()
@@ -253,21 +263,19 @@ class Posiform(dict):
                     return self.cls({(x, w): a, (y, w): a, (*z, w): a, (w,): -2.0 * a})
                 else:
                     ## if a > 0: a (x y z) => a (x w + y w + z w + x y + x z + y z - x - y - z - w + 1)
-                    return self.cls(
-                        {
-                            (x, w): a,
-                            (y, w): a,
-                            (x, y): a,
-                            (x,): -a,
-                            (y,): -a,
-                            (w,): -a,
-                            None: a,
-                        }
-                    ) + (
-                        self.__reduce_term((x, *z), a)
-                        + self.__reduce_term((y, *z), a)
-                        + self.__reduce_term((*z, w), a)
-                        + self.__reduce_term((*z,), -a)
+                    return (
+                        self.cls(
+                            {
+                                (x, w): a,
+                                (y, w): a,
+                                (x, y): a,
+                                (x,): -a,
+                                (y,): -a,
+                                (w,): -a,
+                                None: a,
+                            }
+                        )
+                        + (self.__reduce_term((x, *z), a) + self.__reduce_term((y, *z), a) + self.__reduce_term((*z, w), a) + self.__reduce_term((*z,), -a))
                     )
             elif self.__substitution():
                 alpha = 2.0  ## TODO: How can I compute alpha? (besides alpha > 1)
@@ -295,20 +303,11 @@ class Posiform(dict):
         return self.__class__
 
     def toJSON(self) -> str:
-        return json.dumps(
-            [{"term": list(k) if k is not None else None, "cons": v} for k, v in self]
-        )
+        return json.dumps([{"term": list(k) if k is not None else None, "cons": v} for k, v in self], indent=4)
 
     @classmethod
     def fromJSON(cls, data: str) -> Posiform:
-        return cls(
-            {
-                (tuple(item["term"]) if item["term"] is not None else None): item[
-                    "cons"
-                ]
-                for item in json.loads(data)
-            }
-        )
+        return cls({(tuple(item["term"]) if item["term"] is not None else None): item["cons"] for item in json.loads(data)})
 
     def qubo(self) -> tuple[dict[str, int], np.ndarray[float], float]:
         """

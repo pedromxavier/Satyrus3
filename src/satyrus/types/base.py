@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 # Local
-from ..satlib import Source
+from ..satlib import Source, Posiform
 from ..symbols import (
     T_NOT,
     T_AND,
@@ -32,9 +32,7 @@ class MetaSatType(type):
                 cls.base_type = type(name, bases, namespace)
                 return cls.base_type
             else:
-                raise NotImplementedError(
-                    f"'SatType must be implemented before '{name}'"
-                )
+                raise NotImplementedError(f"'SatType must be implemented before '{name}'")
         else:
             if name == "Number":
                 cls.base_type.Number = type(name, bases, namespace)

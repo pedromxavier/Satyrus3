@@ -57,6 +57,9 @@ class SatValueError(SatError):
 class SatWarning(SatError):
     'Warning'
 
+class SatSolverError(SatError):
+    'Solver Error'
+
 class SatExit(SatError):
     'Exit'
 

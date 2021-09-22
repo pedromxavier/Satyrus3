@@ -5,7 +5,7 @@
 """
 
 ## Standard Library
-import os
+from pathlib import Path
 
 ## Local
 from ..compiler import SatCompiler
@@ -62,7 +62,7 @@ def sys_config_epsilon(compiler: SatCompiler, name: Var, argc: int, argv: list):
         compiler << SatValueError(f"Epsilon must be a positive number", target=argv[0])
     else:
         if float(argv[0]) >= 1.0:
-            compiler < SatWarning("Big values for Epsilon may cause Integrity errors")
+            compiler < SatWarning("Large values for Epsilon may cause Integrity errors")
         compiler.env[EPSILON] = argv[0]
     compiler.checkpoint()
 
@@ -75,11 +75,11 @@ def sys_config_load(compiler: SatCompiler, name: Var, argc: int, argv: list):
     else:
         paths = []
         for fname in argv:
-            sat_fname = f"{fname}.sat"
-            if not os.path.exists(sat_fname):
-                compiler << SatFileError(f"file {sat_fname} not found.", target=fname)
+            path = Path(f"{fname}.sat")
+            if not path.exists() or not path.is_file():
+                compiler << SatFileError(f"file '{path}' not found.", target=fname)
             else:
-                paths.append(os.path.abspath(sat_fname))
+                paths.append(path.absolute())
 
         bytecode = []
         for path in paths:

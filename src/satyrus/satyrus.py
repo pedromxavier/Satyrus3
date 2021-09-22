@@ -48,7 +48,10 @@ class Satyrus:
         return self.__energy__
 
     def compile(self):
-        self.__energy__ = self.compiler.compile(Source(fname=self.path))
-        self.__ready__ = True
+        if (self.compiler.compile(Source(fname=self.path))):
+            exit(1)
+        else:
+            self.__energy__ = self.compiler.energy
+            self.__ready__ = True
 
     

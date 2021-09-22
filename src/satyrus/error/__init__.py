@@ -1,8 +1,11 @@
-## Standard Library
+# Standard Library
 import os
 
-## Local
+# Third-Party
 from cstream import stderr, stdout
+
+# Local
+from ..satlib import Source
 
 class SatError(Exception):
     'Error'
@@ -12,12 +15,12 @@ class SatError(Exception):
         self.code = code
         self.target = target
 
-    def __str__(self):
-        if self.target is not None and hasattr(self.target, "lexinfo"):
+    def __str__(self) -> str:
+        if Source.trackable(self.target):
             if self.target.source is None:
                 return f"{self.__class__.__doc__}: {self.msg}\n"
             else:
-                return self.target.source.error(self.msg, name=self.__doc__)
+                return self.target.source.error(self.msg, target=self.target, name=self.__doc__)
         else:
             return self.msg
 

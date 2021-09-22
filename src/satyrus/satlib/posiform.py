@@ -58,7 +58,7 @@ class Posiform(dict):
     def __str__(self) -> str:
         if self:
             terms = []
-            for k,v in self:
+            for k, v in self:
                 if k is None:
                     if v >= 0.0:
                         terms.extend(["+", str(v)])
@@ -148,7 +148,7 @@ class Posiform(dict):
                     else:
                         self[k] = w
                 else:
-                    self[k] = - v
+                    self[k] = -v
             return self
         elif isinstance(other, numbers.Number) and not isinstance(other, complex):
             if None in self:
@@ -260,7 +260,7 @@ class Posiform(dict):
             if self.__minimum_selection():  ## minimum selection
                 if a < 0:
                     ## if a < 0: a (x y z) => a w (x + y + z - 2)
-                    return self.cls({(x, w): a, (y, w): a, (*z, w): a, (w,): -2.0 * a})
+                    return self.cls({(x, w): a, (y, w): a, (w,): -2.0 * a}) + self.__reduce_term((*z, w), a)
                 else:
                     ## if a > 0: a (x y z) => a (x w + y w + z w + x y + x z + y z - x - y - z - w + 1)
                     return (

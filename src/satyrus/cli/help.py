@@ -7,6 +7,7 @@ HELP = {
     "solver": f"Solver Selection, choose from {SatAPI.options()!r}. Declare extra interfaces with the '-a, --api' parameter.",
     "output": "Output file destination",
     "verbose": "Compiler output verbosity, from 0 (default, no output, except errors and results) to 3 (complete compiler log).",
+    "version": "Display compiler version",
     "report": "Shows detailed sectioned elapsed time.",
     "params": "Path to JSON file containing parameters for passing to Solver API.",
     "api": "Selects Python file (.py, .pyw) where SatAPI interfaces are declared.",

@@ -171,11 +171,13 @@ class SatLexer(object):
 
     @regex(r'\"(\\.|[^\"])*\"')
     def t_STRING(self, t):
+        setattr(t, 'string', t.value)
         t.value = String(t.value[1:-1])
         return t
 
     @regex(r'\`(\\.|[^\`])*\`')
     def t_PYTHON(self, t):
+        setattr(t, 'string', t.value)
         t.value = str(t.value[1:-1])
         return t
 
@@ -186,6 +188,7 @@ class SatLexer(object):
 
     @regex(r"[a-zA-Z_][a-zA-Z0-9_]*")
     def t_NAME(self, t):
+        setattr(t, 'string', t.value)
         if t.value in self.reserved:
             t.type = self.reserved[t.value]
             t.value = self.op_map[t.type]
@@ -196,6 +199,7 @@ class SatLexer(object):
 
     @regex(r"[-+]?[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
     def t_NUMBER(self, t):
+        setattr(t, 'string', t.value)
         t.value = Number(t.value, source=self.source, lexpos=t.lexpos)
         return t
 
@@ -281,8 +285,7 @@ class SatParser(object):
         """
         """
         while self.error_stack:
-            error = self.error_stack.popleft()
-            stderr[0] << error
+            stderr[0] << self.error_stack.popleft()
         else:
             self.exit(1)
 
@@ -291,7 +294,7 @@ class SatParser(object):
         """
         if self.error_stack: self.interrupt()
 
-    @Timing.Timer(level=2, section="Parser.parse")
+    @Timing.timer(level=2, section="Parser.parse")
     def parse(self, source: Source):
         ## Input
         self.source = source
@@ -363,7 +366,7 @@ class SatParser(object):
     def p_sys_config(self, p):
         """ sys_config : CONFIG NAME DOTS sys_config_args
         """
-        name = self.get_arg(p, 2)
+        name = p[2]
         args = p[4]
         p[0] = (SYS_CONFIG, name, args)
 
@@ -372,9 +375,9 @@ class SatParser(object):
                             | sys_config_arg
         """
         if len(p) == 4:
-            p[0] = [*p[1], self.get_arg(p, 3)]
+            p[0] = [*p[1], p[3]]
         else:
-            p[0] = [self.get_arg(p, 1)]
+            p[0] = [p[1]]
 
     def p_sys_config_arg(self, p):
         """ sys_config_arg : NUMBER
@@ -611,14 +614,16 @@ class SatParser(object):
         p[0] = p[2]
 
     def p_error(self, t):
-        stderr[3] << f"Error Token: `{t}`"
         target = SatType()
         if t:
             target.lexinfo = self.source.getlex(t.lexpos)
-            msg = "Invalid Syntax"
+            if hasattr(t, 'string'):
+                msg = f"Unexpected Token '{t.string}'"
+            else:
+                msg = f"Unexpected Token '{t.value}'"
         else:
             target = self.source.eof
-            msg = "Unexpected End Of File."
+            msg = "Unexpected End Of File"
         self << SatSyntaxError(msg=msg, target=target)
         return None
 

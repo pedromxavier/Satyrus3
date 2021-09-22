@@ -7,17 +7,15 @@ from __future__ import annotations
 
 # Standard Library
 import importlib.util
+import json
 from abc import abstractmethod
-from os import stat
 from pathlib import Path
 from typing import Callable
 
 # Third-Party
 from cstream import devnull, stderr, stdwar, stdlog
-from dimod.views.quadratic import Quadratic
 
 # Local
-from ..error import SatSolverError
 from ..satyrus import Satyrus
 from ..satlib import Posiform, Timing
 
@@ -76,7 +74,7 @@ class SatAPI(metaclass=MetaSatAPI):
             self.method = method
             self.energy = energy
 
-        @Timing.Timer(level=2, section="Solver.solve")
+        @Timing.timer(level=2, section="Solver.solve")
         def solve(self, **params: dict):
             return self.method(self.energy, **params)
 
@@ -91,7 +89,7 @@ class SatAPI(metaclass=MetaSatAPI):
         """
         path = Path(fname)
 
-        stdwar[1] << f"Augmenting API with content from '{path}'"
+        cls.warn(f"Augmenting API with content from '{path}'")
 
         interfaces = set(cls.subclasses)
 
@@ -206,7 +204,7 @@ class SatAPI(metaclass=MetaSatAPI):
             stdwar[1] << f"Warning: {message}"
 
     @staticmethod
-    def log(message: str, level: int=3):
+    def log(message: str, level: int = 3):
         stdlog[level] << message
 
 
@@ -224,6 +222,7 @@ class text(SatAPI):
 # CSV Table Output
 class csv(SatAPI):
     def solve(self, posiform: Posiform, **params: dict) -> str:
+        """"""
         lines = []
 
         for term, cons in posiform:
@@ -235,7 +234,16 @@ class csv(SatAPI):
         return "\n".join(lines)
 
 
-## cvxpy - gurobi
+# Quadratic Unconstrained Binary Optimization
+class qubo(SatAPI):
+    def solve(self, posiform: Posiform, **params: dict) -> str:
+        """"""
+        x, Q, c = posiform.qubo()
+
+        return json.dumps({"x": x, "Q": [list(q) for q in Q], "c": c}, indent=4)
+
+
+# Gurobi
 class gurobi(SatAPI):
     ## https://www.cvxpy.org/tutorial/advanced/index.html#mixed-integer-programs
 
@@ -268,7 +276,7 @@ class gurobi(SatAPI):
         except gp.GurobiError as error:
             self.error(f"(Gurobi code {error.errno}) {error}")
 
-
+# DWave
 class dwave(SatAPI):
 
     requires = ["neal"]

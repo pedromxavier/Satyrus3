@@ -3,7 +3,7 @@ Satyrus Compiler v{version}
 """
 from __future__ import annotations
 
-__version__ = "3.0.1"
+__version__ = "3.0.3"
 
 ## Standard Library
 import argparse
@@ -13,7 +13,7 @@ from functools import wraps
 from gettext import gettext
 
 ## Third-Party
-from cstream import Stream, stdlog, stdwar, stderr
+from cstream import Stream, stdlog, stdwar, stderr, stdout
 
 ## Local
 from .help import HELP
@@ -66,6 +66,16 @@ class ArgParser(argparse.ArgumentParser):
 
         return decor
 
+class GetVersion(argparse._VersionAction):
+    @wraps(argparse._VersionAction.__init__)
+    def __init__(self, *args, **kwargs):
+        argparse._VersionAction.__init__(self, *args, **kwargs)
+
+    @wraps(argparse._VersionAction.__call__)
+    def __call__(self, parser, namespace, values, option_string=None):
+        from sys import version_info
+        stdout[0] << f"satyrus {__version__} (python {version_info.major}.{version_info.minor})"
+        exit(0)
 
 class SetVerbosity(argparse._StoreAction):
     @wraps(argparse._StoreAction.__init__)
@@ -171,11 +181,9 @@ class CLI:
         source : str
             Path to source code.
         -o, --out : str
-            Output method.
+            Output Destination.
         --legacy : bool
             If True, uses the legacy parser.
-        -O : int
-            Compiler optimization level.
         -v, --verbose : int
             Compiler verbosity level.
         -d, --debug : bool
@@ -190,6 +198,9 @@ class CLI:
 
         ## Mandatory - Source file path
         parser.add_argument("source", help=HELP["source"])
+
+        # Optional - Compiler Version
+        parser.add_argument("--version", help=HELP["version"], action=GetVersion)
 
         ## Optional - Compiler Verbosity
         parser.add_argument(
@@ -239,7 +250,7 @@ class CLI:
         parser.add_argument("-p", "--params", dest="params", help=HELP["params"], action=readParams)
 
         # Set base output verbosity level
-        Stream.set_lvl(0)
+        Stream.set_lvl(1)
 
         if argv is None:
             args = parser.parse_args()

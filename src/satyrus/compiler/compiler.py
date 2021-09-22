@@ -3,10 +3,8 @@
 # Future Import
 from __future__ import annotations
 
-# Standard Library
-
 # Third-Party
-from cstream import stderr, stdlog, stdout, stdwar
+from cstream import stderr, stdlog, stdwar
 
 # Local
 from .memory import Memory
@@ -14,19 +12,15 @@ from ..satlib import Source, Stack, Posiform, Timing
 from ..parser import SatParser
 from ..parser.legacy import SatLegacyParser
 from ..error import (
-    SatValueError,
     SatTypeError,
-    SatCompilerError,
     SatReferenceError,
     SatError,
     SatExit,
     SatWarning,
 )
-from ..types import Expr, SatType, String, Number, Var, Array
-from ..symbols import PREC, DIR, LOAD, OUT, EPSILON, ALPHA, OPT, CMD_INIT, CMD_SCRIPT
+from ..types import Expr, SatType, Number, Var, Array
+from ..symbols import OPT, CMD_INIT, CMD_SCRIPT
 from ..symbols import CONS_INT, CONS_OPT
-from ..symbols import T_ADD, T_MUL
-
 
 class SatCompiler:
     def __init__(self, instructions: dict, parser: SatParser = None, env: dict = None):
@@ -147,8 +141,8 @@ class SatCompiler:
             self.__flags__[key] = value
             return value
 
-    @Timing.Timer(level=2, section="Compiler.compile")
-    def compile(self, source: Source) -> Posiform:
+    @Timing.timer(level=2, section="Compiler.compile")
+    def compile(self, source: Source) -> int:
         """
         Parameters
         ----------
@@ -164,8 +158,11 @@ class SatCompiler:
             ## Clear compiler state
             self.code = 0
             self.source = source
+
+            BYTECODE = self.parse(source)
+
             ## Adds special instructions RUN_INIT, RUN_SCRIPT in both ends
-            self.execute([CMD_INIT, *self.parse(source), CMD_SCRIPT])
+            self.execute([CMD_INIT, *BYTECODE, CMD_SCRIPT])
         except SatExit as error:
             self.code = error.code
             self.energy = self.source = None
@@ -180,7 +177,7 @@ class SatCompiler:
             self.energy = self.source = None
             raise error
         else:
-            return self.energy
+            return self.code
 
     def parse(self, source: Source, load: bool = False) -> list:
         """Parses source into bytecode.

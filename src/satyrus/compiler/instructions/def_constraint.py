@@ -9,15 +9,14 @@ from functools import reduce
 from typing import Callable
 
 ## Third-Party
-from cstream import stdlog, stdout, stdwar, stderr
+from cstream import stdlog
 
 ## Local
 from ..compiler import SatCompiler
-from ...satlib import arange, Stack, Queue, Posiform
+from ...satlib import arange, Stack, Posiform
 from ...error import (
     SatValueError,
     SatTypeError,
-    SatReferenceError,
     SatExprError,
     SatWarning,
 )
@@ -129,7 +128,7 @@ def def_constraint(
             # Compile condition expressions
             cond = reduce(
                 lambda x, y: x._AND_(y),
-                [compiler.evaluate(c, miss=False, calc=True) for c in l_conds],
+                [compiler.evaluate(c, miss=True, calc=True, context={var: var for var in var_bag}) for c in l_conds],
                 Number("1"),
             )
         else:
@@ -142,13 +141,7 @@ def def_constraint(
     if stdlog[3]:
         stdlog[3] << f"\n@{name}(raw):\n\t{expr}"
 
-    # -*- Simplify -*-
-    expr = compiler.source.propagate(expr, Expr.calculate(expr), out=True)
-
-    if stdlog[3]:
-        stdlog[3] << f"\n@{name}(simplified):\n\t{expr}"
-
-    if str(constype) == CONS_INT and not expr.logical:
+    if str(constype) == CONS_INT and expr.is_expr and not expr.logical:
         compiler << SatExprError(
             "Integrity constraint expressions must be purely logical i.e. no arithmetic operations allowed.",
             target=expr,
@@ -165,12 +158,25 @@ def def_constraint(
         compiler.evaluate(
             expr,
             miss=True,
-            calc=True,
+            calc=False,
             null=False,
             context={var: var for var in var_bag},
         ),
         out=True,
     )
+
+    if stdlog[3]:
+        stdlog[3] << f"\n@{name}(verified):\n\t{expr}"
+
+    # Simplifies expression
+    expr: Expr = compiler.source.propagate(
+        expr,
+        compiler.evaluate(expr, miss=False, calc=True, null=False),
+        out=True,
+    )
+
+    if stdlog[3]:
+        stdlog[3] << f"\n@{name}(simplified):\n\t{expr}"
 
     build(compiler, constype, stack, Stack(), level, expr)
 
@@ -283,7 +289,7 @@ def unstack(compiler: SatCompiler, stack: Stack, expr: Expr, context: dict) -> t
             energy = Posiform(1.0)
             for i in arange(*item["bounds"]):
                 context[var] = i
-                if item["cond"] is None or compiler.evaluate(item["cond"], context=context):
+                if item["cond"] is None or compiler.evaluate(item["cond"], miss=False, context=context):
                     energy *= unstack(compiler, stack, expr, context)
             else:
                 del context[var]
@@ -292,7 +298,7 @@ def unstack(compiler: SatCompiler, stack: Stack, expr: Expr, context: dict) -> t
             energy = Posiform(0.0)
             for i in arange(*item["bounds"]):
                 context[var] = i
-                if item["cond"] is None or compiler.evaluate(item["cond"], context=context):
+                if item["cond"] is None or compiler.evaluate(item["cond"], miss=False, context=context):
                     energy += unstack(compiler, stack, expr, context)
             else:
                 del context[var]
@@ -304,11 +310,11 @@ def unstack(compiler: SatCompiler, stack: Stack, expr: Expr, context: dict) -> t
 
         return energy
     else:
-        return H(compiler.evaluate(expr, context=context))
+        return H(compiler.evaluate(expr, miss=False, context=context))
 
 
 def H(x: SatType) -> Posiform:
-    """"""
+    """Energy Equation Mapping"""
 
     if x.is_expr:
         if x.head == T_NOT:

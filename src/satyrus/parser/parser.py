@@ -197,7 +197,7 @@ class SatLexer(object):
         t.value = String(t.value)
         return t
 
-    @regex(r"[-+]?[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
+    @regex(r"[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
     def t_NUMBER(self, t):
         setattr(t, 'string', t.value)
         t.value = Number(t.value, source=self.source, lexpos=t.lexpos)
@@ -233,11 +233,11 @@ class SatParser(object):
         ('left', 'ADD', 'SUB'),
         ('left', 'MUL', 'DIV', 'MOD'),
 
+        ('left', 'IMP', 'RIMP', 'IFF'),
+
         ('left', 'XOR', 'OR'),
         ('left', 'AND'),
         ('left', 'NOT'),
-
-        ('left', 'IMP', 'RIMP', 'IFF'),
 
         ('left', 'EQ', 'NE', 'GE', 'LE', 'GT', 'LT'),
 

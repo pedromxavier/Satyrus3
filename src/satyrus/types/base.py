@@ -75,6 +75,16 @@ class SatType(metaclass=MetaSatType):
 
     # -*- Operator Definition -*-
 
+    # :: Aliases
+    def __invert__(self):
+        return self._NOT_()
+
+    def __and__(self, other):
+        return self._AND_(other)
+
+    def __or__(self, other):
+        return self._OR_(other)
+
     # :: Logical
     def _NOT_(self) -> SatType:
         return self.__class__.Expr(T_NOT, self)

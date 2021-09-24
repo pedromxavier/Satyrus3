@@ -401,3 +401,6 @@ TSWLatexianTemp*
 
 # Package
 Satyrus3.zip
+
+# .sat files
+*.sat

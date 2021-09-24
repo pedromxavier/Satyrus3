@@ -1,26 +1,19 @@
 """
 """
-## Standard Library
-import itertools as it
-
-## Third-Party
+# Third-Party
 from ply import lex, yacc
-from cstream import stderr, stdout
+from cstream import stderr
 
-## Local
+# Local
 from ...satlib import Source, Stack
 from ...error import (
     SatParserError,
-    SatLexerError,
-    SatTypeError,
     SatSyntaxError,
-    SatValueError,
     SatWarning,
     SatExit,
 )
 from ...types import Expr, Var, Number, String, SatType
 from ...symbols import (
-    SYS_CONFIG,
     DEF_CONSTANT,
     DEF_ARRAY,
     DEF_CONSTRAINT,
@@ -169,7 +162,7 @@ class SatLegacyLexer(object):
 
     @regex(r"\"(\\.|[^\"])*\"")
     def t_STRING(self, t):
-        t.value = String(t.value[1:-1])
+        t.value = String(t.value[1:-1], source=self.source, lexpos=t.lexpos)
         return t
 
     @regex(r"\n")
@@ -180,12 +173,12 @@ class SatLegacyLexer(object):
     @regex(r"[a-zA-Z_][a-zA-Z0-9_]*")
     def t_NAME(self, t):
         t.type = self.reserved.get(str(t.value), "NAME")
-        t.value = String(t.value)
+        t.value = String(t.value, source=self.source, lexpos=t.lexpos)
         return t
 
-    @regex(r"[-+]?[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
+    @regex(r"[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
     def t_NUMBER(self, t):
-        t.value = Number(t.value)
+        t.value = Number(t.value, source=self.source, lexpos=t.lexpos)
         return t
 
     # String containing ignored characters between tokens
@@ -239,11 +232,11 @@ class SatLegacyParser(object):
         ("left", "IMP", "RIMP", "IFF"),
         ("left", "EQ", "NE", "GE", "LE", "GT", "LT"),
         ("left", "DOTS"),
-        ("left", "LBRA", "RBRA"),
         ("left", "LCUR", "RCUR"),
         ("left", "LPAR", "RPAR"),
         ("left", "NAME"),
         ("left", "STRING", "NUMBER"),
+        ("left", "LBRA", "RBRA"),
         ("left", "ENDL"),
     )
 
@@ -315,41 +308,6 @@ class SatLegacyParser(object):
     def run(self, code: list):
         self.bytecode = [cmd for cmd in code if cmd is not None]
 
-    def get_arg(self, p, index: int = None, track: bool = True):
-        if index is None:
-            value = p
-            if track:
-                value.lexinfo = {
-                    "lineno": None,
-                    "lexpos": None,
-                    "chrpos": None,
-                    "source": self.source,
-                }
-        else:
-            value = p[index]
-            if track:
-                lineno = p.lineno(index)
-                lexpos = p.lexpos(index)
-                value.lexinfo = {
-                    "lineno": lineno,
-                    "lexpos": lexpos,
-                    "chrpos": self.chrpos(lineno, lexpos),
-                    "source": self.source,
-                }
-        return value
-
-    def cast_type(self, x: object, type_caster: type):
-        """Casts type according to `type_caster(x: object) -> y: object`
-        copying `lexinfo` data, if available.
-        """
-        if hasattr(x, "lexinfo"):
-            lexinfo = getattr(x, "lexinfo")
-            y = type_caster(x)
-            setattr(y, "lexinfo", lexinfo)
-            return y
-        else:
-            return type_caster(x)
-
     def p_start(self, p):
         """start : definitions constraints penalties"""
         self.run([*p[1], *p[2], *p[3]])
@@ -390,8 +348,8 @@ class SatLegacyParser(object):
 
     def p_def_constant(self, p):
         """def_constant : varname ASSIGN constant"""
-        name = self.get_arg(p, 1)
-        value = self.get_arg(p, 3)
+        name = p[1]
+        value = p[3]
         p[0] = (DEF_CONSTANT, name, value)
 
     def p_literal(self, p):
@@ -402,15 +360,15 @@ class SatLegacyParser(object):
 
     def p_constant(self, p):
         """constant : NUMBER"""
-        p[0] = self.get_arg(p, 1)
+        p[0] = p[1]
 
     def p_varname(self, p):
         """varname : NAME"""
-        p[0] = self.cast_type(self.get_arg(p, 1), Var)
+        p[0] = Var(p[1], source=self.source, lexpos=p.lexpos(1))
 
     def p_dec_array(self, p):
         """dec_array : varname LPAR shape RPAR"""
-        name = self.get_arg(p, 1)
+        name = p[1]
         shape = p[3]
 
         ## declare array
@@ -420,7 +378,7 @@ class SatLegacyParser(object):
 
     def p_def_array(self, p):
         """def_array : varname ASSIGN array_buffer"""
-        name = self.get_arg(p, 1)
+        name = p[1]
         buffer = p[3]
 
         if name not in self.array_table:
@@ -471,7 +429,7 @@ class SatLegacyParser(object):
         else:
             p[0] = (p[1],)
 
-    def p_dec_constraint(self, p):
+    def p_dec_constraint_loops(self, p):
         """dec_constraint : group varname DOTS loops DOTS expr"""
         type_ = p[1]
         name = p[2]
@@ -486,11 +444,25 @@ class SatLegacyParser(object):
         else:
             self.constraint_table[name] = [constraint]
 
+    def p_dec_constraint(self, p):
+        """dec_constraint : group varname DOTS expr"""
+        type_ = p[1]
+        name = p[2]
+
+        expr = p[4]
+
+        constraint = (type_, name, [], expr)
+
+        if name in self.constraint_table:
+            self.constraint_table[name].append(constraint)
+        else:
+            self.constraint_table[name] = [constraint]
+
     def p_group(self, p):
         """group : INTGROUP
         | OPTGROUP
         """
-        group_name = self.get_arg(p, 1)
+        group_name = p[1]
         if str(group_name) == "intgroup":
             name = String(CONS_INT)
         elif str(group_name) == "optgroup":
@@ -498,9 +470,7 @@ class SatLegacyParser(object):
         else:
             raise NameError(f"Invalid group {group_name}")
 
-        track(group_name, name)
-
-        p[0] = name
+        p[0] = self.source.propagate(group_name, name, out=True)
 
     def p_loops(self, p):
         """loops : loops ENDL loop_stack
@@ -578,7 +548,7 @@ class SatLegacyParser(object):
         p[0] = p[1]
 
     def p_domain(self, p):
-        """domain : varname IN LPAR literal COMMA literal RPAR"""
+        """domain : varname IN LPAR expr COMMA expr RPAR"""
         p[0] = (p[1], p[4], p[6])
 
     def p_conditions(self, p):

@@ -262,18 +262,13 @@ def build(compiler: SatCompiler, constype: str, A: Stack, B: Stack, level: Numbe
         else:
             raise ValueError(f"Invalid constraint type '{constype}'")
 
-        if None in energy:
-            clauses = len(energy) - 1
-        else:
-            clauses = len(energy)
-
         if level is None:
             level = 0
 
         if stdlog[3]:
             stdlog[3] << energy
 
-        compiler.constraints[constype].append((level, energy, clauses))
+        compiler.constraints[constype].append((int(level), energy))
 
 
 def unstack(compiler: SatCompiler, stack: Stack, expr: Expr, context: dict) -> tuple[int, Posiform]:

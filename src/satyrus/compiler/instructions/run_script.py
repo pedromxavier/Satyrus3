@@ -3,16 +3,18 @@
 
 	STATUS: INCOMPLETE
 """
+# Standard Library
+import itertools as it
 
-## Third-Party
+# Third-Party
 from tabulate import tabulate
-from cstream import stdlog, stdout, stdwar
+from cstream import stdlog
 
-## Local
+# Local
 from ..compiler import SatCompiler
 from ...error import SatValueError, SatCompilerError, SatWarning
-from ...types import Number, Expr
-from ...symbols import CONS_INT, CONS_OPT, MAPPING, PREC, EPSILON, ALPHA, T_AND, T_OR
+from ...types import Number
+from ...symbols import CONS_INT, CONS_OPT, PREC, EPSILON, ALPHA
 
 
 def run_script(compiler: SatCompiler, *args: tuple):
@@ -57,47 +59,45 @@ def run_script_constraints(compiler: SatCompiler):
 
     # -*- Constraint Validation -*-
     if len(compiler.constraints[CONS_INT]) + len(compiler.constraints[CONS_OPT]) == 0:
-        compiler << SatCompilerError(
-            "No problem defined. Maybe you are just fine :)", target=compiler.source.eof
-        )
+        compiler << SatCompilerError("No problem defined. Maybe you are just fine :)", target=compiler.source.eof)
     elif len(compiler.constraints[CONS_INT]) == 0:
-        compiler < SatWarning(
-            "No Integrity condition defined.", target=compiler.source.eof
-        )
+        compiler < SatWarning("No Integrity condition defined.", target=compiler.source.eof)
     elif len(compiler.constraints[CONS_OPT]) == 0:
-        compiler << SatCompilerError(
-            "No Optmization condition defined.", target=compiler.source.eof
-        )
+        compiler << SatCompilerError("No Optmization condition defined.", target=compiler.source.eof)
 
     compiler.checkpoint()
 
 
 def run_script_penalties(compiler: SatCompiler):
     """ """
-    # -*- Penalty Computarion -*-
-    compiler.penalties.update({0: compiler.env[ALPHA]})
+    # -*- Penalty Computation -*-
+    compiler.penalties.update({0: float(compiler.env[ALPHA])})
 
-    levels = {0: sum(clauses for level, energy, clauses in compiler.constraints[CONS_OPT])}
+    levels: dict[int, float] = {}
 
-    for level, energy, clauses in compiler.constraints[CONS_INT]:
+    constraints = it.chain(compiler.constraints[CONS_OPT], compiler.constraints[CONS_INT])
+
+    for level, energy in constraints:
         if level not in levels:
-            levels[level] = clauses
-        else:
-            levels[level] += clauses
-    else:
-        levels = sorted(levels.items())
+            levels[level] = 0.0
 
-    ## Compute penalty levels
+        for term, cons in energy:
+            if term is None or cons >= 0.0:
+                levels[level] += cons
+    else:
+        levels: list = sorted(levels.items())
+
+    epsilon = float(compiler.env[EPSILON])
+
+    # Compute penalty levels
     level_j, n_j = levels[0]
     for i in range(1, len(levels)):
-        ## level_k <- level_j & n_k <- n_j
-        ## level_j <- level_i & n_j <- n_i
+        # level_k <- level_j & n_k <- n_j
+        # level_j <- level_i & n_j <- n_i
         (level_k, n_k), (level_j, n_j) = (level_j, n_j), levels[i]
 
         if i == 1:
-            compiler.penalties[level_j] = (
-                compiler.penalties[level_k] * n_k + compiler.env[EPSILON]
-            )
+            compiler.penalties[level_j] = compiler.penalties[level_k] * n_k + epsilon
         else:
             compiler.penalties[level_j] = compiler.penalties[level_k] * (n_k + 1)
 
@@ -123,9 +123,9 @@ def run_script_penalties(compiler: SatCompiler):
 def run_script_energy(compiler: SatCompiler):
     """"""
     # Integrity
-    Ei = sum((compiler.penalties[level] * energy for level, energy, clauses in compiler.constraints[CONS_INT]), 0.0)
+    Ei = sum((compiler.penalties[level] * energy for level, energy in compiler.constraints[CONS_INT]), 0.0)
 
     # Optimality
-    Eo = sum((compiler.penalties[level] * energy for level, energy, clauses in compiler.constraints[CONS_OPT]), 0.0)
+    Eo = sum((compiler.penalties[level] * energy for level, energy in compiler.constraints[CONS_OPT]), 0.0)
 
-    compiler.energy = (Ei + Eo)
+    compiler.energy = Ei + Eo

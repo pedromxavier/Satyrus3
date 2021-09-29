@@ -44,6 +44,7 @@ T_LOGICAL = {
 ## Arithmetic
 T_ADD = intern("+")
 T_NEG = intern("-")
+T_SUB = intern("-")
 T_MUL = intern("*")
 T_DIV = intern("/")
 T_MOD = intern("%")

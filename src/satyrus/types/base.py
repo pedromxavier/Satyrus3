@@ -5,21 +5,7 @@ from __future__ import annotations
 
 # Local
 from ..satlib import Source, Posiform
-from ..symbols import (
-    T_NOT,
-    T_AND,
-    T_OR,
-    T_IMP,
-    T_IFF,
-    T_RIMP,
-    T_EQ,
-    T_NE,
-    T_LT,
-    T_LE,
-    T_GT,
-    T_GE,
-    T_IDX,
-)
+from ..symbols import T_NOT, T_AND, T_OR, T_XOR, T_IMP, T_IFF, T_RIMP, T_EQ, T_NE, T_LT, T_LE, T_GT, T_GE, T_IDX, T_ADD, T_SUB, T_DIV, T_MUL, T_NEG
 
 
 class MetaSatType(type):
@@ -95,6 +81,9 @@ class SatType(metaclass=MetaSatType):
     def _OR_(self, other: SatType) -> SatType:
         return self.__class__.Expr(T_OR, self, other)
 
+    def _XOR_(self, other: SatType) -> SatType:
+        return self.__class__.Expr(T_XOR, self, other)
+
     def _IMP_(self, other: SatType) -> SatType:
         return self.__class__.Expr(T_IMP, self, other)
 
@@ -126,6 +115,23 @@ class SatType(metaclass=MetaSatType):
     # :: Indexing
     def _IDX_(self, i: tuple) -> SatType:
         return self.__class__.Expr(T_IDX, self, *i)
+
+    # :: Arithmetic
+
+    def _ADD_(self, other: SatType) -> SatType:
+        return self.__class__.Expr(T_ADD, self, other)
+
+    def _SUB_(self, other: SatType) -> SatType:
+        return self.__class__.Expr(T_SUB, self, other)
+
+    def _DIV_(self, other: SatType) -> SatType:
+        return self.__class__.Expr(T_DIV, self, other)
+
+    def _MUL_(self, other: SatType) -> SatType:
+        return self.__class__.Expr(T_MUL, self, other)
+
+    def _NEG_(self) -> SatType:
+        return self.__class__.Expr(T_NEG, self)
 
 
 __all__ = ["SatType"]

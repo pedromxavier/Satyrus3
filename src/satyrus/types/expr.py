@@ -392,7 +392,7 @@ class Expr(tuple, SatType, metaclass=MetaSatType):
     @staticmethod
     def R_NEG(cls: type, x: SatType) -> SatType:
         if x.is_expr and x.head in cls.TABLE[T_NEG]:
-            return cls.TABLE[T_NEG][x.head](cls, *x.tail)
+            return cls.TABLE[T_NEG][x.head](*x.tail)
         else:
             return x._NEG_()
 
@@ -807,7 +807,7 @@ class Expr(tuple, SatType, metaclass=MetaSatType):
             expr = expr.tail[0]
             if expr.is_expr:
                 if expr.head in cls.TABLE[T_NEG]:
-                    return cls.TABLE[T_NEG][expr.head](cls, *expr.tail)
+                    return cls.TABLE[T_NEG][expr.head](*expr.tail)
                 else:
                     return cls(T_NEG, expr)
             else:

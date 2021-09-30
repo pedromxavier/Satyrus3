@@ -115,55 +115,30 @@ class SatAPI(metaclass=MetaSatAPI):
             else:
                 cls.warn("No new API interfaces included")
 
-    def __init__(self, *, path: str = None, satyrus: Satyrus = None, **params: dict):
+    def __init__(self, *paths: str, satyrus: Satyrus = None, **params: dict):
         """\
         Parameters
         ----------
 
-        source_path : str
+        *paths : tuple[str]
             Path to ``.sat`` source code file.
         **kwargs : dict
             Keyword arguments for compiler.
-
-        To define a new interface one must write, in a separate Python file (``.py``, ``.pyw``), a ``SatAPI`` subclass that implements the ``_solve(self, posiform: Posiform) -> {(dict, float), object}`` method.
-
-        There are two types of interface: partial and complete. Complete ones must return a ``tuple`` containing a ``dict`` (mapping between variables and binary state) and a ``float`` (total energy for the given configuration). Any implementation that does not return as specified by this signature will be considered partial, leading to its output being returned as in string formating.
-
-        Example
-        -------
-        As found in ``examples/myapi.py``::
-
-            class MyPartialAPI(SatAPI):
-
-                def solve(self, posiform: Posiform) -> object:
-                    info = get_information(posiform)
-                    return info
-
-            class MyCompleteAPI(SatAPI):
-
-                def solve(self, posiform: Posiform) -> tuple[dict, float]:
-                    x = get_solution(posiform)
-                    e = get_energy(posiform)
-                    return (x, e)
-
-        Note
-        ----
-        It is not necessary to import SatAPI in this case.
-        
         """
 
-        if isinstance(satyrus, Satyrus):
-            if path is None:
+        if satyrus is None:
+            if paths:
+                self.satyrus = Satyrus(*paths, **params)
+            else:
+                raise ValueError("Either 'path' or 'satyrus' must be provided")
+        elif isinstance(satyrus, Satyrus):
+            if not paths:
+                # No path was provided
                 self.satyrus = satyrus
             else:
                 raise ValueError("Can't handle both 'path' and 'satyrus' options")
-        elif isinstance(path, Path):
-            if satyrus is None:
-                self.satyrus = Satyrus(path=path, **params)
-            else:
-                raise ValueError("Can't handle both 'path' and 'satyrus' options")
         else:
-            raise ValueError("Either 'path' or 'satyrus' must be provided")
+            raise TypeError(f"Parameter 'satyrus' must be of type 'Satyurs', not {type(satyrus)}")
 
     def __getitem__(self, key: str):
         if key in self.subclasses:

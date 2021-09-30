@@ -11,7 +11,7 @@ import numpy as np
 
 
 class Posiform(dict):
-    """\
+    r"""
     This object is intended to represent a sum of products under a psudo-boolean domain.
 
     Assumptions
@@ -39,8 +39,8 @@ class Posiform(dict):
                     if k is None:
                         __buffer[k] = float(v)
                     else:
-                        if not isinstance(k, (list, tuple, set, frozenset)) or not all(isinstance(s, str) for s in k):
-                            raise TypeError("Posiform buffer keys must be 'None' or be of type 'list', 'tuple' or 'set' and contain only 'strings'.")
+                        if not isinstance(k, (tuple, set, frozenset)) or not all(isinstance(s, str) for s in k):
+                            raise TypeError("Posiform buffer keys must be 'None' or be of type 'tuple' or 'set' and contain only 'strings'.")
                         else:
                             __buffer[frozenset(map(str, k))] = float(v)
             elif isinstance(buffer, numbers.Number):
@@ -49,11 +49,14 @@ class Posiform(dict):
                 else:
                     __buffer = {None: float(buffer)}
             else:
-                raise TypeError("Posiform buffer must be of type 'dict' or 'None'.")
+                raise TypeError(f"Posiform buffer must be of type 'dict', 'float', 'int' or 'None', not '{type(buffer)}'")
         else:
             __buffer = {}
         dict.__init__(self, __buffer)
         self.__aux = 0
+
+    def __bool__(self) -> bool:
+        return len(self) > 0
 
     def __str__(self) -> str:
         if self:
@@ -66,20 +69,20 @@ class Posiform(dict):
                         terms.extend(["-", str(abs(v))])
                 else:
                     if v == 1.0:
-                        terms.extend(["+", " * ".join(k)])
+                        terms.extend(["+", " * ".join(sorted(k))])
                     elif v == -1.0:
-                        terms.extend(["-", " * ".join(k)])
+                        terms.extend(["-", " * ".join(sorted(k))])
                     elif v >= 0.0:
-                        terms.extend(["+", " * ".join([str(v), *k])])
+                        terms.extend(["+", " * ".join([str(v), *sorted(k)])])
                     else:
-                        terms.extend(["-", " * ".join([str(abs(v)), *k])])
+                        terms.extend(["-", " * ".join([str(abs(v)), *sorted(k)])])
             else:
                 return " ".join(terms[1:] if terms[0] == "+" else terms)
         else:
             return "0.0"
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({dict.__repr__(self)})"
+        return f"{self.__class__.__name__}({dict.__repr__({k if k is None else tuple(sorted(k)) : v for k, v in self})})"
 
     def __iter__(self):
         return iter(dict.items(self))
@@ -307,7 +310,31 @@ class Posiform(dict):
 
     @classmethod
     def fromJSON(cls, data: str) -> Posiform:
-        return cls({(tuple(item["term"]) if item["term"] is not None else None): item["cons"] for item in json.loads(data)})
+        json_data = json.loads(data)
+
+        buffer = {}
+
+        if not isinstance(json_data, list):
+            raise json.decoder.JSONDecodeError("Data must be of Array type (Python list)")
+        else:
+            for item in json_data:
+                if not isinstance(item, dict):
+                    raise json.decoder.JSONDecodeError("Items must be of Object type (Python dict)")
+                elif "term" not in item or "cons" not in item:
+                    raise json.decoder.JSONDecodeError("Items must contain both 'term' and 'cons' keys")
+                elif not isinstance(item["term"], list) and item["term"] is not None:
+                    raise json.decoder.JSONDecodeError("Items 'term' value must be of Array type (Python list)")
+                elif not all(isinstance(var, str) for var in item["term"]):
+                    raise json.decoder.JSONDecodeError("Items 'term' value must contain only entries of type String (Python str)")
+                elif not isinstance(item["cons"], (int, float)):
+                    raise json.decoder.JSONDecodeError("Items 'cons' value must be of Number type (Python float)")
+                else:
+                    if item["term"] in buffer:
+                        buffer[item["term"]] += float(item["cons"])
+                    else:
+                        buffer[item["term"]] = float(item["cons"])
+            else:
+                return cls(buffer)
 
     def qubo(self) -> tuple[dict[str, int], np.ndarray[float], float]:
         """

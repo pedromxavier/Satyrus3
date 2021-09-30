@@ -21,6 +21,17 @@ from ..api import SatAPI
 from ..assets import SAT_BANNER, SAT_CRITICAL
 from ..satlib import Timing, log
 
+def load_json(parser, path: Path) -> object:
+    if not path.exists() or not path.is_file():
+            parser.error(f"File '{path}' doesn't exists")
+
+    with path.open(mode="r") as file:
+        try:
+            data = json.load(file)
+        except json.JSONDecodeError as error:
+            parser.error(f"In '{path}':\n{error.msg}")
+        else:
+            return data
 
 class ArgParser(argparse.ArgumentParser):
     @wraps(argparse.ArgumentParser.__init__)
@@ -149,19 +160,11 @@ class readParams(argparse._StoreAction):
 
         params_path = Path(params)
 
-        if not params_path.exists() or not params_path.is_file():
-            parser.error(f"File '{params_path}' doesn't exists")
-
-        with params_path.open(mode="r") as file:
-            try:
-                params = json.load(file)
-            except json.JSONDecodeError as error:
-                parser.error(f"In '{params_path}':\n{error.msg}")
-            else:
-                if isinstance(params, dict):
-                    setattr(namespace, self.dest, params)
-                else:
-                    parser.error(f"In '{params_path}':\nParameter object must be mapping, not '{type(params)}'")
+        
+        if isinstance(params, dict):
+            setattr(namespace, self.dest, params)
+        else:
+            parser.error(f"In '{params_path}':\nParameter object must be mapping, not '{type(params)}'")
 
 
 class CLI:
@@ -257,17 +260,16 @@ class CLI:
         else:
             args = parser.parse_args(argv[1:])
 
+        # Exhibits Compiler Command line arguments
+        stdlog[3] << f"Command line args:"
+        for k, v in vars(args).items():
+            stdlog[3] << f"\t{k}={v!r}"
+
         ## Debug mode
         debug: bool = args.debug
 
         if debug:
             stdwar[1] << f"Warning: Debug mode enabled."
-
-        ## Check source path
-        source_path = Path(args.source)
-
-        if not source_path.exists() or not source_path.is_file():
-            parser.error(f"File '{source_path.absolute()}' does not exists")
 
         ## Legacy mode
         legacy: bool = args.legacy
@@ -277,16 +279,6 @@ class CLI:
 
         # Performance Report
         report: bool = args.report
-
-        # Output File Destination
-        if args.output is None:
-            output = Path.cwd().joinpath(f"{source_path.stem}.json")
-        else:
-            output = Path(args.output)
-            try:
-                output.touch(exist_ok=True)
-            except FileNotFoundError:
-                parser.error(f"Invalid output path '{output}'")
 
         # Solver Interface
         if args.solver is None:
@@ -300,25 +292,20 @@ class CLI:
         else:
             params = args.params
 
-        # Exhibits Compiler Command line arguments
-        if stdlog[3]:
-            stdlog[3] << f"Command line args:"
-            for k, v in vars(args).items():
-                stdlog[3] << f"\t{k}={v!r}"
-
-        # Compile Problem
         try:
             # Launch API
-            sat_api = SatAPI(path=source_path, legacy=legacy)
+            sat_api = SatAPI(path=Path(args.source), legacy=legacy)
 
             # Solve in desired way
             answer: tuple[dict, float] | str = sat_api[solver].solve(**params)
 
             # Failure
             if answer is None:
+                stderr[0] << "Error:"
                 exit(1)
             elif SatAPI.complete(answer):
                 answer = json.dumps({"solution": answer[0], "energy": answer[1]}, indent=4)
+
         except Exception:
             trace = log(target="satyrus.log")
             if debug:
@@ -326,13 +313,5 @@ class CLI:
             else:
                 stderr[0] << SAT_CRITICAL
             exit(1)
-        else:
-            with output.open(mode="w") as file:
-                file.write(answer)
-        finally:
-            if report:
-                Timing.timer.show_report()
-            exit(0)
-
 
 __all__ = ["CLI"]

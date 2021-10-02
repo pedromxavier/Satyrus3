@@ -7,9 +7,15 @@ from cstream import stderr, stdout
 # Local
 from ..satlib import Source
 
+# Constants
+EXIT_SUCCESS = 0
+EXIT_FAILURE = 1
+
+
 class SatError(Exception):
-    'Error'
-    def __init__(self, msg=None, target=None, code=2):
+    "Error"
+
+    def __init__(self, msg=None, target=None, code=EXIT_FAILURE):
         Exception.__init__(self, msg)
         self.msg = str(msg) if msg is not None else ""
         self.code = code
@@ -24,47 +30,82 @@ class SatError(Exception):
         else:
             return self.msg
 
+
 class SatCompilerError(SatError):
-	'Compiler Error'
+    "Compiler Error"
+
 
 class SatExprError(SatError):
-    'Expression Error'
+    "Expression Error"
+
 
 class SatIndexError(SatError):
-    'Index Error'
+    "Index Error"
+
 
 class SatFileError(SatError):
-    'File Error'
+    "File Error"
+
 
 class SatLexerError(SatError):
-    'Lexer Error'
+    "Lexer Error"
+
 
 class SatParserError(SatError):
-    'Parser Error'
+    "Parser Error"
+
 
 class SatPythonError(SatError):
-    'Python Error'
+    "Python Error"
+
 
 class SatReferenceError(SatError):
-	'Reference Error'
+    "Reference Error"
+
 
 class SatSyntaxError(SatError):
-    'Syntax Error'
+    "Syntax Error"
+
 
 class SatTypeError(SatError):
-	'Type Error'
+    "Type Error"
+
 
 class SatValueError(SatError):
-	'Value Error'
+    "Value Error"
+
 
 class SatWarning(SatError):
-    'Warning'
+    "Warning"
+
 
 class SatSolverError(SatError):
-    'Solver Error'
+    "Solver Error"
+
 
 class SatExit(SatError):
-    'Exit'
+    "Exit"
 
     def __init__(self, code: int):
-        SatError.__init__(self, f'exit code {code}')
+        SatError.__init__(self, f"exit code {code}")
+
+
+__all__ = [
+    "EXIT_SUCCESS",
+    "EXIT_FAILURE",
+    "SatError",
+    "SatCompilerError",
+    "SatExprError",
+    "SatIndexError",
+    "SatFileError",
+    "SatLexerError",
+    "SatParserError",
+    "SatPythonError",
+    "SatReferenceError",
+    "SatSyntaxError",
+    "SatTypeError",
+    "SatValueError",
+    "SatWarning",
+    "SatSolverError",
+    "SatExit",
+]

@@ -1,6 +1,6 @@
 from .api import SatAPI
-from .cli import CLI
+from .cli import SatCLI
 from .satyrus import Satyrus
 from .satlib import Posiform
 
-__all__ = ["Satyrus", "SatAPI", "CLI", "Posiform"]
+__all__ = ["Satyrus", "SatAPI", "SatCLI", "Posiform"]

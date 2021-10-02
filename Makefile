@@ -1,4 +1,4 @@
-all: build
+all: clean build zip-clean zip
 
 build:
 	python3 -m build .
@@ -17,3 +17,9 @@ zip: zip-clean
 
 zip-clean:
 	rm Satyrus3.zip
+
+install:
+	@pip install .[all] -q --use-feature=in-tree-build
+
+install-dev:
+	@pip install .[dev] -q --use-feature=in-tree-build

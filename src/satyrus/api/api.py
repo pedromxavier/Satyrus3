@@ -15,6 +15,8 @@ from typing import Callable
 # Third-Party
 from cstream import devnull, stderr, stdwar, stdlog
 
+from satyrus.parser import legacy
+
 # Local
 from ..satyrus import Satyrus
 from ..satlib import Posiform, Timing
@@ -66,13 +68,18 @@ class MetaSatAPI(type):
 
 
 class SatAPI(metaclass=MetaSatAPI):
+    """"""
+
+    ext = "out.txt"
 
     subclasses = {}
 
     class SatAPISolver:
-        def __init__(self, energy: Posiform, method: Callable):
-            self.method = method
+        """"""
+        def __init__(self, energy: Posiform, method: Callable, ext: str):
             self.energy = energy
+            self.method = method
+            self.ext = ext
 
         @Timing.timer(level=2, section="Solver.solve")
         def solve(self, **params: dict):
@@ -95,8 +102,8 @@ class SatAPI(metaclass=MetaSatAPI):
 
         if not path.exists() or not path.is_file():
             cls.error(f"File {path} does not exists")
-        elif path.suffix not in {".py", ".pyw"}:
-            raise FileExistsError(f"File '{path}' must be a Python file i.e. {{.py, .pyw}}")
+        elif path.suffix != ".py":
+            raise FileExistsError(f"File '{path}' must be a Python file")
         else:
             with path.open(mode="r", encoding="utf8") as file:
                 source = file.read()
@@ -115,45 +122,33 @@ class SatAPI(metaclass=MetaSatAPI):
             else:
                 cls.warn("No new API interfaces included")
 
-    def __init__(self, *paths: str, satyrus: Satyrus = None, **params: dict):
-        """\
+    def __init__(self, *paths: str, legacy: bool = False):
+        r"""
         Parameters
         ----------
 
         *paths : tuple[str]
-            Path to ``.sat`` source code file.
+            Path to ``.sat`` source code file or ``.json`` energy equation file.
         **kwargs : dict
             Keyword arguments for compiler.
         """
+        self._legacy = legacy
+        self.satyrus = Satyrus(legacy=self._legacy)
 
-        if satyrus is None:
-            if paths:
-                self.satyrus = Satyrus(*paths, **params)
-            else:
-                raise ValueError("Either 'path' or 'satyrus' must be provided")
-        elif isinstance(satyrus, Satyrus):
-            if not paths:
-                # No path was provided
-                self.satyrus = satyrus
-            else:
-                raise ValueError("Can't handle both 'path' and 'satyrus' options")
+        if paths:
+            self._energy = self.satyrus.compile(*paths)
         else:
-            raise TypeError(f"Parameter 'satyrus' must be of type 'Satyurs', not {type(satyrus)}")
+            self._energy = None
 
     def __getitem__(self, key: str):
         if key in self.subclasses:
             if self.subclasses[key] is not None:
-                return self.subclasses[key](satyrus=self.satyrus).__solver()
+                api = self.subclasses[key](legacy=self._legacy)
+                return self.SatAPISolver(self._energy, api.solve, api.ext)
             else:
                 raise NotImplementedError(f"Missing requirements for Solver Interface '{key}'")
         else:
             raise NotImplementedError(f"Unknown solver interface '{key}'. Available options are: {self.options()}")
-
-    def __solver(self) -> SatAPISolver:
-        if not self.satyrus.ready():
-            self.satyrus.compile()
-
-        return self.SatAPISolver(self.satyrus.energy(), self.solve)
 
     @classmethod
     def options(cls) -> set:
@@ -170,7 +165,7 @@ class SatAPI(metaclass=MetaSatAPI):
     @staticmethod
     def error(message: str):
         if stderr[0]:
-            stderr[0] << f"Solver Error: {message}"
+            stderr[0] << f"API Error: {message}"
         exit(1)
 
     @staticmethod
@@ -190,12 +185,18 @@ class SatAPI(metaclass=MetaSatAPI):
 class text(SatAPI):
     """"""
 
+    ext = "json"
+
     def solve(self, posiform: Posiform, **params: dict) -> str:
         return posiform.toJSON()
 
 
 # CSV Table Output
 class csv(SatAPI):
+    """"""
+
+    ext = "csv"
+
     def solve(self, posiform: Posiform, **params: dict) -> str:
         """"""
         lines = []
@@ -211,6 +212,9 @@ class csv(SatAPI):
 
 # Quadratic Unconstrained Binary Optimization
 class qubo(SatAPI):
+
+    ext = "out.json"
+
     def solve(self, posiform: Posiform, **params: dict) -> str:
         """"""
         x, Q, c = posiform.qubo()
@@ -221,6 +225,8 @@ class qubo(SatAPI):
 # Gurobi
 class gurobi(SatAPI):
     ## https://www.cvxpy.org/tutorial/advanced/index.html#mixed-integer-programs
+
+    ext = "out.json"
 
     requires = ["gurobipy"]
 
@@ -253,6 +259,9 @@ class gurobi(SatAPI):
 
 # DWave
 class dwave(SatAPI):
+    """"""
+    
+    ext = "out.json"
 
     requires = ["neal"]
 

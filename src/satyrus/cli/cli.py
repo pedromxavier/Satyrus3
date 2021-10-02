@@ -18,12 +18,14 @@ from cstream import Stream, stdlog, stdwar, stderr, stdout
 ## Local
 from .help import HELP
 from ..api import SatAPI
+from ..error import EXIT_SUCCESS, EXIT_FAILURE
 from ..assets import SAT_BANNER, SAT_CRITICAL
 from ..satlib import Timing, log
 
+
 def load_json(parser, path: Path) -> object:
     if not path.exists() or not path.is_file():
-            parser.error(f"File '{path}' doesn't exists")
+        parser.error(f"File '{path}' doesn't exists")
 
     with path.open(mode="r") as file:
         try:
@@ -32,6 +34,7 @@ def load_json(parser, path: Path) -> object:
             parser.error(f"In '{path}':\n{error.msg}")
         else:
             return data
+
 
 class ArgParser(argparse.ArgumentParser):
     @wraps(argparse.ArgumentParser.__init__)
@@ -77,6 +80,7 @@ class ArgParser(argparse.ArgumentParser):
 
         return decor
 
+
 class GetVersion(argparse._VersionAction):
     @wraps(argparse._VersionAction.__init__)
     def __init__(self, *args, **kwargs):
@@ -85,8 +89,10 @@ class GetVersion(argparse._VersionAction):
     @wraps(argparse._VersionAction.__call__)
     def __call__(self, parser, namespace, values, option_string=None):
         from sys import version_info
+
         stdout[0] << f"satyrus {__version__} (python {version_info.major}.{version_info.minor})"
         exit(0)
+
 
 class SetVerbosity(argparse._StoreAction):
     @wraps(argparse._StoreAction.__init__)
@@ -160,20 +166,45 @@ class readParams(argparse._StoreAction):
 
         params_path = Path(params)
 
-        
         if isinstance(params, dict):
             setattr(namespace, self.dest, params)
         else:
             parser.error(f"In '{params_path}':\nParameter object must be mapping, not '{type(params)}'")
 
 
-class CLI:
-    """Satyrus command line interface.
-
-    Example
-    -------
-    >>> CLI.run(["--help"])
+class SatCLI:
+    r"""
+      Satyrus Stack
+      ┌───────────┐
+    │ │  SatCLI   │
+    │ ├───────────┤
+    │ │  SatAPI   │
+    │ ├───────────┤
+    │ │  Satyrus  │
+    │ ├───────────┤
+    │ │SatCompiler│
+    │ ├───────────┤
+    ▼ │ SatParser │
+      └───────────┘
     """
+
+    @classmethod
+    def infer_output(cls, solver: SatAPI.SatAPISolver, args: argparse.Namespace, answer: tuple[dict, float] | str | object) -> tuple[str, str]:
+        if answer is None:
+            stderr[0] << "Error: Invalid Answer from Satyrus API"
+            exit(EXIT_FAILURE)
+
+        if SatAPI.complete(answer):
+            answer = json.dumps({"solution": answer[0], "energy": answer[1]}, indent=4)
+            output = f"{Path(args.source[0]).stem}.{solver.ext}"
+        else:
+            answer = str(answer)
+            output = f"{Path(args.source[0]).stem}.{solver.ext}"
+
+        if args.output is not None:
+            output = args.output
+
+        return output, answer
 
     @classmethod
     def run(cls, argv: list = None):
@@ -200,7 +231,7 @@ class CLI:
         parser = ArgParser(prog="satyrus", description=__doc__.format(version=__version__))
 
         ## Mandatory - Source file path
-        parser.add_argument("source", help=HELP["source"])
+        parser.add_argument("source", help=HELP["source"], nargs="+")
 
         # Optional - Compiler Version
         parser.add_argument("--version", help=HELP["version"], action=GetVersion)
@@ -230,6 +261,7 @@ class CLI:
             type=str,
             dest="solver",
             help=HELP["solver"],
+            default="text",
             action=SetSolver,
         )
 
@@ -258,60 +290,48 @@ class CLI:
         if argv is None:
             args = parser.parse_args()
         else:
-            args = parser.parse_args(argv[1:])
+            args = parser.parse_args(argv)
 
         # Exhibits Compiler Command line arguments
-        stdlog[3] << f"Command line args:"
-        for k, v in vars(args).items():
-            stdlog[3] << f"\t{k}={v!r}"
+        stdlog[3] << f'Command line args:\n{";".join(f"{k}={v!r}" for k, v in vars(args).items())}'
 
-        ## Debug mode
-        debug: bool = args.debug
-
-        if debug:
+        # Warning: Debug mode
+        if args.debug:
             stdwar[1] << f"Warning: Debug mode enabled."
 
-        ## Legacy mode
-        legacy: bool = args.legacy
-
-        if legacy:
-            stdwar[1] << f"Warning: Parser is in legacy mode."
-
-        # Performance Report
-        report: bool = args.report
-
-        # Solver Interface
-        if args.solver is None:
-            solver = "text"
-        else:
-            solver = args.solver
-
-        # Solvers Parameters
-        if args.params is None:
-            params = {}
-        else:
-            params = args.params
+        # Warning: Legacy mode
+        if args.legacy:
+            stdwar[1] << f"Warning: Parser is running in legacy mode."
 
         try:
             # Launch API
-            sat_api = SatAPI(path=Path(args.source), legacy=legacy)
+            solver = SatAPI(*args.source, legacy=args.legacy)[args.solver]
 
             # Solve in desired way
-            answer: tuple[dict, float] | str = sat_api[solver].solve(**params)
+            if args.params is None:
+                answer: tuple[dict, float] | str | object = solver.solve()
+            else:
+                answer: tuple[dict, float] | str | object = solver.solve(**args.params)
 
-            # Failure
-            if answer is None:
-                stderr[0] << "Error:"
-                exit(1)
-            elif SatAPI.complete(answer):
-                answer = json.dumps({"solution": answer[0], "energy": answer[1]}, indent=4)
+            # Retrieve Output Destination
+            args.output, answer = cls.infer_output(solver, args, answer)
+
+            with open(args.output, mode="w") as file:
+                file.write(answer)
+
+            # Report
+            if args.report:
+                Timing.Timer.show_report(level=2)
+
+            exit(EXIT_SUCCESS)
 
         except Exception:
             trace = log(target="satyrus.log")
-            if debug:
+            if args.debug:
                 stderr[0] << trace
             else:
                 stderr[0] << SAT_CRITICAL
-            exit(1)
+            exit(EXIT_FAILURE)
 
-__all__ = ["CLI"]
+
+__all__ = ["SatCLI"]

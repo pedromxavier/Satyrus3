@@ -164,7 +164,7 @@ class Posiform(dict):
 
     def __truediv__(self, other) -> Posiform:
         posiform = self.copy()
-        posiform /= other
+        posiform = posiform.__itruediv__(other)
         return posiform
 
     def __itruediv__(self, other) -> Posiform:
@@ -173,6 +173,7 @@ class Posiform(dict):
             if c != 0.0:
                 for k, v in self:
                     self[k] = v / c
+                return self
             else:
                 raise ZeroDivisionError("division by zero")
         else:
@@ -180,7 +181,7 @@ class Posiform(dict):
 
     def __mul__(self, other) -> Posiform:
         posiform = self.copy()
-        posiform *= other
+        posiform = posiform.__imul__(other)
         return posiform
 
     def __imul__(self, other):
@@ -305,8 +306,42 @@ class Posiform(dict):
     def cls(self):
         return self.__class__
 
-    def toJSON(self) -> str:
-        return json.dumps([{"term": list(k) if k is not None else None, "cons": v} for k, v in self], indent=4)
+    def toMiniJSON(self) -> str:
+        return json.dumps([[k if k is None else " ".join(k), v] for k, v in self])
+
+    @classmethod
+    def fromMiniJSON(cls, data: str) -> Posiform:
+        json_data = json.loads(data)
+
+        buffer = {}
+
+        if not isinstance(json_data, list):
+            raise json.decoder.JSONDecodeError("Data must be of Array type (Python list)", data, 0)
+        else:
+            for item in json_data:
+                if not isinstance(item, list):
+                    raise json.decoder.JSONDecodeError("Items must be of Array type (Python list)", data, 0)
+                elif len(item) != 2:
+                    raise json.decoder.JSONDecodeError("Items must contain two entries", data, 0)
+                elif item[0] is not None and not isinstance(item[0], str):
+                    raise json.decoder.JSONDecodeError("Items 1st entry must be of String type (Python str)", data, 0)
+                elif not isinstance(item[1], (int, float)):
+                    raise json.decoder.JSONDecodeError("Items 2nd entry must be of Number type (Python float)", data, 0)
+                else:
+                    key = tuple(item[0].split(" ")) if item[0] is not None else None
+                    val = float(item[1])
+                    if key in buffer:
+                        buffer[key] += val
+                    else:
+                        buffer[key] = val
+            else:
+                return cls(buffer)
+
+    def toJSON(self, indent: int = None) -> str:
+        if indent is None:
+            return json.dumps([{"term": sorted(k) if k is not None else None, "cons": v} for k, v in self])
+        else:
+            return json.dumps([{"term": sorted(k) if k is not None else None, "cons": v} for k, v in self], indent=indent)
 
     @classmethod
     def fromJSON(cls, data: str) -> Posiform:
@@ -315,24 +350,26 @@ class Posiform(dict):
         buffer = {}
 
         if not isinstance(json_data, list):
-            raise json.decoder.JSONDecodeError("Data must be of Array type (Python list)")
+            raise json.decoder.JSONDecodeError("Data must be of Array type (Python list)", data, 0)
         else:
             for item in json_data:
                 if not isinstance(item, dict):
-                    raise json.decoder.JSONDecodeError("Items must be of Object type (Python dict)")
+                    raise json.decoder.JSONDecodeError("Items must be of Object type (Python dict)", data, 0)
                 elif "term" not in item or "cons" not in item:
-                    raise json.decoder.JSONDecodeError("Items must contain both 'term' and 'cons' keys")
+                    raise json.decoder.JSONDecodeError("Items must contain both 'term' and 'cons' keys", data, 0)
                 elif not isinstance(item["term"], list) and item["term"] is not None:
-                    raise json.decoder.JSONDecodeError("Items 'term' value must be of Array type (Python list)")
-                elif not all(isinstance(var, str) for var in item["term"]):
-                    raise json.decoder.JSONDecodeError("Items 'term' value must contain only entries of type String (Python str)")
+                    raise json.decoder.JSONDecodeError("Items 'term' value must be of Array type (Python list)", data, 0)
+                elif item["term"] is not None and not all(isinstance(var, str) for var in item["term"]):
+                    raise json.decoder.JSONDecodeError("Items 'term' value must contain only entries of type String (Python str)", data, 0)
                 elif not isinstance(item["cons"], (int, float)):
-                    raise json.decoder.JSONDecodeError("Items 'cons' value must be of Number type (Python float)")
+                    raise json.decoder.JSONDecodeError("Items 'cons' value must be of Number type (Python float)", data, 0)
                 else:
-                    if item["term"] in buffer:
-                        buffer[item["term"]] += float(item["cons"])
+                    key = tuple(item["term"]) if item["term"] is not None else None
+                    val = float(item["cons"])
+                    if key in buffer:
+                        buffer[key] += val
                     else:
-                        buffer[item["term"]] = float(item["cons"])
+                        buffer[key] = val
             else:
                 return cls(buffer)
 

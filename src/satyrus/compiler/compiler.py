@@ -169,12 +169,12 @@ class SatCompiler:
             return self.code
         except SatError as error:
             stderr[0] << error
-            self.code = error.code
             self.energy = self.source = None
+            self.code = error.code
             return self.code
         except Exception as error:
-            self.code = 1
             self.energy = self.source = None
+            self.code = 1
             raise error
         else:
             return self.code

@@ -94,4 +94,6 @@ class Array(SatType):
         """
         return cls.from_buffer(name, shape, { idx : val for (idx, val) in buffer })
 
-
+    @property
+    def is_array(self) -> bool:
+        return True

@@ -9,7 +9,7 @@ from pathlib import Path
 from cstream import stderr
 
 # Local
-from ..error import EXIT_SUCCESS, EXIT_FAILURE
+from ..error import SatRuntimeError, EXIT_SUCCESS, EXIT_FAILURE
 from ..satlib import Source, Posiform
 from ..compiler import SatCompiler
 from ..compiler.instructions import INSTRUCTIONS
@@ -134,7 +134,7 @@ class Satyrus(object):
             if not code:
                 return total_energy
             else:
-                raise RuntimeError("Compilation terminated with errors")
+                raise SatRuntimeError("Compilation terminated with errors")
 
     # -*- Cache -*-
     def cache(self, path: Path, energy: Posiform | None = None) -> Posiform:

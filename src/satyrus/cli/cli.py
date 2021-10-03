@@ -191,7 +191,6 @@ class SatCLI:
     @classmethod
     def infer_output(cls, solver: SatAPI.SatAPISolver, args: argparse.Namespace, answer: tuple[dict, float] | str | object) -> tuple[str, str]:
         if answer is None:
-            stderr[0] << "Error: Invalid Answer from Satyrus API"
             exit(EXIT_FAILURE)
 
         if SatAPI.complete(answer):
@@ -321,10 +320,12 @@ class SatCLI:
 
             # Report
             if args.report:
-                Timing.Timer.show_report(level=2)
+                Timing.timer.show_report(level=0)
 
             exit(EXIT_SUCCESS)
-
+        except RuntimeError as exc:
+            stderr[0] << exc
+            exit(EXIT_FAILURE)
         except Exception:
             trace = log(target="satyrus.log")
             if args.debug:

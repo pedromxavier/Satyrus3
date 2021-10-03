@@ -62,6 +62,8 @@ class SatPythonError(SatError):
 class SatReferenceError(SatError):
     "Reference Error"
 
+class SatRuntimeError(SatError):
+    "Runtime Error"
 
 class SatSyntaxError(SatError):
     "Syntax Error"
@@ -102,6 +104,7 @@ __all__ = [
     "SatParserError",
     "SatPythonError",
     "SatReferenceError",
+    "SatRuntimeError",
     "SatSyntaxError",
     "SatTypeError",
     "SatValueError",

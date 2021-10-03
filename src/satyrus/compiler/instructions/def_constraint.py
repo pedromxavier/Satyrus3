@@ -15,6 +15,7 @@ from cstream import stdlog
 from ..compiler import SatCompiler
 from ...satlib import arange, Stack, Posiform
 from ...error import (
+    SatIndexError,
     SatValueError,
     SatTypeError,
     SatExprError,
@@ -305,33 +306,35 @@ def unstack(compiler: SatCompiler, stack: Stack, expr: Expr, context: dict) -> t
 
         return energy
     else:
-        return H(compiler.evaluate(expr, miss=False, context=context))
+        return H(compiler, compiler.evaluate(expr, miss=False, context=context))
 
-
-def H(x: SatType) -> Posiform:
+def H(compiler: SatCompiler, x: SatType) -> Posiform:
     """Energy Equation Mapping"""
 
     if x.is_expr:
         if x.head == T_NOT:
-            return 1.0 - H(x[1])
+            return 1.0 - H(compiler, x[1])
         elif x.head == T_AND or x.head == T_MUL:
             e = Posiform(1.0)
             for y in x.tail:
-                e *= H(y)
+                e *= H(compiler, y)
             return e
         elif x.head == T_OR or x.head == T_ADD:
             e = Posiform(0.0)
             for y in x.tail:
-                e += H(y)
+                e += H(compiler, y)
             return e
         elif x.head == T_XOR:
             a, b = x.tail
-            return H((a & ~b) | (~a & b))
+            return H(compiler, (a & ~b) | (~a & b))
         else:
             raise ValueError(f"Unable to map '{x.head}' into energy equation")
     elif x.is_number:
         return Posiform(x)
     elif x.is_var:
         return Posiform({(x,): 1.0})
+    elif x.is_array:
+        compiler << SatIndexError(f"Partially indexed array '{x}'", target=x)
+        compiler.checkpoint()
     else:
         raise ValueError(f"Unable to map '{x}' into energy equation")

@@ -18,6 +18,7 @@ from cstream import devnull, stderr, stdwar, stdlog
 from satyrus.parser import legacy
 
 # Local
+from ..error import SatRuntimeError
 from ..satyrus import Satyrus
 from ..satlib import Posiform, Timing
 
@@ -82,8 +83,11 @@ class SatAPI(metaclass=MetaSatAPI):
             self.ext = ext
 
         @Timing.timer(level=2, section="Solver.solve")
-        def solve(self, **params: dict):
-            return self.method(self.energy, **params)
+        def solve(self, **params: dict) -> tuple[dict, float] | object:
+            if self.energy is None:
+                return None
+            else:
+                return self.method(self.energy, **params)
 
     @classmethod
     def include(cls, fname: str):
@@ -136,7 +140,11 @@ class SatAPI(metaclass=MetaSatAPI):
         self.satyrus = Satyrus(legacy=self._legacy)
 
         if paths:
-            self._energy = self.satyrus.compile(*paths)
+            try:
+                self._energy = self.satyrus.compile(*paths)
+            except SatRuntimeError as exc:
+                stderr[0] << exc
+                self._energy = None
         else:
             self._energy = None
 

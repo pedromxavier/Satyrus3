@@ -77,10 +77,13 @@ def run_script_penalties(compiler: SatCompiler):
         if level not in levels:
             levels[level] = 0.0
 
-        for __, cons in energy:
-            levels[level] += abs(cons)
+        for term, cons in energy:
+            if term is None:
+                continue
+            else:
+                # Compute Energy Gap
+                levels[level] += abs(cons)
     else:
-        # Compute Energy Gap
         levels: list = sorted(levels.items())
 
     epsilon = float(compiler.env[EPSILON])

@@ -1,7 +1,4 @@
-""" :: RUN_SCRIPT ::
-	====================
-
-	STATUS: INCOMPLETE
+"""
 """
 # Standard Library
 import itertools as it
@@ -18,8 +15,7 @@ from ...symbols import CONS_INT, CONS_OPT, PREC, EPSILON, ALPHA
 
 
 def run_script(compiler: SatCompiler, *args: tuple):
-    """RUN_SCRIPT
-    ==========
+    """
     """
     ## Setup compiler environment
     run_script_setup(compiler)
@@ -81,10 +77,10 @@ def run_script_penalties(compiler: SatCompiler):
         if level not in levels:
             levels[level] = 0.0
 
-        for term, cons in energy:
-            if term is None or cons >= 0.0:
-                levels[level] += cons
+        for __, cons in energy:
+            levels[level] += abs(cons)
     else:
+        # Compute Energy Gap
         levels: list = sorted(levels.items())
 
     epsilon = float(compiler.env[EPSILON])
@@ -92,11 +88,10 @@ def run_script_penalties(compiler: SatCompiler):
     # Compute penalty levels
     level_j, n_j = levels[0]
     for i in range(1, len(levels)):
-        # level_k <- level_j & n_k <- n_j
-        # level_j <- level_i & n_j <- n_i
+        # level_k <- level_j, n_k <- n_j, level_j <- level_i, n_j <- n_i
         (level_k, n_k), (level_j, n_j) = (level_j, n_j), levels[i]
 
-        if i == 1:
+        if i == 1: # Base Penalty
             compiler.penalties[level_j] = compiler.penalties[level_k] * n_k + epsilon
         else:
             compiler.penalties[level_j] = compiler.penalties[level_k] * (n_k + 1)
@@ -129,3 +124,5 @@ def run_script_energy(compiler: SatCompiler):
     Eo = sum((compiler.penalties[level] * energy for level, energy in compiler.constraints[CONS_OPT]), 0.0)
 
     compiler.energy = Ei + Eo
+    
+    compiler.checkpoint()

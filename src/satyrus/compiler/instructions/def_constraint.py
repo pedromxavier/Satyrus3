@@ -21,7 +21,9 @@ from ...error import (
     SatExprError,
     SatWarning,
 )
-from ...symbols import CONS_INT, CONS_OPT, T_EXISTS, T_UNIQUE, T_FORALL, T_AND, T_OR, T_NOT, T_NE, T_ADD, T_MUL, T_XOR
+from ...symbols import CONS_INT, CONS_OPT
+from ...symbols import T_EXISTS, T_UNIQUE, T_FORALL
+from ...symbols import T_AND, T_OR, T_NOT, T_NE, T_ADD, T_NEG, T_MUL, T_XOR
 from ...types import Expr, Var, String, Number, SatType
 
 LOOP_TYPES = {T_EXISTS, T_UNIQUE, T_FORALL}
@@ -327,6 +329,15 @@ def H(compiler: SatCompiler, x: SatType) -> Posiform:
         elif x.head == T_XOR:
             a, b = x.tail
             return H(compiler, (a & ~b) | (~a & b))
+        elif x.head == T_NEG:
+            if len(x.tail) == 1:
+                a, = x.tail
+                return -H(compiler, a)
+            elif len(x.tail) == 2:
+                a, b = x.tail
+                return H(compiler, a) - H(compiler, b)
+            else:
+                raise ValueError(f"Unable to map '{x.head}({len(x.tail)})' into energy equation")
         else:
             raise ValueError(f"Unable to map '{x.head}' into energy equation")
     elif x.is_number:

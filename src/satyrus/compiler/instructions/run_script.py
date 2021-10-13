@@ -17,16 +17,19 @@ from ...symbols import CONS_INT, CONS_OPT, PREC, EPSILON, ALPHA
 def run_script(compiler: SatCompiler, *args: tuple):
     """
     """
-    ## Setup compiler environment
+    # Setup compiler environment
     run_script_setup(compiler)
 
-    ## Retrieve constraints
+    # Retrieve constraints
     run_script_constraints(compiler)
 
-    ## Compute penalties
+    # Check for Errors
+    compiler.checkpoint()
+
+    # Compute penalties
     run_script_penalties(compiler)
 
-    ## Generate Energy Equations
+    # Generate Energy Equations
     run_script_energy(compiler)
 
 
@@ -34,10 +37,10 @@ def run_script_setup(compiler: SatCompiler):
     ## Set numeric precision
     Number.prec(int(compiler.env[PREC]))
 
-    ## value for alpha
+    # value for alpha
     compiler.env[ALPHA] = Number(compiler.env[ALPHA])
 
-    ## value for epsilon
+    # value for epsilon
     compiler.env[EPSILON] = Number(compiler.env[EPSILON])
 
     ## Parameter validation
@@ -46,8 +49,6 @@ def run_script_setup(compiler: SatCompiler):
             "Tiebraker 'epsilon' was neglected due to numeric precision. Choose a greater value",
             target=compiler.env[EPSILON],
         )
-
-    compiler.checkpoint()
 
 
 def run_script_constraints(compiler: SatCompiler):
@@ -59,9 +60,7 @@ def run_script_constraints(compiler: SatCompiler):
     elif len(compiler.constraints[CONS_INT]) == 0:
         compiler < SatWarning("No Integrity condition defined.", target=compiler.source.eof)
     elif len(compiler.constraints[CONS_OPT]) == 0:
-        compiler << SatCompilerError("No Optmization condition defined.", target=compiler.source.eof)
-
-    compiler.checkpoint()
+        compiler < SatCompilerError("No Optmization condition defined.", target=compiler.source.eof)
 
 
 def run_script_penalties(compiler: SatCompiler):
@@ -115,8 +114,6 @@ def run_script_penalties(compiler: SatCompiler):
             tablefmt="pretty",
         )
 
-    compiler.checkpoint()
-
 
 def run_script_energy(compiler: SatCompiler):
     """"""
@@ -127,5 +124,3 @@ def run_script_energy(compiler: SatCompiler):
     Eo = sum((compiler.penalties[level] * energy for level, energy in compiler.constraints[CONS_OPT]), 0.0)
 
     compiler.energy = Ei + Eo
-    
-    compiler.checkpoint()

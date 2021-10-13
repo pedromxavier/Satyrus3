@@ -1,320 +1,399 @@
-"""\
-satyrus/api/api.py
-------------------
+"""
+/satyrus/api/api.py
 """
 # Future Imports
 from __future__ import annotations
 
 # Standard Library
-import importlib.util
+import sys
 import json
+import shutil
+import marshal
+import traceback
 from abc import abstractmethod
 from pathlib import Path
-from typing import Callable
 
 # Third-Party
-from cstream import devnull, stderr, stdwar, stdlog
-
-from satyrus.parser import legacy
+from cstream import stdwar, stderr, stdlog
 
 # Local
-from ..error import SatRuntimeError
+from ..error import SatRuntimeError, EXIT_FAILURE
+from ..satlib import Timing, Posiform, package_path
 from ..satyrus import Satyrus
-from ..satlib import Posiform, Timing
+
+
+class SatFinder:
+    """"""
+
+    key: str = None
+    require: dict = {}
+
+    @classmethod
+    def find_spec(cls, name, path, target=None):
+        if cls.key is not None:
+            stdwar[1] << f"Warning: missing module {name!r} for {cls.key!r}"
+            if cls.key in cls.require:
+                cls.require[cls.key].append(name)
+            else:
+                cls.require[cls.key] = [name]
+        return None
+
+    @classmethod
+    def set_key(cls, key: str):
+        cls.key = key
+
+
+# -*- Register SatFinder -*- #
+sys.meta_path.append(SatFinder)
 
 
 class MetaSatAPI(type):
     """"""
 
-    BASE_CLASS = "SatAPI"
-    base_class = None
-    subclasses = {}
+    base_class: MetaSatAPI = None
+    __stack__: list[MetaSatAPI] = []
+    __satapi__: dict[str, MetaSatAPI] = {}
 
     def __new__(cls, name: str, bases: tuple, namespace: dict):
         """"""
-        if name == cls.BASE_CLASS:
+        if name == "SatAPI":
             if cls.base_class is None:
-                cls.base_class = type.__new__(cls, name, bases, {**namespace, "subclasses": cls.subclasses})
+                cls.base_class = type.__new__(
+                    cls,
+                    name,
+                    bases,
+                    {
+                        **namespace,
+                        "__stack__": cls.__stack__,
+                        "__satapi__": cls.__satapi__,
+                    },
+                )
                 return cls.base_class
             else:
-                raise NameError("'SatAPI' base class is already implemented.")
-        elif name in cls.subclasses:
-            raise NameError(f"API Interface '{name}' is already defined.")
+                raise NameError("'SatAPI' base class is already implemented")
         elif cls.base_class is None:
-            raise NameError("'SatAPI' base class is not implemented yet.")
-        elif "solve" not in namespace:
-            raise NotImplementedError(f"Method solve(self, posiform: Posiform, **params: dict) -> tuple[dict, float] | object must be implemented for '{name}'.")
+            raise NameError("'SatAPI' base class is not implemented yet")
+
+        interface: MetaSatAPI = type.__new__(cls, name, bases, namespace)
+
+        if name in cls.__satapi__:
+            stdwar[1] << f"API Interface '{name}' redefinition"
+            cls.__stack__.append(name)
+        elif name == "default":
+            pass
         else:
-            imports = []
-            missing = []
-            if "require" in namespace:
-                for package in namespace["require"]:
-                    if importlib.util.find_spec(package) is None:
-                        missing.append(package)
-                    else:
-                        imports.append(package)
+            cls.__stack__.append(name)
 
-            if missing:
-                cls.subclasses[name] = None
-            else:
-                # Import required packages - Not neccessary
-                # globals().update(
-                #     {package: importlib.import_module(package) for package in imports}
-                # )
+        cls.__satapi__[name] = interface
 
-                # Register new class
-                cls.subclasses[name] = type.__new__(cls, name, bases, namespace)
-
-            return cls.subclasses[name]
+        return cls.__satapi__[name]
 
 
 class SatAPI(metaclass=MetaSatAPI):
     """"""
 
-    ext = "out.txt"
+    __stack__: list = []
+    __satapi__: dict = {}
+    __satref__: dict = {}
+    __loaded__: bool = False
+    __energy__: Posiform = None
 
-    subclasses = {}
+    ext: str = "out.txt"
 
-    class SatAPISolver:
+    def __init__(self, *paths, legacy: bool = False):
         """"""
-        def __init__(self, energy: Posiform, method: Callable, ext: str):
-            self.energy = energy
-            self.method = method
-            self.ext = ext
-
-        @Timing.timer(level=2, section="Solver.solve")
-        def solve(self, **params: dict) -> tuple[dict, float] | object:
-            if self.energy is None:
-                return None
-            else:
-                return self.method(self.energy, **params)
-
-    @classmethod
-    def include(cls, fname: str):
-        """Includes new SatAPI interfaces given a separate Python file (``.py``, ``.pyw``).
-
-        Parameters
-        ----------
-        fname : str
-            Path to Python file.
-        """
-        path = Path(fname)
-
-        cls.warn(f"Augmenting API with content from '{path}'")
-
-        interfaces = set(cls.subclasses)
-
-        if not path.exists() or not path.is_file():
-            cls.error(f"File {path} does not exists")
-        elif path.suffix != ".py":
-            raise FileExistsError(f"File '{path}' must be a Python file")
-        else:
-            with path.open(mode="r", encoding="utf8") as file:
-                source = file.read()
-
-            # -*- Compile & Execute API Code -*-
-            code = compile(source, filename=path.name, mode="exec")
-
-            exec(code)
-
-            newly_added = set(cls.subclasses) - interfaces
-
-            if newly_added:
-                cls.log("External API interfaces defined:", level=2)
-                for i, option in enumerate(newly_added, 1):
-                    cls.log(f"\t{i}. {option}", level=2)
-            else:
-                cls.warn("No new API interfaces included")
-
-    def __init__(self, *paths: str, legacy: bool = False):
-        r"""
-        Parameters
-        ----------
-
-        *paths : tuple[str]
-            Path to ``.sat`` source code file or ``.json`` energy equation file.
-        **kwargs : dict
-            Keyword arguments for compiler.
-        """
-        self._legacy = legacy
-        self.satyrus = Satyrus(legacy=self._legacy)
-
         if paths:
             try:
-                self._energy = self.satyrus.compile(*paths)
+                self.energy(Satyrus(legacy=legacy).compile(*paths))
             except SatRuntimeError as exc:
                 stderr[0] << exc
-                self._energy = None
+                self.energy(None)
         else:
-            self._energy = None
-
-    def __getitem__(self, key: str):
-        if key in self.subclasses:
-            if self.subclasses[key] is not None:
-                api = self.subclasses[key](legacy=self._legacy)
-                return self.SatAPISolver(self._energy, api.solve, api.ext)
-            else:
-                raise NotImplementedError(f"Missing requirements for Solver Interface '{key}'")
-        else:
-            raise NotImplementedError(f"Unknown solver interface '{key}'. Available options are: {self.options()}")
+            self.energy(None)
 
     @classmethod
-    def options(cls) -> set:
-        return set(cls.subclasses.keys())
+    def energy(cls, __energy: Posiform | None):
+        cls.__energy__ = __energy
+
+    @classmethod
+    def extension(cls, name: str) -> str:
+        if name in cls.__satapi__:
+            return cls.__satapi__[name].ext
+        else:
+            return cls.ext
+
+    def __getitem__(self, name: str):
+        """"""
+
+        self._load()
+
+        if name in self.__satapi__:
+            return self.__satapi__[name]
+
+        if name not in self.__satref__:
+            raise KeyError(f"Undefined API interface {name!r}")
+
+        pack_path: Path = package_path()
+        code_path: Path = pack_path.joinpath(self.__satref__[name])
+
+        with code_path.open(mode="rb") as file:
+            code = marshal.load(file)
+
+        SatFinder.set_key(name)
+
+        exec(code, {})
+
+        SatFinder.set_key(None)
+
+        if name not in self.__satapi__:
+            raise KeyError(f"Defined API not in '__satapi__'")
+        elif self.__satapi__[name] is None:
+            modules: str = ", ".join(SatFinder.require[name])
+            self.error(
+                f"Interface {name!r} is unavailable due to missing modules: {modules}"
+            )
+        else:
+            return self.__satapi__[name]
+
+    @Timing.timer(level=2, section="Solver.solve")
+    def __call__(self, **params) -> tuple[dict, float] | object:
+        """"""
+
+        if "$solver" not in params:
+            raise KeyError("No solver specified")
+
+        name: str = params["$solver"]
+
+        if self.__energy__ is None:
+            return None
+        else:
+            return self[name]().solve(self.__energy__, **params)
+
+    @classmethod
+    def __load__(cls):
+        """"""
+
+        data_path: Path = package_path(fname=".sat-api")
+
+        if not data_path.exists() or data_path.is_dir():
+            raise IOError("API metadata not found. Try reinstalling Satyrus")
+
+        with data_path.open(mode="r", encoding="utf8") as file:
+            data: dict = json.load(file)
+
+        if data is None:
+            cls._bootstrap()
+        elif not isinstance(data, dict):
+            raise IOError("API metadata is corrupted. Try reinstalling Satyrus")
+        else:
+            cls.__satref__.update(data)
+
+        cls.__loaded__ = True
+
+    @classmethod
+    def _load(cls):
+        if not cls.__loaded__:
+            cls.__load__()
+
+    @classmethod
+    def _bootstrap(cls):
+        """"""
+        pack_path: Path = package_path()
+        cls.add(*pack_path.glob("*.py"))
+
+    @classmethod
+    def add(cls, *paths: str):
+        """\
+        Includes new SatAPI interfaces given a separate Python file (``.py``)
+
+        Parameters
+        ----------
+        *paths : tuple[str]
+            Paths to Python files.
+        """
+
+        pack_path: Path = package_path()
+        data_path: Path = pack_path.joinpath(".sat-api")
+
+        with data_path.open(mode="r", encoding="utf8") as file:
+            data: dict = json.load(file)
+
+        if data is None:
+            pass
+        elif not isinstance(data, dict):
+            raise IOError("API metadata is corrupted. Try reinstalling Satyrus")
+        elif not all(isinstance(k, str) for k in data.keys()):
+            raise IOError("API metadata is corrupted. Try reinstalling Satyrus")
+        elif not all(isinstance(v, str) for v in data.values()):
+            raise IOError("API metadata is corrupted. Try reinstalling Satyrus")
+        else:
+            cls.__satref__.update(data)
+
+        for file_path in map(Path, paths):
+            if not file_path.exists() or not file_path.is_file():
+                stderr[0] << f"Error: '{file_path}' does not exists"
+                continue
+            elif file_path.suffix != ".py":
+                (
+                    stderr[0]
+                    << f"Error: '{file_path.absolute()}' is not a valid Python file"
+                )
+                continue
+
+            new_path = pack_path.joinpath(file_path.name)
+
+            # Copy file to data folder
+            try:
+                shutil.copyfile(file_path, new_path)
+            except shutil.SameFileError:
+                # Everything is gonna be alright
+                pass
+
+            # Build
+            answer: tuple[str, str] | None = cls._build(new_path)
+
+            if answer is not None:
+                name, path = answer
+                cls.__satref__[name] = path
+
+            # Remove Source
+            new_path.unlink()
+        else:
+            with data_path.open(mode="w", encoding="utf8") as file:
+                json.dump(cls.__satref__, file)
+
+    @classmethod
+    def build(cls, *paths: str):
+        """"""
+        for file_path in map(Path, paths):
+            cls._build(file_path)
+
+    @classmethod
+    def _build(cls, file_path: Path) -> tuple[str, str] | None:
+        """ """
+        if not file_path.exists() or not file_path.is_file():
+            stderr[0] << f"Error: '{file_path}' does not exists"
+            return None
+        elif file_path.suffix != ".py":
+            stderr[0] << f"Error: '{file_path.absolute()}' is not a valid Python file"
+            return None
+
+        with file_path.open(mode="r") as file:
+            source: str = file.read()
+
+        # Compile Interface definition
+        code = compile(source, filename=file_path.name, mode="exec")
+
+        try:
+            exec(code, {})
+
+            new: int = len(cls.__stack__)
+
+            if new == 0:
+                cls.warn(f"No new interfaces declared in '{file_path.name}'")
+                return None
+            elif new == 1:
+                name: str = cls.__stack__.pop()
+
+                if name == "default":
+                    cls.error(
+                        "You are not allowed to override the 'default' interface",
+                        code=None,
+                    )
+                    return None
+            else:
+                cls.__stack__.clear()
+
+                cls.error(
+                    f"Rejected multiple interfaces declared in '{file_path.name}'",
+                    code=None,
+                )
+                return None
+
+        except Exception:
+            stderr[0] << f"There are errors in '{file_path.name}':"
+            stderr[0] << f"\n{traceback.format_exc(limit=-1)}\n"
+            return None
+        else:
+            code_path = file_path.with_suffix(".pyc")
+
+            with code_path.open(mode="wb") as file:
+                marshal.dump(code, file)
+
+            # Allow File Execution
+            code_path.chmod(0o755)
+
+            cls.log(f"Built '{file_path.name}'")
+
+            return (name, code_path.name)
+
+    @classmethod
+    def remove(cls, *names: str):
+        """"""
+        stderr[0] << f"API Remove: {names}"
+        exit(0)
+
+    @classmethod
+    def clear(cls, *names: str):
+        """"""
+        stderr[0] << f"API Clear"
+        exit(0)
+
+    @classmethod
+    def options(cls) -> set[str]:
+        cls._load()
+        return set(cls.__satref__)
 
     @classmethod
     def complete(cls, answer: tuple[dict, float] | object) -> bool:
-        return isinstance(answer, tuple) and len(answer) == 2 and isinstance(answer[0], dict) and isinstance(answer[1], float)
+        """"""
+
+        if isinstance(answer, tuple):
+            if len(answer) == 2:
+                if isinstance(answer[0], dict):
+                    for k, v in answer[0].items():
+                        if not isinstance(k, str):
+                            return False
+                        if not isinstance(v, int) or v not in {0, 1}:
+                            return False
+                else:
+                    return False
+
+                if isinstance(answer[1], float):
+                    return True
+                else:
+                    return False
+            else:
+                return False
+        else:
+            return False
 
     @abstractmethod
-    def solve(self, posiform: Posiform, **params: dict) -> tuple[dict, float] | object:
+    def solve(self, energy: Posiform, **params: dict) -> tuple[dict, float] | object:
         pass
 
     @staticmethod
-    def error(message: str):
+    def error(message: str, code: int | None = EXIT_FAILURE):
         if stderr[0]:
             stderr[0] << f"API Error: {message}"
-        exit(1)
+        if code is not None:
+            exit(code)
 
     @staticmethod
-    def warn(message: str):
-        if stdwar[1]:
-            stdwar[1] << f"Warning: {message}"
+    def warn(message: str, level: int = 1):
+        if stdwar[level]:
+            stdwar[level] << f"Warning: {message}"
 
     @staticmethod
     def log(message: str, level: int = 3):
         stdlog[level] << message
 
 
-# NOTE: DO NOT EDIT ABOVE THIS LINE
-# ---------------------------------
-
-# Text Output
-class text(SatAPI):
+# -*- Default Interface -*-
+class default(SatAPI):
     """"""
 
     ext = "json"
 
-    def solve(self, posiform: Posiform, **params: dict) -> str:
-        return posiform.toJSON()
-
-
-# CSV Table Output
-class csv(SatAPI):
-    """"""
-
-    ext = "csv"
-
-    def solve(self, posiform: Posiform, **params: dict) -> str:
-        """"""
-        lines = []
-
-        for term, cons in posiform:
-            if term is None:
-                lines.append(f"{cons:.5f}")
-            else:
-                lines.append(",".join([f"{cons:.5f}", *term]))
-
-        return "\n".join(lines)
-
-
-# Quadratic Unconstrained Binary Optimization
-class qubo(SatAPI):
-
-    ext = "out.json"
-
-    def solve(self, posiform: Posiform, **params: dict) -> str:
-        """"""
-        x, Q, c = posiform.qubo()
-
-        return json.dumps({"x": x, "Q": [list(q) for q in Q], "c": c}, indent=4)
-
-
-# Gurobi
-class gurobi(SatAPI):
-    ## https://www.cvxpy.org/tutorial/advanced/index.html#mixed-integer-programs
-
-    ext = "out.json"
-
-    requires = ["gurobipy"]
-
-    def solve(self, posiform: Posiform, **params: dict) -> tuple[dict, float]:
-        """"""
-        import gurobipy as gp
-
-        # Retrieve QUBO
-        x, Q, c = posiform.qubo()
-
-        # Create a new model
-        model = gp.Model("MIP")
-
-        X = model.addMVar(len(x), vtype=gp.GRB.BINARY, name="")
-
-        model.setMObjective(Q, None, 0.0, X, X, None, sense=gp.GRB.MINIMIZE)
-
-        try:
-            with devnull:
-                model.optimize()
-
-            y = list(model.getVars())
-
-            s = {k: int(y[i].x) for k, i in x.items()}
-            e = model.objVal
-
-            return (s, e + c)
-        except gp.GurobiError as error:
-            self.error(f"(Gurobi code {error.errno}) {error}")
-
-# DWave
-class dwave(SatAPI):
-    """"""
-    
-    ext = "out.json"
-
-    requires = ["neal"]
-
-    def solve(self, posiform: Posiform, *, num_reads=1_000, num_sweeps=1_000, **params: dict) -> tuple[dict, float]:
-        """
-        Parameters
-        ----------
-        posiform : Posiform
-            Input Expression
-        params : dict (optional)
-            num_reads : int = 1_000
-            num_sweeps : int = 1_000
-        """
-        import neal
-
-        # Parameter check
-        self.check_params(num_reads=num_reads, num_sweeps=num_sweeps)
-
-        self.warn("D-Wave option currently running local simulated annealing since remote connection to quantum host is unavailable")
-
-        self.log(f"Dwave Parameters: num_reads={num_reads}; num_sweeps={num_sweeps}")
-
-        sampler = neal.SimulatedAnnealingSampler()
-
-        x, Q, c = posiform.qubo()
-
-        sampleset = sampler.sample_qubo(Q, num_reads=num_reads, num_sweeps=num_sweeps)
-
-        y, e, *_ = sampleset.record[0]
-
-        s = {k: int(y[i]) for k, i in x.items()}
-
-        return (s, e + c)
-
-    def check_params(self, **params: dict):
-        if "num_reads" in params:
-            num_reads = params["num_reads"]
-            if not isinstance(num_reads, int) or num_reads <= 0:
-                self.error("Parameter 'num_reads' must be a positive integer")
-        else:
-            self.error("Missing parameter 'num_reads'")
-
-        if "num_sweeps" in params:
-            num_sweeps = params["num_sweeps"]
-            if not isinstance(num_sweeps, int) or num_sweeps <= 0:
-                self.error("Parameter 'num_sweeps' must be a positive integer")
-        else:
-            self.error("Missing parameter 'num_sweeps'")
+    def solve(self, energy: Posiform, **params: dict) -> str:
+        return energy.toJSON()

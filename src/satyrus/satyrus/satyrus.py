@@ -3,6 +3,7 @@ from __future__ import annotations
 
 # Standard Library
 import json
+import importlib.resources as resources
 from pathlib import Path
 
 # Third-Party
@@ -10,7 +11,7 @@ from cstream import stderr
 
 # Local
 from ..error import SatRuntimeError, EXIT_SUCCESS, EXIT_FAILURE
-from ..satlib import Source, Posiform
+from ..satlib import Source, Posiform, package_path
 from ..compiler import SatCompiler
 from ..compiler.instructions import INSTRUCTIONS
 from ..parser import SatParser
@@ -35,6 +36,8 @@ class Satyrus(object):
     └───────────┘
     """
 
+    __cache_path__ = None
+
     def __init__(self, legacy: bool = False):
         """
         Parameters
@@ -54,7 +57,6 @@ class Satyrus(object):
 
         # Compilation Cache
         self.__cache__ = {}
-        self.__cache_path__ = None
 
     @staticmethod
     def _path(path: Path) -> str:
@@ -92,6 +94,7 @@ class Satyrus(object):
             # Empty Energy Equation
             source_list: list[Path] = []
             energy_list: list[Path] = []
+
             for path in paths:
                 path = Path(path)
                 if not path.exists() or not path.is_file():
@@ -148,26 +151,37 @@ class Satyrus(object):
         key = self._path(path)
         return (key in self.__cache__) and (self.__cache__[key]["stat"] == self._stat(path))
 
-    @property
-    def cache_path(self) -> Path:
-        if self.__cache_path__ is None:
-            self.__cache_path__ = Path.cwd().joinpath(".satyrus")
-        return self.__cache_path__
+    @classmethod
+    def cache_path(cls) -> Path:
+        if cls.__cache_path__ is None:
+            cls.__cache_path__ = package_path(fname='.satyrus')
+        return cls.__cache_path__
+        
 
     def load_cache(self):
-        if self.cache_path.exists() and self.cache_path.is_file():
-            with self.cache_path.open(mode="r") as file:
+        if self.cache_path().exists() and self.cache_path().is_file():
+            with self.cache_path().open(mode="r") as file:
                 self.__cache__ = json.load(file)
-        elif not self.cache_path.exists():
-            with self.cache_path.open(mode="w") as file:
-                json.dump({}, file)
+                if self.__cache__ is None:
+                    self.__cache__ = {}
+        elif not self.cache_path().exists():
+            with self.cache_path().open(mode="w") as file:
+                json.dump(None, file)
                 self.__cache__ = {}
         else:
-            raise RuntimeError(f"Unable to load file '{self.cache_path}'")
+            raise RuntimeError(f"Unable to load file '{self.cache_path()}'")
 
     def write_cache(self):
-        with self.cache_path.open(mode="w") as file:
-            json.dump(self.__cache__, file)
+        with self.cache_path().open(mode="w") as file:
+            if self.__cache__:
+                json.dump(self.__cache__, file)
+            else:
+                json.dump(None, file)
+
+    @classmethod
+    def clear_cache(cls):
+        with cls.cache_path().open(mode="w") as file:
+            json.dump({}, file)
 
 
 __all__ = ["Satyrus"]

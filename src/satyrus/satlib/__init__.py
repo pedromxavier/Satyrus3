@@ -1,4 +1,5 @@
-from .main import arange, join, compose, log
+from .main import arange, log
+from .package import package_path
 from .performance import Timing
 from .posiform import Posiform
 from .pythonshell import PythonShell, PythonError
@@ -7,9 +8,8 @@ from .stack import Queue, Stack
 
 __all__ = [
     "arange",
-    "join",
     "log",
-    "compose",
+    "package_path",
     "Timing",
     "Posiform",
     "PythonShell",

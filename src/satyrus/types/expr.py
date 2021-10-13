@@ -11,7 +11,7 @@ from functools import reduce
 # Local
 from .base import SatType, MetaSatType
 from .number import Number
-from ..satlib import Source, join, Posiform
+from ..satlib import Source, Posiform
 from ..symbols import (
     T_IDX,
     T_AND,
@@ -201,13 +201,13 @@ class Expr(tuple, SatType, metaclass=MetaSatType):
 
     FORMAT_FUNCTIONS = {
         ## Arithmetic
-        T_ADD: (lambda head, *tail: (join(f" {head} ", tail))),
-        T_MUL: (lambda head, *tail: (join(f" {head} ", tail))),
+        T_ADD: (lambda head, *tail: f" {head} ".join(tail)),
+        T_MUL: (lambda head, *tail: f" {head} ".join(tail)),
         ## Logical
-        T_AND: (lambda head, *tail: (join(f" {head} ", tail))),
-        T_OR: (lambda head, *tail: (join(f" {head} ", tail))),
+        T_AND: (lambda head, *tail: f" {head} ".join(tail)),
+        T_OR: (lambda head, *tail: f" {head} ".join(tail)),
         ## Indexing
-        T_IDX: (lambda _, *tail: f"{tail[0]}{join('', [f'[{x}]' for x in tail[1:]])}"),
+        T_IDX: (lambda _, *tail: f"{tail[0]}{''.join([f'[{x}]' for x in tail[1:]])}"),
     }
 
     def __str__(self):
@@ -219,10 +219,10 @@ class Expr(tuple, SatType, metaclass=MetaSatType):
         elif self.head in self.FORMAT_SPECIAL:
             return self.FORMAT_SPECIAL[self.head](type(self), self.head, self.tail)
         else:
-            return join(" ", [self.head, *tail])
+            return " ".join([self.head, *tail])
 
     def __repr__(self):
-        return f"Expr({join(', ', self, repr)})"
+        return f"Expr({', '.join(map(repr, self))})"
 
     # -*- Hash Computing -*-
     HASH_COM = lambda h: (lambda *X: hash((h, hash(sum(map(hash, X))))))

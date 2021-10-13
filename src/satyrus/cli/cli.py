@@ -16,11 +16,12 @@ from gettext import gettext
 from cstream import Stream, stdlog, stdwar, stderr, stdout
 
 ## Local
-from .help import HELP
+from .help import satyrus_help
 from ..api import SatAPI
 from ..error import EXIT_SUCCESS, EXIT_FAILURE
 from ..assets import SAT_BANNER, SAT_CRITICAL
 from ..satlib import Timing, log
+from ..satyrus import Satyrus
 
 
 def load_json(parser, path: Path) -> object:
@@ -90,8 +91,11 @@ class GetVersion(argparse._VersionAction):
     def __call__(self, parser, namespace, values, option_string=None):
         from sys import version_info
 
-        stdout[0] << f"satyrus {__version__} (python {version_info.major}.{version_info.minor})"
-        exit(0)
+        (
+            stdout[0]
+            << f"satyrus {__version__} (python {version_info.major}.{version_info.minor})"
+        )
+        exit(EXIT_SUCCESS)
 
 
 class SetVerbosity(argparse._StoreAction):
@@ -114,23 +118,11 @@ class DebugMode(argparse._StoreTrueAction):
     @ArgParser.enqueue(1)
     @wraps(argparse._StoreTrueAction.__call__)
     def __call__(self, parser, namespace, values, option_string=None):
-        argparse._StoreTrueAction.__call__(self, parser, namespace, values, option_string)
+        argparse._StoreTrueAction.__call__(
+            self, parser, namespace, values, option_string
+        )
         setattr(namespace, "verbose", 3)
         Stream.set_lvl(3)
-
-
-class IncludeSatAPI(argparse._StoreAction):
-    @wraps(argparse._StoreAction.__init__)
-    def __init__(self, *args, **kwargs):
-        argparse._StoreAction.__init__(self, *args, **kwargs)
-
-    @ArgParser.enqueue(2)
-    @wraps(argparse._StoreAction.__call__)
-    def __call__(self, parser, namespace, values, option_string=None):
-        argparse._StoreAction.__call__(self, parser, namespace, values, option_string)
-        fname = getattr(namespace, self.dest)
-        if fname is not None:
-            SatAPI.include(str.strip(fname))
 
 
 class SetSolver(argparse._StoreAction):
@@ -144,7 +136,9 @@ class SetSolver(argparse._StoreAction):
         argparse._StoreAction.__call__(self, parser, namespace, values, option_string)
         solver = str.strip(getattr(namespace, self.dest))
         if solver not in SatAPI.options():
-            parser.error(f"Invalid solver choice '{solver}' (choose from {SatAPI.options()!r})")
+            parser.error(
+                f"Invalid solver choice '{solver}' (choose from {SatAPI.options()!r})"
+            )
 
 
 class readParams(argparse._StoreAction):
@@ -169,7 +163,9 @@ class readParams(argparse._StoreAction):
         if isinstance(params, dict):
             setattr(namespace, self.dest, params)
         else:
-            parser.error(f"In '{params_path}':\nParameter object must be mapping, not '{type(params)}'")
+            parser.error(
+                f"In '{params_path}':\nParameter object must be mapping, not '{type(params)}'"
+            )
 
 
 class SatCLI:
@@ -189,16 +185,21 @@ class SatCLI:
     """
 
     @classmethod
-    def infer_output(cls, solver: SatAPI.SatAPISolver, args: argparse.Namespace, answer: tuple[dict, float] | str | object) -> tuple[str, str]:
+    def infer_output(
+        cls,
+        ext: str,
+        args: argparse.Namespace,
+        answer: tuple[dict, float] | str | object,
+    ) -> tuple[str, str]:
         if answer is None:
             exit(EXIT_FAILURE)
 
         if SatAPI.complete(answer):
             answer = json.dumps({"solution": answer[0], "energy": answer[1]}, indent=4)
-            output = f"{Path(args.source[0]).stem}.{solver.ext}"
+            output = f"{Path(args.source[0]).stem}.out.json"
         else:
             answer = str(answer)
-            output = f"{Path(args.source[0]).stem}.{solver.ext}"
+            output = f"{Path(args.source[0]).stem}.{ext}"
 
         if args.output is not None:
             output = args.output
@@ -207,33 +208,25 @@ class SatCLI:
 
     @classmethod
     def run(cls, argv: list = None):
-        """
-        Parameters
-        ----------
+        """ """
 
-        source : str
-            Path to source code.
-        -o, --out : str
-            Output Destination.
-        --legacy : bool
-            If True, uses the legacy parser.
-        -v, --verbose : int
-            Compiler verbosity level.
-        -d, --debug : bool
-            If True, enables debug mode.
-        -a, --api : str
-            If present, include solver interfaces defined in python file.
-        -p, --params : str
-            Path to JSON file containing parameters for passing to Solver API.
-        """
+        # -*- Set base output verbosity level -*-
+        Stream.set_lvl(1)
 
-        parser = ArgParser(prog="satyrus", description=__doc__.format(version=__version__))
+        # -*- Load Interfaces -*-
+        SatAPI._load()
+
+        parser = ArgParser(
+            prog="satyrus", description=__doc__.format(version=__version__)
+        )
 
         ## Mandatory - Source file path
-        parser.add_argument("source", help=HELP["source"], nargs="+")
+        parser.add_argument("source", help=satyrus_help("source"), nargs="+")
 
         # Optional - Compiler Version
-        parser.add_argument("--version", help=HELP["version"], action=GetVersion)
+        parser.add_argument(
+            "--version", help=satyrus_help("version"), action=GetVersion
+        )
 
         ## Optional - Compiler Verbosity
         parser.add_argument(
@@ -243,15 +236,17 @@ class SatCLI:
             dest="verbose",
             choices=[0, 1, 2, 3],
             default=1,
-            help=HELP["verbose"],
+            help=satyrus_help("verbose"),
             action=SetVerbosity,
         )
 
         # Optional - Debug Mode
-        parser.add_argument("-d", "--debug", dest="debug", help=argparse.SUPPRESS, action=DebugMode)
+        parser.add_argument(
+            "-d", "--debug", dest="debug", help=argparse.SUPPRESS, action=DebugMode
+        )
 
         # Optional - Augmented API
-        parser.add_argument("-a", "--api", type=str, dest="api", help=HELP["api"], action=IncludeSatAPI)
+        parser.add_argument("-a", "--answer", type=str, help=satyrus_help("answer"))
 
         # Optional - Solver Option
         parser.add_argument(
@@ -259,9 +254,18 @@ class SatCLI:
             "--solver",
             type=str,
             dest="solver",
-            help=HELP["solver"],
-            default="text",
+            help=satyrus_help("solver"),
+            default="default",
             action=SetSolver,
+        )
+
+        # Optional - Solver Option
+        parser.add_argument(
+            "-c",
+            "--clear",
+            dest="clear",
+            help=satyrus_help("clear"),
+            action="store_true",
         )
 
         # Optional - Output File
@@ -270,21 +274,36 @@ class SatCLI:
             "--output",
             type=str,
             dest="output",
-            help=HELP["output"],
+            help=satyrus_help("output"),
             action="store",
         )
 
         # Optional - Legacy Syntax
-        parser.add_argument("-l", "--legacy", dest="legacy", action="store_true", help=HELP["legacy"])
+        parser.add_argument(
+            "-l",
+            "--legacy",
+            dest="legacy",
+            action="store_true",
+            help=satyrus_help("legacy"),
+        )
 
         # Optional - Timing Report
-        parser.add_argument("-r", "--report", dest="report", action="store_true", help=HELP["report"])
+        parser.add_argument(
+            "-r",
+            "--report",
+            dest="report",
+            action="store_true",
+            help=satyrus_help("report"),
+        )
 
         # Optional - Solver parameters
-        parser.add_argument("-p", "--params", dest="params", help=HELP["params"], action=readParams)
-
-        # Set base output verbosity level
-        Stream.set_lvl(1)
+        parser.add_argument(
+            "-p",
+            "--params",
+            dest="params",
+            help=satyrus_help("params"),
+            action=readParams,
+        )
 
         if argv is None:
             args = parser.parse_args()
@@ -292,7 +311,10 @@ class SatCLI:
             args = parser.parse_args(argv)
 
         # Exhibits Compiler Command line arguments
-        stdlog[3] << f'Command line args:\n{";".join(f"{k}={v!r}" for k, v in vars(args).items())}'
+        (
+            stdlog[3]
+            << f'Command line args:\n{";".join(f"{k}={v!r}" for k, v in vars(args).items())}'
+        )
 
         # Warning: Debug mode
         if args.debug:
@@ -302,27 +324,41 @@ class SatCLI:
         if args.legacy:
             stdwar[1] << f"Warning: Parser is running in legacy mode."
 
+        # Waning: Clear Cache
+        if args.clear:
+            Satyrus.clear_cache()
+            stdwar[1] << f"Warning: Cache Cleared."
+
         try:
             # Launch API
-            solver = SatAPI(*args.source, legacy=args.legacy)[args.solver]
+            api = SatAPI(*args.source, legacy=args.legacy)
 
             # Solve in desired way
             if args.params is None:
-                answer: tuple[dict, float] | str | object = solver.solve()
+                params = {"$solver": args.solver}
             else:
-                answer: tuple[dict, float] | str | object = solver.solve(**args.params)
+                params = {"$solver": args.solver, **args.params}
+
+            answer: tuple[dict, float] | str | object = api(**params)
+
+            ext: str = api.extension(args.solver)
 
             # Retrieve Output Destination
-            args.output, answer = cls.infer_output(solver, args, answer)
+            args.output, answer = cls.infer_output(ext, args, answer)
 
-            with open(args.output, mode="w") as file:
+            with open(args.output, mode="w", encoding="utf8") as file:
                 file.write(answer)
 
             # Report
             if args.report:
                 Timing.timer.show_report(level=0)
 
+            
+
             exit(EXIT_SUCCESS)
+        except MemoryError as exc:
+            stderr[0] << exc
+            exit(EXIT_FAILURE)
         except RuntimeError as exc:
             stderr[0] << exc
             exit(EXIT_FAILURE)

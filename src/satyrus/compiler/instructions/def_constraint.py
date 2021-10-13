@@ -72,11 +72,17 @@ def def_constraint(
             target=constype,
         )
 
-    if str(constype) == CONS_OPT and level is not None:
-        compiler << SatTypeError("Invalid penalty level for optimality constraint.", target=level)
+    if str(constype) == CONS_OPT:
+        if level is None:
+            pass
+        elif (level < 0 or not level.is_int):
+            compiler << SatValueError("Penalty level must be a positive integer", target=level)
 
-    if str(constype) == CONS_INT and (level < 0 or not level.is_int):
-        compiler << SatValueError(f"Penalty level must be a positive integer", target=level)
+    if str(constype) == CONS_INT:
+        if level is None:
+            compiler << SatValueError(f"A Penalty level must be given to every Integrity Constraint", target=name)
+        elif (level < 0 or not level.is_int):
+            compiler << SatValueError(f"Penalty level must be a positive integer", target=level)
 
     compiler.checkpoint()
 

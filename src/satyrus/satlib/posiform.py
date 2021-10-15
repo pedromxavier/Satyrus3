@@ -102,8 +102,8 @@ class Posiform(dict):
 
             for term, cons in self:
                 if term is None:
-                    if term in posiform:
-                        posiform[term] += cons
+                    if None in posiform:
+                        posiform[None] += cons
                     else:
                         posiform[term] = cons
                     continue
@@ -117,7 +117,7 @@ class Posiform(dict):
                     if isinstance(c, str):
                         if x in term:
                             term -= {x}
-                            term += {c}
+                            term |= {c}
                     elif isinstance(c, numbers.Real):
                         if x in term:
                             term -= {x}
@@ -125,14 +125,15 @@ class Posiform(dict):
                     else:
                         raise TypeError(f"Evaluation point coordinates must be either real numbers ('int', 'float') or variables ('str'), not '{type(c)}'")
 
-                    if not term:
-                        posiform[None] = cons
-                        break
-
-                    if term in posiform:
-                        posiform[term] += cons
+                if not term:
+                    if None in posiform:
+                        posiform[None] += cons
                     else:
-                        posiform[term] = cons
+                        posiform[None] = cons
+                elif term in posiform:
+                    posiform[term] += cons
+                else:
+                    posiform[term] = cons
 
             return posiform
         else:
@@ -354,29 +355,28 @@ class Posiform(dict):
         return self.__class__
 
     def toMiniJSON(self) -> str:
-        return json.dumps([[k if k is None else " ".join(k), v] for k, v in self])
+        return json.dumps({("" if k is None else " ".join(sorted(k))): v for k, v in self})
 
     @classmethod
     def fromMiniJSON(cls, data: str) -> Posiform:
+        """"""
         json_data = json.loads(data)
 
         buffer = {}
 
-        if not isinstance(json_data, list):
-            raise json.decoder.JSONDecodeError("Data must be of Array type (Python list)", data, 0)
+        if not isinstance(json_data, dict):
+            raise json.decoder.JSONDecodeError("Data must be of Object type (Python dict)", data, 0)
         
-        for item in json_data:
-            if not isinstance(item, list):
-                raise json.decoder.JSONDecodeError("Items must be of Array type (Python list)", data, 0)
-            elif len(item) != 2:
-                raise json.decoder.JSONDecodeError("Items must contain two entries", data, 0)
-            elif item[0] is not None and not isinstance(item[0], str):
-                raise json.decoder.JSONDecodeError("Items 1st entry must be of String type (Python str)", data, 0)
-            elif not isinstance(item[1], (int, float)):
-                raise json.decoder.JSONDecodeError("Items 2nd entry must be of Number type (Python float)", data, 0)
+        for term, cons in json_data.items():
+            if not isinstance(cons, (int, float)):
+                raise json.decoder.JSONDecodeError("Constants must be of Number type (Python int, float)", data, 0)
             else:
-                key = tuple(item[0].split(" ")) if item[0] is not None else None
-                val = float(item[1])
+                if term != "":
+                    key = frozenset(term.split(" "))
+                else:
+                    key = None
+                val = float(cons)
+
                 if key in buffer:
                     buffer[key] += val
                 else:
@@ -391,6 +391,7 @@ class Posiform(dict):
 
     @classmethod
     def fromJSON(cls, data: str) -> Posiform:
+        """"""
         json_data = json.loads(data)
 
         buffer = {}
@@ -451,7 +452,7 @@ class Posiform(dict):
                     Q[i, j] += a
                     Q[j, i] += a
                 else:
-                    raise ValueError("Degree reduction failed.")
+                    raise RuntimeError("Degree reduction failed.")
         return x, Q, c
 
 

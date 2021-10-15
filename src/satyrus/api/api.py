@@ -112,11 +112,7 @@ class SatAPI(metaclass=MetaSatAPI):
             energy: Posiform | None = None
 
         if (energy is not None) and (guess is not None):
-            print(f"GUESS {dict(guess)}\n\n")
-
-            print(f"ENERGY {dict(energy)}\n\n")
             energy = energy(guess)
-            print(f"ENERGY {dict(energy)}\n\n")
 
         self.energy(energy)
 

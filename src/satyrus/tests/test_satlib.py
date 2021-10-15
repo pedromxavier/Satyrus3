@@ -1,14 +1,12 @@
 # Future Imports
 from __future__ import annotations
-from typing import Type
-
-# Third-Party
-import json
-import numpy as np
-import pytest
 
 # Standard Library
-import random
+import json
+
+# Third-Party
+import numpy as np
+import pytest
 
 # Local
 from ..satlib import Posiform
@@ -100,6 +98,21 @@ class TestPosiform:
         ]
 
     @pytest.fixture
+    def fix_call(self) -> list[tuple[Posiform, dict, Posiform]]:
+        return [
+            (Posiform({("x", "y"): 1.0, ("z", "w"): -1.0}), {"x": 2.0, "w": 3.0}, Posiform({("y",): 2.0, ("z",): -3.0}), None),
+            (Posiform({("x", "y"): 1.0, ("z", "w"): -1.0}), 5.0, None, TypeError),
+            (Posiform({("x", "y"): 1.0, ("z", "w"): -1.0}), {5: 1.0}, None, TypeError),
+            (Posiform({("x", "y"): 1.0, ("z", "w"): -1.0}), {"x": 1j}, None, TypeError),
+            (Posiform({("x", "y"): 1.0, ("z", "w"): -1.0}), {"x": "u", "w": 3.0}, Posiform({("u", "y",): 1.0, ("z",): -3.0}), None),
+            (Posiform({("x", "y"): 1.0, None: -1.0}), {"x": 2.0, "w": 3.0}, Posiform({("y",): 2.0, None: -1.0}), None),
+            (Posiform({("x",): 1.0, None: -1.0}), {"x": 2.0}, Posiform({None: 1.0}), None),
+            (Posiform({("x",): 1.0, None: -1.0}), {"y": 2.0}, Posiform({("x",): 1.0, None: -1.0}), None),
+            (Posiform({("x",): 1.0, ("y",): 1.0, None: -1.0}), {"x": 2.0, "y": 3.0}, Posiform({None: 4.0}), None),
+            (Posiform({("x", "w"): 1.0, ("y", "w"): 1.0, None: -1.0}), {"x": 2.0, "y": 3.0}, Posiform({("w",): 5.0, None: -1.0}), None),
+        ]
+
+    @pytest.fixture
     def fix_qubo(self) -> list:
         return [(Posiform({("x", "y", "z"): 1.0}), {"$1": 0, "x": 1, "y": 2, "z": 3}, np.array([[-1, 1, 1, 1], [1, -1, 1, 1], [1, 1, -1, 1], [1, 1, 1, -1]], dtype=float), 1.0)]
 
@@ -116,6 +129,30 @@ class TestPosiform:
             (r'{"term": ["x", "y"], "cons": "3.0"}', None, r'{"term": ["x", "y"], "cons": "3.0"}', json.decoder.JSONDecodeError),
         ]
 
+    @pytest.fixture
+    def fix_json_indent(self) -> list:
+        return [
+            (r'[{"term": ["x", "y"], "cons": 1.0}]', Posiform({("x", "y"): 1.0}), '[\n{\n"term": [\n"x",\n"y"\n],\n"cons": 1.0\n}\n]', None),
+            (r'[{"term": ["x", "y"], "cons": 1.0}, {"term": ["x", "y"], "cons": 3.0}]', Posiform({("x", "y"): 4.0}), '[\n{\n"term": [\n"x",\n"y"\n],\n"cons": 4.0\n}\n]', None),
+            (r'[[{"term": ["x", "y"], "cons": 3.0}]]', None, r'[[{"term": ["x", "y"], "cons": 3.0}]]', json.decoder.JSONDecodeError),
+            (r'[{"term": ["x", "y"], "tons": 3.0}]', None, r'[{"term": ["x", "y"], "tons": 3.0}]', json.decoder.JSONDecodeError),
+            (r'[{"term": 2.0, "cons": 3.0}]', None, r'[{"term": 2.0, "cons": 3.0}]', json.decoder.JSONDecodeError),
+            (r'[{"term": ["x", 3.0], "cons": 3.0}]', None, r'[{"term": ["x", 3.0], "cons": 3.0}]', json.decoder.JSONDecodeError),
+            (r'[{"term": ["x", "y"], "cons": "3.0"}]', None, r'[{"term": ["x", "y"], "cons": "3.0"}]', json.decoder.JSONDecodeError),
+            (r'{"term": ["x", "y"], "cons": "3.0"}', None, r'{"term": ["x", "y"], "cons": "3.0"}', json.decoder.JSONDecodeError),
+        ]
+
+    @pytest.fixture
+    def fix_mini_json(self) -> list:
+        return [
+            (r'{"x y": 1.0}', Posiform({("x", "y"): 1.0}), r'{"x y": 1.0}', None),
+            (r'{"x y": 1.0, "x z": 3.0}', Posiform({("x", "y"): 1.0, ("x", "z"): 3.0}), r'{"x y": 1.0, "x z": 3.0}', None),
+            (r'[{"x y": 3.0}]', None, None, json.decoder.JSONDecodeError),
+            (r'{"x": [1.0]}', None, None, json.decoder.JSONDecodeError),
+            (r'{"x y": 3.0, "y x": -2.0}', Posiform({("x", "y"): 1.0}), r'{"x y": 1.0}', None),
+            (r'{"x y": 3.0, "": -2.0}', Posiform({("x", "y"): 3.0, None: -2.0}), r'{"x y": 3.0, "": -2.0}', None),
+        ]
+
     def test_json(self, fix_json):
         for s, t, r, exc in fix_json:
             if exc is None:
@@ -125,6 +162,34 @@ class TestPosiform:
                 with pytest.raises(exc):
                     assert Posiform.fromJSON(s) == t
                     assert r == t.toJSON()
+
+    def test_mini_json(self, fix_mini_json):
+        for s, t, r, exc in fix_mini_json:
+            if exc is None:
+                assert Posiform.fromMiniJSON(s) == t
+                assert r == t.toMiniJSON()
+            else:
+                with pytest.raises(exc):
+                    assert Posiform.fromMiniJSON(s) == t
+                    assert r == t.toMiniJSON()
+    
+    def test_json_indent(self, fix_json_indent):
+        for s, t, r, exc in fix_json_indent:
+            if exc is None:
+                assert Posiform.fromJSON(s) == t
+                assert r == t.toJSON(indent=0)
+            else:
+                with pytest.raises(exc):
+                    assert Posiform.fromJSON(s) == t
+                    assert r == t.toJSON(indent=0)
+
+    def test_call(self, fix_call):
+        for p, x, q, exc in fix_call:
+            if exc is None:
+                assert p(x) == q
+            else:
+                with pytest.raises(exc):
+                    assert p(x) == q
 
     # -*- Tests -*-
     def test_init(self, fix_init):

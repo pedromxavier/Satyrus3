@@ -1,63 +1,74 @@
 """
 """
-## Standard Library
-import itertools as it
+# Standard Library
 
-## Third-Party
+# Third-Party
 from ply import lex, yacc
+from cstream import stderr
 
-from cstream import stderr, stdout
-
-## Local
+# Local
 from ..satlib import Source, Stack, PythonShell, PythonError, Timing
-from ..error import SatParserError, SatLexerError, SatTypeError, SatSyntaxError, SatValueError, SatPythonError, SatExit
+from ..error import (
+    EXIT_FAILURE,
+    SatParserError,
+    SatSyntaxError,
+    SatPythonError,
+    SatExit,
+)
 from ..types import Expr, Var, Number, String, SatType, PythonObject
-from ..symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT, CMD_PYTHON
+from ..symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
 from ..symbols import T_IDX, T_ADD, T_NEG
+
 
 def regex(pattern: str):
     def decor(callback):
         callback.__doc__ = pattern
         return callback
+
     return decor
+
 
 class SatLexer(object):
 
     ## List of token names.
     tokens = (
-        'FORALL', 'EXISTS', 'UNIQUE', # quantifiers
-
-        'NOT', 'AND', 'OR', 'XOR', # logical
-
-        'IMP', 'RIMP', 'IFF', # extended logical
-
-        'CONFIG',
-
-        'ENDL',
-
-        'COMMA',
-
-        'ASSIGN',
-
-        'EQ', # equal
-        'GT', # greater than
-        'LT', # less than
-
-        'GE', # greater or equal
-        'LE', # less or equal
-
-        'NE', # not equal
-
-        'MUL', 'DIV', 'MOD', 'ADD', 'SUB', # arithmetic
-
-        'DOTS',
-
-        'LBRA', 'RBRA', 'LPAR', 'RPAR', 'LCUR', 'RCUR',
-
-        'NAME', 'NUMBER', 'STRING',
-
-        'PYTHON'
-        )
+        "FORALL",
+        "EXISTS",
+        "UNIQUE",  # quantifiers
+        "NOT",
+        "AND",
+        "OR",
+        "XOR",  # logical
+        "IMP",
+        "RIMP",
+        "IFF",  # extended logical
+        "CONFIG",
+        "ENDL",
+        "COMMA",
+        "ASSIGN",
+        "EQ",  # equal
+        "GT",  # greater than
+        "LT",  # less than
+        "GE",  # greater or equal
+        "LE",  # less or equal
+        "NE",  # not equal
+        "MUL",
+        "DIV",
+        "MOD",
+        "ADD",
+        "SUB",  # arithmetic
+        "DOTS",
+        "LBRA",
+        "RBRA",
+        "LPAR",
+        "RPAR",
+        "LCUR",
+        "RCUR",
+        "NAME",
+        "NUMBER",
+        "STRING",
+        "PYTHON",
+    )
 
     def __init__(self, source, **kwargs):
         self.lexer = lex.lex(object=self, **kwargs)
@@ -75,120 +86,121 @@ class SatLexer(object):
         raise SatExit(code)
 
     def interrupt(self):
-        """
-        """
+        """"""
         while self.error_stack:
             error = self.error_stack.popleft()
             stderr[0] << error
-        else:
-            self.exit(1)
+        
+        self.exit(EXIT_FAILURE)
 
     def checkpoint(self):
-        """
-        """
-        if self.error_stack: self.interrupt()
+        """"""
+        if self.error_stack:
+            self.interrupt()
 
     reserved = {
-        'forall' : 'FORALL',
-        'exists' : 'EXISTS',
-        'unique' : 'UNIQUE',
-        'or' : 'OR',
-        'xor': 'XOR',
-        'and': 'AND',
-        'iff': 'IFF',
-        'imp': 'IMP',
-        'not': 'NOT',
+        "forall": "FORALL",
+        "exists": "EXISTS",
+        "unique": "UNIQUE",
+        "wta": "UNIQUE",
+        "sum": "EXISTS",
+        "or": "OR",
+        "xor": "XOR",
+        "and": "AND",
+        "iff": "IFF",
+        "imp": "IMP",
+        "not": "NOT",
     }
 
     op_map = {
-        'FORALL' : '@',
-        'EXISTS' : '$',
-        'UNIQUE' : '$!',
-        'OR' : '|',
-        'XOR': '^',
-        'AND': '&',
-        'IFF': '<->',
-        'IMP': '->',
-        'NOT': '~',
+        "FORALL": "@",
+        "EXISTS": "$",
+        "UNIQUE": "$!",
+        "OR": "|",
+        "XOR": "^",
+        "AND": "&",
+        "IFF": "<->",
+        "IMP": "->",
+        "NOT": "~",
     }
 
     # Regular expression rules for tokens
-    t_DOTS = r'\:'
+    t_DOTS = r"\:"
 
-    t_LBRA = r'\['
-    t_RBRA = r'\]'
+    t_LBRA = r"\["
+    t_RBRA = r"\]"
 
-    t_LPAR = r'\('
-    t_RPAR = r'\)'
+    t_LPAR = r"\("
+    t_RPAR = r"\)"
 
-    t_LCUR = r'\{'
-    t_RCUR = r'\}'
+    t_LCUR = r"\{"
+    t_RCUR = r"\}"
 
-    t_FORALL = r'\@'
-    t_EXISTS = r'\$'
-    t_UNIQUE = r'\$\!'
+    t_FORALL = r"\@"
+    t_EXISTS = r"\$"
+    t_UNIQUE = r"\$\!"
 
-    t_NOT = r'\~'
+    t_NOT = r"\~"
 
-    t_AND = r'\&'
+    t_AND = r"\&"
 
-    t_OR = r'\|'
+    t_OR = r"\|"
 
-    t_XOR = r'\^'
+    t_XOR = r"\^"
 
-    t_IMP = r'\-\>'
+    t_IMP = r"\-\>"
 
-    t_RIMP = r'\<\-'
+    t_RIMP = r"\<\-"
 
-    t_IFF = r'\<\-\>'
+    t_IFF = r"\<\-\>"
 
-    t_COMMA = r'\,'
+    t_COMMA = r"\,"
 
-    t_DIV = r'\/'
+    t_DIV = r"\/"
 
-    t_MOD = r'\%'
+    t_MOD = r"\%"
 
-    t_MUL = r'\*'
+    t_MUL = r"\*"
 
-    t_ADD = r'\+'
+    t_ADD = r"\+"
 
-    t_SUB = r'\-'
+    t_SUB = r"\-"
 
-    t_ENDL = r'\;'
+    t_ENDL = r"\;"
 
-    t_ASSIGN = r'\='
+    t_ASSIGN = r"\="
 
-    t_EQ = r'\=\='
-    t_GT = r'\>'
-    t_LT = r'\<'
+    t_EQ = r"\=\="
+    t_GT = r"\>"
+    t_LT = r"\<"
 
-    t_GE = r'\>\='
-    t_LE = r'\<\='
+    t_GE = r"\>\="
+    t_LE = r"\<\="
 
-    t_NE = r'\!\='
+    t_NE = r"\!\="
 
-    t_CONFIG = r'\?'
+    t_CONFIG = r"\?"
 
-    @regex(r'\"(\\.|[^\"])*\"')
+    @regex(r"\"(\\.|[^\"])*\"")
     def t_STRING(self, t):
-        setattr(t, 'string', t.value)
+        setattr(t, "string", t.value)
         t.value = String(t.value[1:-1])
         return t
 
-    @regex(r'\`(\\.|[^\`])*\`')
+    @regex(r"\`(\\.|[^\`])*\`")
     def t_PYTHON(self, t):
-        setattr(t, 'string', t.value)
+        setattr(t, "string", t.value)
         t.value = str(t.value[1:-1])
         return t
 
     @regex(r"\n")
-    def t_newline(self, t):
+    def t_newline(self, _t):
         self.lexer.lineno += 1
         return None
 
     @regex(r"[a-zA-Z_][a-zA-Z0-9_]*")
     def t_NAME(self, t):
-        setattr(t, 'string', t.value)
+        setattr(t, "string", t.value)
         if t.value in self.reserved:
             t.type = self.reserved[t.value]
             t.value = self.op_map[t.type]
@@ -199,65 +211,54 @@ class SatLexer(object):
 
     @regex(r"[0-9]*\.?[0-9]+([Ee][-+]?[0-9]+)?")
     def t_NUMBER(self, t):
-        setattr(t, 'string', t.value)
+        setattr(t, "string", t.value)
         t.value = Number(t.value, source=self.source, lexpos=t.lexpos)
         return t
 
     # String containing ignored characters between tokens
-    t_ignore = ' \t'
-    t_ignore_COMMENT = r'\#.*'
+    t_ignore = " \t"
+    t_ignore_COMMENT = r"\#.*"
 
-    @regex(r'\#\{[\s\S]*?\}\#')
+    @regex(r"\#\{[\s\S]*?\}\#")
     def t_ignore_MULTICOMMENT(self, t):
-        self.lexer.lineno += str(t.value).count('\n')
+        self.lexer.lineno += str(t.value).count("\n")
         return None
 
     def t_error(self, t):
         stderr << f"Unknown token '{t.value}' at line {t.lineno}"
         if t:
             stderr << f"Syntax Error at line {t.lineno}:"
-            stderr << self.source.lines[t.lineno-1]
+            stderr << self.source.lines[t.lineno - 1]
             stderr << f'{" " * (self.chrpos(t.lineno, t.lexpos))}^'
         else:
             stderr << "Unexpected End Of File."
 
     def chrpos(self, lineno, lexpos):
-        return (lexpos - self.source.table[lineno - 1] + 1)
+        return lexpos - self.source.table[lineno - 1] + 1
+
 
 class SatParser(object):
 
     tokens = SatLexer.tokens
 
     precedence = (
-
-        ('left', 'ADD', 'SUB'),
-        ('left', 'MUL', 'DIV', 'MOD'),
-
-        ('left', 'IMP', 'RIMP', 'IFF'),
-
-        ('left', 'XOR', 'OR'),
-        ('left', 'AND'),
-        ('left', 'NOT'),
-
-        ('left', 'EQ', 'NE', 'GE', 'LE', 'GT', 'LT'),
-
-        ('left', 'FORALL', 'EXISTS', 'UNIQUE'),
-
-        ('left', 'DOTS'),
-
-        ('left', 'LBRA', 'RBRA'),
-        ('left', 'LCUR', 'RCUR'),
-        ('left', 'LPAR', 'RPAR'),
-
-        ('left', 'CONFIG'),
-
-        ('left', 'NAME'),
-
-        ('left', 'STRING', 'NUMBER'),
-
-        ('left', 'ENDL'),
-
-        ('left', 'PYTHON')
+        ("left", "ADD", "SUB"),
+        ("left", "MUL", "DIV", "MOD"),
+        ("left", "IMP", "RIMP", "IFF"),
+        ("left", "XOR", "OR"),
+        ("left", "AND"),
+        ("left", "NOT"),
+        ("left", "EQ", "NE", "GE", "LE", "GT", "LT"),
+        ("left", "FORALL", "EXISTS", "UNIQUE"),
+        ("left", "DOTS"),
+        ("left", "LBRA", "RBRA"),
+        ("left", "LCUR", "RCUR"),
+        ("left", "LPAR", "RPAR"),
+        ("left", "CONFIG"),
+        ("left", "NAME"),
+        ("left", "STRING", "NUMBER"),
+        ("left", "ENDL"),
+        ("left", "PYTHON"),
     )
 
     def __init__(self):
@@ -282,29 +283,28 @@ class SatParser(object):
         raise SatExit(code)
 
     def interrupt(self):
-        """
-        """
+        """"""
         while self.error_stack:
             stderr[0] << self.error_stack.popleft()
-        else:
-            self.exit(1)
+
+        self.exit(EXIT_FAILURE)
 
     def checkpoint(self):
-        """
-        """
-        if self.error_stack: self.interrupt()
+        """"""
+        if self.error_stack:
+            self.interrupt()
 
     @Timing.timer(level=2, section="Parser.parse")
     def parse(self, source: Source):
         ## Input
         self.source = source
-        
+
         ## Initialize Lexer
         self.lexer = SatLexer(self.source)
 
         ## Initialize Parser
         self.parser = yacc.yacc(module=self, debug=False)
-        
+
         ## Run Parser
         if not self.source:
             self << SatSyntaxError("Empty File.", target=self.source.eof)
@@ -316,63 +316,62 @@ class SatParser(object):
 
         ## Output
         return self.bytecode
-            
-    def run(self, code : list):
+
+    def run(self, code: list):
         self.bytecode = [cmd for cmd in code if cmd is not None]
 
     def cast_type(self, x: object, type_caster: type):
-        """ Casts type according to `type_caster(x: object) -> y: object`
-            copying `lexinfo` data, if available.
+        """Casts type according to `type_caster(x: object) -> y: object`
+        copying `lexinfo` data, if available.
         """
-        if hasattr(x, 'lexinfo'):
-            lexinfo = getattr(x, 'lexinfo')
+        if hasattr(x, "lexinfo"):
+            lexinfo = getattr(x, "lexinfo")
             y = type_caster(x)
-            setattr(y, 'lexinfo', lexinfo)
+            setattr(y, "lexinfo", lexinfo)
             return y
         else:
             return type_caster(x)
 
     def p_start(self, p):
-        """ start : code
-        """
+        """start : code"""
         self.run(p[1])
 
     def p_code(self, p):
-        """ code : code stmt
-                 | stmt
+        """code : code stmt
+        | stmt
         """
         if len(p) == 3:
             p[0] = [*p[1], p[2]]
         else:
-            p[0] = [ p[1],]
+            p[0] = [
+                p[1],
+            ]
 
     def p_stmt(self, p):
-        """ stmt : sys_config ENDL
-                 | def_constant ENDL
-                 | def_array ENDL
-                 | def_constraint ENDL
-                 | cmd_python ENDL
+        """stmt : sys_config ENDL
+        | def_constant ENDL
+        | def_array ENDL
+        | def_constraint ENDL
+        | cmd_python ENDL
         """
         p[0] = p[1]
 
     def p_cmd_python(self, p):
-        """ cmd_python : PYTHON
-        """
+        """cmd_python : PYTHON"""
         ## Executes python command
         self.python_shell(p[1], evaluate=False)
 
         p[0] = None
 
     def p_sys_config(self, p):
-        """ sys_config : CONFIG NAME DOTS sys_config_args
-        """
+        """sys_config : CONFIG NAME DOTS sys_config_args"""
         name = p[2]
         args = p[4]
         p[0] = (SYS_CONFIG, name, args)
 
     def p_sys_config_args(self, p):
-        """ sys_config_args : sys_config_args COMMA sys_config_arg
-                            | sys_config_arg
+        """sys_config_args : sys_config_args COMMA sys_config_arg
+        | sys_config_arg
         """
         if len(p) == 4:
             p[0] = [*p[1], p[3]]
@@ -380,37 +379,33 @@ class SatParser(object):
             p[0] = [p[1]]
 
     def p_sys_config_arg(self, p):
-        """ sys_config_arg : NUMBER
-                           | STRING
+        """sys_config_arg : NUMBER
+        | STRING
         """
         p[0] = p[1]
 
     def p_def_constant(self, p):
-        """ def_constant : varname ASSIGN expr
-        """
+        """def_constant : varname ASSIGN expr"""
         p[0] = (DEF_CONSTANT, p[1], p[3])
 
     def p_literal(self, p):
-        """ literal : constant
-                    | python_literal
-                    | varname
+        """literal : constant
+        | python_literal
+        | varname
         """
         p[0] = p[1]
 
     def p_constant(self, p):
-        """ constant : NUMBER
-        """
+        """constant : NUMBER"""
         p[0] = p[1]
 
     def p_varname(self, p):
-        """ varname : NAME
-        """
+        """varname : NAME"""
         p[0] = Var(p[1], source=self.source, lexpos=p.lexpos(1))
 
     def p_python_literal(self, p):
-        """ python_literal : PYTHON
-        """
-        py_code = self.get_arg(p, 1)
+        """python_literal : PYTHON"""
+        py_code = p[1]
 
         try:
             py_object = PythonObject(self.python_shell(str(py_code), evaluate=True))
@@ -418,28 +413,28 @@ class SatParser(object):
             self << SatPythonError(*error.args)
         finally:
             self.checkpoint()
-        
+
         self.source.propagate(py_code, py_object)
 
         p[0] = py_object
 
     def p_def_array(self, p):
-        """ def_array : varname shape ASSIGN array_buffer
-                      | varname shape
+        """def_array : varname shape ASSIGN array_buffer
+        | varname shape
         """
         name = p[1]
         shape = p[2]
 
-        if len(p) == 5: # array declared
+        if len(p) == 5:  # array declared
             buffer = p[4]
-        else: # implicit array
+        else:  # implicit array
             buffer = None
 
         p[0] = (DEF_ARRAY, name, shape, buffer)
 
     def p_shape(self, p):
-        """ shape : shape index
-                  | index
+        """shape : shape index
+        | index
         """
         if len(p) == 3:
             p[0] = (*p[1], p[2])
@@ -447,68 +442,67 @@ class SatParser(object):
             p[0] = (p[1],)
 
     def p_index(self, p):
-        """ index : LBRA expr RBRA
-        """
+        """index : LBRA expr RBRA"""
         p[0] = p[2]
 
     def p_array_buffer(self, p):
-        """ array_buffer : LCUR array RCUR
-                         | python_literal
+        """array_buffer : LCUR array RCUR
+        | python_literal
         """
-        if len(p) == 4: ## default buffer
+        if len(p) == 4:  ## default buffer
             p[0] = p[2]
-        else: ## python literal
+        else:  ## python literal
             p[1]
 
     def p_array(self, p):
-        """ array : array COMMA array_item
-                  | array_item
+        """array : array COMMA array_item
+        | array_item
         """
         if len(p) == 4:
             p[0] = [*p[1], p[3]]
         else:
-            p[0] = [ p[1],]
+            p[0] = [
+                p[1],
+            ]
 
     def p_array_item(self, p):
-        """ array_item : array_index DOTS expr
-        """
+        """array_item : array_index DOTS expr"""
         p[0] = (p[1], p[3])
 
     def p_array_index(self, p):
-        """ array_index : LPAR literal_seq RPAR
-        """
+        """array_index : LPAR literal_seq RPAR"""
         p[0] = p[2]
 
     def p_literal_seq(self, p):
-        """ literal_seq : literal_seq COMMA literal
-                        | literal
+        """literal_seq : literal_seq COMMA literal
+        | literal
         """
         if len(p) == 4:
             p[0] = (*p[1], p[3])
         else:
-            p[0] = ( p[1],)
+            p[0] = (p[1],)
 
     def p_def_constraint(self, p):
-        """ def_constraint : LPAR NAME RPAR varname LBRA literal RBRA DOTS loops expr
-                           | LPAR NAME RPAR varname DOTS loops expr
+        """def_constraint : LPAR NAME RPAR varname LBRA literal RBRA DOTS loops expr
+        | LPAR NAME RPAR varname DOTS loops expr
         """
-        type_= String(p[2], source=self.source, lexpos=p.lexpos(2))
+        type_ = String(p[2], source=self.source, lexpos=p.lexpos(2))
         name = p[4]
-        
+
         if len(p) == 11:
             level = p[6]
             loops = p[9]
-            expr  = p[10]
+            expr = p[10]
         else:
             level = None
             loops = p[6]
-            expr  = p[7]
+            expr = p[7]
 
         p[0] = (DEF_CONSTRAINT, type_, name, loops, expr, level)
 
     def p_loops(self, p):
-        """ loops : loop_stack
-                  |
+        """loops : loop_stack
+        |
         """
         if len(p) == 2:
             p[0] = p[1]
@@ -516,17 +510,19 @@ class SatParser(object):
             p[0] = []
 
     def p_loop_stack(self, p):
-        """ loop_stack : loop_stack loop
-                       | loop
+        """loop_stack : loop_stack loop
+        | loop
         """
         if len(p) == 3:
             p[0] = [*p[1], p[2]]
         else:
-            p[0] = [ p[1],]
+            p[0] = [
+                p[1],
+            ]
 
     def p_loop(self, p):
-        """ loop : quant LCUR varname ASSIGN domain COMMA conditions RCUR
-                 | quant LCUR varname ASSIGN domain RCUR
+        """loop : quant LCUR varname ASSIGN domain COMMA conditions RCUR
+        | quant LCUR varname ASSIGN domain RCUR
         """
         if len(p) == 9:
             p[0] = (p[1], p[3], p[5], p[7])
@@ -534,15 +530,15 @@ class SatParser(object):
             p[0] = (p[1], p[3], p[5], None)
 
     def p_quant(self, p):
-        """ quant : FORALL
-                  | EXISTS
-                  | UNIQUE
+        """quant : FORALL
+        | EXISTS
+        | UNIQUE
         """
         p[0] = p[1]
 
     def p_domain(self, p):
-        """ domain : LBRA expr DOTS expr DOTS expr RBRA
-                   | LBRA expr DOTS expr RBRA
+        """domain : LBRA expr DOTS expr DOTS expr RBRA
+        | LBRA expr DOTS expr RBRA
         """
         if len(p) == 8:
             p[0] = (p[2], p[4], p[6])
@@ -550,74 +546,78 @@ class SatParser(object):
             p[0] = (p[2], p[4], None)
 
     def p_conditions(self, p):
-        """ conditions : conditions COMMA condition
-                       | condition
+        """conditions : conditions COMMA condition
+        | condition
         """
         if len(p) == 4:
             p[0] = [*p[1], p[2]]
         else:
-            p[0] = [p[1],]
+            p[0] = [
+                p[1],
+            ]
 
     def p_condition_expr(self, p):
-        """ condition : expr
-        """
+        """condition : expr"""
         p[0] = p[1]
 
     def p_condition(self, p):
-        """ expr : expr EQ expr
-                 | expr GT expr
-                 | expr LT expr
-                 | expr GE expr
-                 | expr LE expr
-                 | expr NE expr
+        """expr : expr EQ expr
+        | expr GT expr
+        | expr LT expr
+        | expr GE expr
+        | expr LE expr
+        | expr NE expr
         """
         p[0] = Expr(p[2], p[1], p[3], source=self.source, lexpos=p.lexpos(2))
 
     def p_expr(self, p):
-        """ expr : literal
-        """
+        """expr : literal"""
         p[0] = p[1]
 
     def p_expr1(self, p):
-        """ expr : NOT expr
-                 | ADD expr
-                 | SUB expr
+        """expr : NOT expr
+        | ADD expr
+        | SUB expr
         """
         p[0] = Expr(p[1], p[2], source=self.source, lexpos=p.lexpos(1))
 
     def p_expr2(self, p):
-        """ expr : expr AND expr
-                 | expr OR expr
-                 | expr XOR expr
-                 | expr ADD expr
-                 | expr SUB expr
-                 | expr MUL expr
-                 | expr DIV expr
-                 | expr MOD expr
-                 | expr IMP expr
-                 | expr RIMP expr
-                 | expr IFF expr
+        """expr : expr AND expr
+        | expr OR expr
+        | expr XOR expr
+        | expr ADD expr
+        | expr SUB expr
+        | expr MUL expr
+        | expr DIV expr
+        | expr MOD expr
+        | expr IMP expr
+        | expr RIMP expr
+        | expr IFF expr
         """
         if p[2] == T_NEG:
-            p[0] = Expr(T_ADD, p[1], Expr(T_NEG, p[3], source=self.source, lexpos=p.lexpos(2)), source=self.source, lexpos=p.lexpos(2))
+            p[0] = Expr(
+                T_ADD,
+                p[1],
+                Expr(T_NEG, p[3], source=self.source, lexpos=p.lexpos(2)),
+                source=self.source,
+                lexpos=p.lexpos(2),
+            )
         else:
             p[0] = Expr(p[2], p[1], p[3], source=self.source, lexpos=p.lexpos(2))
 
     def p_expr_index(self, p):
-        """ expr : expr LBRA expr RBRA
-        """
+        """expr : expr LBRA expr RBRA"""
         p[0] = Expr(T_IDX, p[1], p[3], source=self.source, lexpos=p.lexpos(2))
 
     def p_expr_par(self, p):
-        """ expr : LPAR expr RPAR
-        """
+        """expr : LPAR expr RPAR"""
         p[0] = p[2]
 
     def p_error(self, t):
         target = SatType()
         if t:
             target.lexinfo = self.source.getlex(t.lexpos)
-            if hasattr(t, 'string'):
+            if hasattr(t, "string"):
                 msg = f"Unexpected Token '{t.string}'"
             else:
                 msg = f"Unexpected Token '{t.value}'"
@@ -628,4 +628,4 @@ class SatParser(object):
         return None
 
     def chrpos(self, lineno: int, lexpos: int):
-        return (lexpos - self.source.table[lineno - 1] + 1)        
+        return lexpos - self.source.table[lineno - 1] + 1

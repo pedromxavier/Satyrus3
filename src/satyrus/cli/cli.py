@@ -152,13 +152,13 @@ class readParams(argparse._StoreAction):
         argparse._StoreAction.__call__(self, parser, namespace, values, option_string)
         params = getattr(namespace, self.dest)
 
-        print("PARAMS:", params)
-
         if params is None:
-            stdwar[1] << "Warning: No solver parameters passed."
+            stdwar[1] << "Warning: No solver parameters passed"
             setattr(namespace, self.dest, {})
 
         params_path = Path(params)
+
+        params: dict = load_json(parser, params_path)
 
         if isinstance(params, dict):
             setattr(namespace, self.dest, params)
@@ -167,6 +167,32 @@ class readParams(argparse._StoreAction):
                 f"In '{params_path}':\nParameter object must be mapping, not '{type(params)}'"
             )
 
+class readGuess(argparse._StoreAction):
+    @wraps(argparse._StoreAction.__init__)
+    def __init__(self, *args, **kwargs):
+        argparse._StoreAction.__init__(self, *args, **kwargs)
+
+    @ArgParser.enqueue(4)
+    @wraps(argparse._StoreAction.__call__)
+    def __call__(self, parser: ArgParser, namespace, values, option_string=None):
+        argparse._StoreAction.__call__(self, parser, namespace, values, option_string)
+        
+        guess_path = Path(getattr(namespace, self.dest))
+
+        guess: dict = load_json(parser, guess_path)
+
+        if guess is None:
+            stdwar[1] << "Warning: No solver guess given"
+        elif not isinstance(guess, dict):
+            parser.error(
+                f"In '{guess_path}':\nGuess object must be mapping, not '{type(guess)}'"
+            )
+        elif not all(v in {0, 1} for v in guess):
+            parser.error(f"In '{guess_path}':\nGuess values must be of type Number (Python int) and binary (0 or 1) ")
+        elif not all(isinstance(k, str) for k in guess):
+            parser.error(f"In '{guess_path}':\nGuess keys must be variables of type String (Python str)")
+
+        setattr(namespace, self.dest, guess)
 
 class SatCLI:
     r"""
@@ -245,9 +271,6 @@ class SatCLI:
             "-d", "--debug", dest="debug", help=argparse.SUPPRESS, action=DebugMode
         )
 
-        # Optional - Augmented API
-        parser.add_argument("-a", "--answer", type=str, help=satyrus_help("answer"))
-
         # Optional - Solver Option
         parser.add_argument(
             "-s",
@@ -305,33 +328,37 @@ class SatCLI:
             action=readParams,
         )
 
+        # Optional - Augmented API
+        parser.add_argument(
+            "-g", "--guess", dest="guess", help=satyrus_help("guess"), action=readGuess
+        )
+
         if argv is None:
             args = parser.parse_args()
         else:
             args = parser.parse_args(argv)
 
         # Exhibits Compiler Command line arguments
-        (
-            stdlog[3]
-            << f'Command line args:\n{";".join(f"{k}={v!r}" for k, v in vars(args).items())}'
-        )
+        stdlog[
+            3
+        ] << f'Command line args:\n{";".join(f"{k}={v!r}" for k, v in vars(args).items())}'
 
         # Warning: Debug mode
         if args.debug:
-            stdwar[1] << f"Warning: Debug mode enabled."
+            stdwar[1] << "Warning: Debug mode enabled."
 
         # Warning: Legacy mode
         if args.legacy:
-            stdwar[1] << f"Warning: Parser is running in legacy mode."
+            stdwar[1] << "Warning: Parser is running in legacy mode."
 
         # Waning: Clear Cache
         if args.clear:
             Satyrus.clear_cache()
-            stdwar[1] << f"Warning: Cache Cleared."
+            stdwar[1] << "Warning: Cache Cleared."
 
         try:
             # Launch API
-            api = SatAPI(*args.source, legacy=args.legacy)
+            api = SatAPI(*args.source, guess=args.guess, legacy=args.legacy)
 
             # Solve in desired way
             if args.params is None:
@@ -352,8 +379,6 @@ class SatCLI:
             # Report
             if args.report:
                 Timing.timer.show_report(level=0)
-
-            
 
             exit(EXIT_SUCCESS)
         except MemoryError as exc:

@@ -1,7 +1,5 @@
-from ..api import SatAPI
-
 __SATYRUS_HELP = {
-    "answer": "Initial answer",
+    "answer": "Initial guess/answer",
     "debug": "Enters debug mode (Sets verbosity to maximum level)",
     "source": "Source code file path",
     "legacy": "Intended to compile SATish code in legacy syntax",
@@ -15,6 +13,7 @@ __SATYRUS_HELP = {
 }
 
 __SAT_API_HELP = {
+    "yes": "Skips user verification, answering yes to every question",
     "add": "Selects Python files (.py) where SatAPI interfaces are declared",
     "build": "Compiles the Python files (.py) into (.pyc) files",
     "clear": "Clears all user-defined interfaces",
@@ -24,13 +23,11 @@ __SAT_API_HELP = {
 def satyrus_help(key: str, **kwargs) -> str:
     if key in __SATYRUS_HELP:
         return __SATYRUS_HELP[key].format(**kwargs)
-    else:
-        return ""
+    return ""
 
 def sat_api_help(key: str, **kwargs) -> str:
     if key in __SAT_API_HELP:
         return __SAT_API_HELP[key].format(**kwargs)
-    else:
-        return ""
+    return ""
 
 __all__ = ["satyrus_help", "sat_api_help"]

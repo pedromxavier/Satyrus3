@@ -7,8 +7,6 @@ __version__ = "3.0.7"
 
 ## Standard Library
 import argparse
-import json
-from pathlib import Path
 from functools import wraps
 from gettext import gettext
 
@@ -37,7 +35,7 @@ class ArgParser(argparse.ArgumentParser):
 
         return args
 
-    def print_help(self, from_help: bool = True):
+    def print_help(self, *, from_help: bool = True):
         if from_help:
             stdlog[0] << SAT_BANNER
         argparse.ArgumentParser.print_help(self, stdlog[0])
@@ -95,10 +93,10 @@ def buildSatAPI(args: argparse.Namespace):
     SatAPI.build(*args.path)
 
 def removeSatAPI(args: argparse.Namespace):
-    SatAPI.remove(*args.name)
+    SatAPI.remove(*args.name, yes=args.yes)
 
-def clearSatAPI(_: argparse.Namespace):
-    SatAPI.clear()
+def clearSatAPI(args: argparse.Namespace):
+    SatAPI.clear(yes=args.yes)
         
 class SatAPICLI:
     r"""
@@ -169,9 +167,11 @@ class SatAPICLI:
 
         remove_parser = subparsers.add_parser("remove")
         remove_parser.add_argument("name", help=sat_api_help("remove"), nargs="+")
+        remove_parser.add_argument("-y", "--yes", help=sat_api_help("yes"), action="store_true")
         remove_parser.set_defaults(func=removeSatAPI)
 
         clear_parser = subparsers.add_parser("clear")
+        clear_parser.add_argument("-y", "--yes", help=sat_api_help("yes"), action="store_true")
         clear_parser.set_defaults(func=clearSatAPI)
 
         # -*- Set base output verbosity level -*-
@@ -183,7 +183,7 @@ class SatAPICLI:
             args: argparse.Namespace = parser.parse_args(argv)
 
         # -*- Load Interfaces -*-
-        SatAPI.__load__()
+        SatAPI._load()
 
         # Exhibits Compiler Command line arguments
         stdlog[3] << f'Command line args:\n{";".join(f"{k}={v!r}" for k, v in vars(args).items())}'

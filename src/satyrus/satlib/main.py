@@ -1,6 +1,9 @@
 """
 """
-## Standard Library
+# Future Imports
+from __future__ import annotations
+
+# Standard Library
 import os
 import posixpath
 import traceback
@@ -64,5 +67,13 @@ def log(target: str = "satyrus.log") -> str:
         file.write(trace)
     return trace
 
+def prompt(question: str, answers: dict[str, object]) -> Any:
+    while True:
+        answer: str = input(question).strip()
 
-__all__ = ["arange", "log"]
+        if answer not in answers:
+            continue
+        else:
+            return answers[answer]
+
+__all__ = ["arange", "log", "prompt"]

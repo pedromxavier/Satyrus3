@@ -17,8 +17,8 @@ from pathlib import Path
 from cstream import stdwar, stderr, stdlog
 
 # Local
-from ..error import SatRuntimeError, EXIT_FAILURE
-from ..satlib import Timing, Posiform, package_path
+from ..error import SatRuntimeError, EXIT_FAILURE, EXIT_SUCCESS
+from ..satlib import Timing, Posiform, package_path, prompt
 from ..satyrus import Satyrus
 
 
@@ -29,7 +29,7 @@ class SatFinder:
     require: dict = {}
 
     @classmethod
-    def find_spec(cls, name, path, target=None):
+    def find_spec(cls, name: str, *__args, **__kwargs):
         if cls.key is not None:
             stdwar[1] << f"Warning: missing module {name!r} for {cls.key!r}"
             if cls.key in cls.require:
@@ -100,16 +100,21 @@ class SatAPI(metaclass=MetaSatAPI):
 
     ext: str = "out.txt"
 
-    def __init__(self, *paths, legacy: bool = False):
+    def __init__(self, *paths, guess: dict = None, legacy: bool = False):
         """"""
         if paths:
             try:
-                self.energy(Satyrus(legacy=legacy).compile(*paths))
+                energy: Posiform | None = Satyrus(legacy=legacy).compile(*paths)
             except SatRuntimeError as exc:
                 stderr[0] << exc
-                self.energy(None)
+                energy: Posiform | None = None
         else:
-            self.energy(None)
+            energy: Posiform | None = None
+
+        if (energy is not None) and (guess is not None):
+            energy = energy(guess)
+
+        self.energy(energy)
 
     @classmethod
     def energy(cls, __energy: Posiform | None):
@@ -146,7 +151,7 @@ class SatAPI(metaclass=MetaSatAPI):
         SatFinder.set_key(None)
 
         if name not in self.__satapi__:
-            raise KeyError(f"Defined API not in '__satapi__'")
+            raise KeyError("Defined API not in '__satapi__'")
         elif self.__satapi__[name] is None:
             modules: str = ", ".join(SatFinder.require[name])
             self.error(
@@ -258,9 +263,9 @@ class SatAPI(metaclass=MetaSatAPI):
 
             # Remove Source
             new_path.unlink()
-        else:
-            with data_path.open(mode="w", encoding="utf8") as file:
-                json.dump(cls.__satref__, file)
+        
+        with data_path.open(mode="w", encoding="utf8") as file:
+            json.dump(cls.__satref__, file)
 
     @classmethod
     def build(cls, *paths: str):
@@ -328,16 +333,44 @@ class SatAPI(metaclass=MetaSatAPI):
             return (name, code_path.name)
 
     @classmethod
-    def remove(cls, *names: str):
+    def remove(cls, *names: str, yes: bool = False):
         """"""
-        stderr[0] << f"API Remove: {names}"
-        exit(0)
+        cls._load()
+
+        question = (
+            f"This will remove {', '.join(names)}. Are you sure? (Y/n) ",
+            {"Y": True, "n": False}
+        )
+
+        if yes or prompt(*question):
+            for name in names:
+                cls._remove(name)
+
+        exit(EXIT_SUCCESS)    
 
     @classmethod
-    def clear(cls, *names: str):
+    def _remove(cls, name: str):
         """"""
-        stderr[0] << f"API Clear"
-        exit(0)
+        if name not in cls.options():
+            cls.error(f"Unable to remove unknown interface {name!r}", code=None)
+            return
+
+        pack_path: Path = package_path()
+        data_path: Path = pack_path.joinpath(".sat-api")
+        code_path: Path = pack_path.joinpath(cls.__satref__[name])
+
+        del cls.__satref__[name]
+
+        with data_path.open(mode="w", encoding="utf8") as file:
+            json.dump(cls.__satref__, file)
+
+        code_path.unlink()
+
+
+    @classmethod
+    def clear(cls, yes: bool = False):
+        """"""
+        cls.remove(*cls.options(), yes=yes)
 
     @classmethod
     def options(cls) -> set[str]:
@@ -395,5 +428,16 @@ class default(SatAPI):
 
     ext = "json"
 
-    def solve(self, energy: Posiform, **params: dict) -> str:
-        return energy.toJSON()
+    def solve(self, energy: Posiform, indent: int | None = 4, **params: dict) -> str:
+        """"""
+        self.check_params(indent=indent)
+        
+        return energy.toJSON(indent=indent)
+
+    def check_params(self, **params):
+        """"""
+        if "indent" in params:
+            if params["indent"] is None:
+                return
+            elif not isinstance(params["indent"], int) or (params["indent"] < 0):
+                self.error("Parameter 'indent' must be a non-negative integer")

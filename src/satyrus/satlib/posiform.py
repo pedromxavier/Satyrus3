@@ -31,7 +31,7 @@ class Posiform(dict):
             if isinstance(buffer, dict):
                 __buffer = {}
                 for k, v in buffer.items():
-                    if not isinstance(v, numbers.Number) or isinstance(v, complex):
+                    if not isinstance(v, numbers.Real):
                         raise TypeError("Posiform buffer values must be real numbers")
                     elif float(v) == 0.0:
                         continue
@@ -43,7 +43,7 @@ class Posiform(dict):
                             raise TypeError("Posiform buffer keys must be 'None' or be of type 'tuple' or 'set' and contain only 'strings'.")
                         else:
                             __buffer[frozenset(map(str, k))] = float(v)
-            elif isinstance(buffer, numbers.Number):
+            elif isinstance(buffer, numbers.Real):
                 if buffer == 0.0:
                     __buffer = {}
                 else:
@@ -76,8 +76,7 @@ class Posiform(dict):
                         terms.extend(["+", " * ".join([str(v), *sorted(k)])])
                     else:
                         terms.extend(["-", " * ".join([str(abs(v)), *sorted(k)])])
-            else:
-                return " ".join(terms[1:] if terms[0] == "+" else terms)
+            return " ".join(terms[1:] if terms[0] == "+" else terms)
         else:
             return "0.0"
 
@@ -90,6 +89,34 @@ class Posiform(dict):
     def copy(self) -> Posiform:
         """Deep Posiform copy."""
         return Posiform({k: v for k, v in self})
+
+    def __call__(self, point: dict) -> Posiform:
+        if isinstance(point, dict):
+            posiform = Posiform()
+            for x in point:
+                if not isinstance(x, str):
+                    raise TypeError(f"Variables must be of type 'str', not '{type(x)}'")
+                
+                c = point[x]
+                if isinstance(c, str):
+                    pass
+                elif isinstance(c, numbers.Real):
+                    term: frozenset
+
+                    for term, cons in self:
+                        if x in term:
+                            term -= {x}
+                            cons *= c
+
+                        if not term:
+                            term = None
+
+                        posiform[term] += cons
+                else:
+                    raise TypeError(f"Evaluation point coordinates must be either real numbers ('int', 'float') or variables ('str'), not '{type(c)}'")
+            return posiform
+        else:
+            raise TypeError(f"Can't evaluate Posiform at non-mapping {point} of type {type(point)}")
 
     def __add__(self, other) -> Posiform:
         posiform = self.copy()
@@ -292,10 +319,10 @@ class Posiform(dict):
         """"""
         return cls({(x, y): 1.0, (x, w): -2.0, (y, w): -2.0, (w,): 3.0})
 
-    def __minimum_selection(self, *args) -> bool:
+    def __minimum_selection(self, *__args) -> bool:
         return True
 
-    def __substitution(self, *args) -> bool:
+    def __substitution(self, *__args) -> bool:
         return True
 
     @property
@@ -317,25 +344,24 @@ class Posiform(dict):
 
         if not isinstance(json_data, list):
             raise json.decoder.JSONDecodeError("Data must be of Array type (Python list)", data, 0)
-        else:
-            for item in json_data:
-                if not isinstance(item, list):
-                    raise json.decoder.JSONDecodeError("Items must be of Array type (Python list)", data, 0)
-                elif len(item) != 2:
-                    raise json.decoder.JSONDecodeError("Items must contain two entries", data, 0)
-                elif item[0] is not None and not isinstance(item[0], str):
-                    raise json.decoder.JSONDecodeError("Items 1st entry must be of String type (Python str)", data, 0)
-                elif not isinstance(item[1], (int, float)):
-                    raise json.decoder.JSONDecodeError("Items 2nd entry must be of Number type (Python float)", data, 0)
-                else:
-                    key = tuple(item[0].split(" ")) if item[0] is not None else None
-                    val = float(item[1])
-                    if key in buffer:
-                        buffer[key] += val
-                    else:
-                        buffer[key] = val
+        
+        for item in json_data:
+            if not isinstance(item, list):
+                raise json.decoder.JSONDecodeError("Items must be of Array type (Python list)", data, 0)
+            elif len(item) != 2:
+                raise json.decoder.JSONDecodeError("Items must contain two entries", data, 0)
+            elif item[0] is not None and not isinstance(item[0], str):
+                raise json.decoder.JSONDecodeError("Items 1st entry must be of String type (Python str)", data, 0)
+            elif not isinstance(item[1], (int, float)):
+                raise json.decoder.JSONDecodeError("Items 2nd entry must be of Number type (Python float)", data, 0)
             else:
-                return cls(buffer)
+                key = tuple(item[0].split(" ")) if item[0] is not None else None
+                val = float(item[1])
+                if key in buffer:
+                    buffer[key] += val
+                else:
+                    buffer[key] = val
+        return cls(buffer)
 
     def toJSON(self, indent: int = None) -> str:
         if indent is None:
@@ -351,29 +377,28 @@ class Posiform(dict):
 
         if not isinstance(json_data, list):
             raise json.decoder.JSONDecodeError("Data must be of Array type (Python list)", data, 0)
-        else:
-            for item in json_data:
-                if not isinstance(item, dict):
-                    raise json.decoder.JSONDecodeError("Items must be of Object type (Python dict)", data, 0)
-                elif "term" not in item or "cons" not in item:
-                    raise json.decoder.JSONDecodeError("Items must contain both 'term' and 'cons' keys", data, 0)
-                elif not isinstance(item["term"], list) and item["term"] is not None:
-                    raise json.decoder.JSONDecodeError("Items 'term' value must be of Array type (Python list)", data, 0)
-                elif item["term"] is not None and not all(isinstance(var, str) for var in item["term"]):
-                    raise json.decoder.JSONDecodeError("Items 'term' value must contain only entries of type String (Python str)", data, 0)
-                elif not isinstance(item["cons"], (int, float)):
-                    raise json.decoder.JSONDecodeError("Items 'cons' value must be of Number type (Python float)", data, 0)
-                else:
-                    key = tuple(item["term"]) if item["term"] is not None else None
-                    val = float(item["cons"])
-                    if key in buffer:
-                        buffer[key] += val
-                    else:
-                        buffer[key] = val
+        
+        for item in json_data:
+            if not isinstance(item, dict):
+                raise json.decoder.JSONDecodeError("Items must be of Object type (Python dict)", data, 0)
+            elif "term" not in item or "cons" not in item:
+                raise json.decoder.JSONDecodeError("Items must contain both 'term' and 'cons' keys", data, 0)
+            elif not isinstance(item["term"], list) and item["term"] is not None:
+                raise json.decoder.JSONDecodeError("Items 'term' value must be of Array type (Python list)", data, 0)
+            elif item["term"] is not None and not all(isinstance(var, str) for var in item["term"]):
+                raise json.decoder.JSONDecodeError("Items 'term' value must contain only entries of type String (Python str)", data, 0)
+            elif not isinstance(item["cons"], (int, float)):
+                raise json.decoder.JSONDecodeError("Items 'cons' value must be of Number type (Python float)", data, 0)
             else:
-                return cls(buffer)
+                key = tuple(item["term"]) if item["term"] is not None else None
+                val = float(item["cons"])
+                if key in buffer:
+                    buffer[key] += val
+                else:
+                    buffer[key] = val
+        return cls(buffer)
 
-    def qubo(self) -> tuple[dict[str, int], np.ndarray[float], float]:
+    def qubo(self) -> tuple[dict[str, int], np.ndarray, float]:
         """
         Returns
         -------

@@ -18,11 +18,8 @@ class qubo(SatAPI):
 
     def check_params(self, **params):
         """"""
-        if "indent" not in params:
-            return
-        elif params["indent"] is None:
-            return
-        elif isinstance(params["indent"], int) and (params["indent"] >= 0):
-            return
-        else:
-            self.error("Parameter 'indent' must be a non-negative integer")
+        if "indent" in params:
+            if params["indent"] is None:
+                return
+            elif not isinstance(params["indent"], int) or (params["indent"] < 0):
+                self.error("Parameter 'indent' must be a non-negative integer")

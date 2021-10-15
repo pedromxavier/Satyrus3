@@ -1,3 +1,3 @@
 # Satyrus3
 
-Please refer to the [documentation](https://www.lam.ufrj.br/~pmxavier/projects/satyrus/).
+Please refer to the [documentation](https://satyrus3.github.io/docs).

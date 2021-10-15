@@ -91,29 +91,49 @@ class Posiform(dict):
         return Posiform({k: v for k, v in self})
 
     def __call__(self, point: dict) -> Posiform:
-        if isinstance(point, dict):
-            posiform = Posiform()
-            for x in point:
-                if not isinstance(x, str):
-                    raise TypeError(f"Variables must be of type 'str', not '{type(x)}'")
-                
-                c = point[x]
-                if isinstance(c, str):
-                    pass
-                elif isinstance(c, numbers.Real):
-                    term: frozenset
+        """"""
 
-                    for term, cons in self:
+        if isinstance(point, dict):
+
+            posiform = Posiform()
+
+            term: frozenset | None
+            cons: float
+
+            for term, cons in self:
+                if term is None:
+                    if term in posiform:
+                        posiform[term] += cons
+                    else:
+                        posiform[term] = cons
+                    continue
+                
+                for x in point:
+                    if not isinstance(x, str):
+                        raise TypeError(f"Variables must be of type 'str', not '{type(x)}'")
+
+                    c = point[x]
+
+                    if isinstance(c, str):
+                        if x in term:
+                            term -= {x}
+                            term += {c}
+                    elif isinstance(c, numbers.Real):
                         if x in term:
                             term -= {x}
                             cons *= c
+                    else:
+                        raise TypeError(f"Evaluation point coordinates must be either real numbers ('int', 'float') or variables ('str'), not '{type(c)}'")
 
-                        if not term:
-                            term = None
+                    if not term:
+                        posiform[None] = cons
+                        break
 
+                    if term in posiform:
                         posiform[term] += cons
-                else:
-                    raise TypeError(f"Evaluation point coordinates must be either real numbers ('int', 'float') or variables ('str'), not '{type(c)}'")
+                    else:
+                        posiform[term] = cons
+
             return posiform
         else:
             raise TypeError(f"Can't evaluate Posiform at non-mapping {point} of type {type(point)}")

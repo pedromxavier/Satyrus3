@@ -187,7 +187,7 @@ class readGuess(argparse._StoreAction):
             parser.error(
                 f"In '{guess_path}':\nGuess object must be mapping, not '{type(guess)}'"
             )
-        elif not all(v in {0, 1} for v in guess):
+        elif not all(v in {0, 1} for v in guess.values()):
             parser.error(f"In '{guess_path}':\nGuess values must be of type Number (Python int) and binary (0 or 1) ")
         elif not all(isinstance(k, str) for k in guess):
             parser.error(f"In '{guess_path}':\nGuess keys must be variables of type String (Python str)")

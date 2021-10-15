@@ -1,5 +1,12 @@
+"""
+"""
+# Future Imports
+from __future__ import annotations
+
+# Standard Library
 import json
 
+# -*- Satyrus -*-
 from satyrus import SatAPI, Posiform
 
 
@@ -8,7 +15,7 @@ class qubo(SatAPI):
 
     ext: str = "qubo.json"
 
-    def solve(self, energy: Posiform, indent=None, **params: dict) -> str:
+    def solve(self, energy: Posiform, indent: int | None = None, **params: dict) -> str:
         """"""
         x, Q, c = energy.qubo()
 

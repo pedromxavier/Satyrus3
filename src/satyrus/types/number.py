@@ -2,7 +2,6 @@
 import decimal
 import numbers
 import re
-from sys import meta_path
 
 # Local
 from .base import SatType
@@ -10,7 +9,7 @@ from ..error import SatValueError
 from ..satlib import Source
 
 
-class Number(decimal.Decimal, SatType):
+class Number(decimal.Decimal, numbers.Real, SatType):
     """"""
 
     context = decimal.getcontext()

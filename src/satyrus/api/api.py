@@ -10,8 +10,9 @@ import json
 import shutil
 import marshal
 import traceback
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 from pathlib import Path
+from typing import final
 
 # Third-Party
 from cstream import stdwar, stderr, stdlog
@@ -47,7 +48,7 @@ class SatFinder:
 sys.meta_path.append(SatFinder)
 
 
-class MetaSatAPI(type):
+class MetaSatAPI(ABCMeta):
     """"""
 
     base_class: MetaSatAPI = None
@@ -73,6 +74,9 @@ class MetaSatAPI(type):
                 raise NameError("'SatAPI' base class is already implemented")
         elif cls.base_class is None:
             raise NameError("'SatAPI' base class is not implemented yet")
+        elif not cls.implements_solve(namespace):
+            cls.base_class.error("'solve' method is not implemented")
+
 
         interface: MetaSatAPI = type.__new__(cls, name, bases, namespace)
 
@@ -87,6 +91,15 @@ class MetaSatAPI(type):
         cls.__satapi__[name] = interface
 
         return cls.__satapi__[name]
+
+    @classmethod
+    def implements_solve(cls, namespace: dict):
+        if 'solve' not in namespace:
+            return False
+        elif not callable(namespace['solve']):
+            return False
+        else:
+            return True
 
 
 class SatAPI(metaclass=MetaSatAPI):
@@ -255,14 +268,15 @@ class SatAPI(metaclass=MetaSatAPI):
                 pass
 
             # Build
-            answer: tuple[str, str] | None = cls._build(new_path)
+            try:
+                answer: tuple[str, str] | None = cls._build(new_path)
 
-            if answer is not None:
-                name, path = answer
-                cls.__satref__[name] = path
-
-            # Remove Source
-            new_path.unlink()
+                if answer is not None:
+                    name, path = answer
+                    cls.__satref__[name] = path
+            finally:
+                # Remove Source
+                new_path.unlink()
         
         with data_path.open(mode="w", encoding="utf8") as file:
             json.dump(cls.__satref__, file)

@@ -56,7 +56,8 @@ class SatLexer(object):
         "DIV",
         "MOD",
         "ADD",
-        "SUB",  # arithmetic
+        "SUB",
+        "POW",
         "DOTS",
         "LBRA",
         "RBRA",
@@ -110,6 +111,7 @@ class SatLexer(object):
         "iff": "IFF",
         "imp": "IMP",
         "not": "NOT",
+        "pow": "POW",
     }
 
     op_map = {
@@ -122,6 +124,7 @@ class SatLexer(object):
         "IFF": "<->",
         "IMP": "->",
         "NOT": "~",
+        "POW": "**"
     }
 
     # Regular expression rules for tokens
@@ -160,6 +163,7 @@ class SatLexer(object):
 
     t_MOD = r"\%"
 
+    t_POW = r"\*\*"
     t_MUL = r"\*"
 
     t_ADD = r"\+"
@@ -244,6 +248,7 @@ class SatParser(object):
     precedence = (
         ("left", "ADD", "SUB"),
         ("left", "MUL", "DIV", "MOD"),
+        ("left", "POW"),
         ("left", "IMP", "RIMP", "IFF"),
         ("left", "XOR", "OR"),
         ("left", "AND"),
@@ -588,6 +593,7 @@ class SatParser(object):
         | expr ADD expr
         | expr SUB expr
         | expr MUL expr
+        | expr POW expr
         | expr DIV expr
         | expr MOD expr
         | expr IMP expr

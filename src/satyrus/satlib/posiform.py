@@ -90,6 +90,15 @@ class Posiform(dict):
         """Deep Posiform copy."""
         return Posiform({k: v for k, v in self})
 
+    def __float__(self) -> float:
+        if len(self) == 0:
+            return 0.0
+        elif len(self) == 1 and None in self:
+            return self[None]
+        else:
+            raise TypeError("Can't cast 'Posiform' to 'float' due to non-constant terms")
+            
+
     def __call__(self, point: dict) -> Posiform:
         """"""
 
@@ -147,7 +156,7 @@ class Posiform(dict):
     def __iadd__(self, other) -> Posiform:
         if isinstance(other, dict):
             try:
-                other = self.cls(other)
+                other = self.__class__(other)
             except TypeError as type_error:
                 raise TypeError("Unable to cast operand to Posiform type.") from type_error
         if isinstance(other, type(self)):
@@ -171,7 +180,7 @@ class Posiform(dict):
             return NotImplemented
 
     def __neg__(self) -> Posiform:
-        posiform = self.cls()
+        posiform = self.__class__()
         for k, v in self:
             posiform[k] = -v
         return posiform
@@ -187,7 +196,7 @@ class Posiform(dict):
     def __isub__(self, other) -> Posiform:
         if isinstance(other, dict):
             try:
-                other = self.cls(other)
+                other = self.__class__(other)
             except TypeError as type_error:
                 raise TypeError("Unable to cast operand to Posiform type.") from type_error
         if isinstance(other, type(self)):
@@ -227,6 +236,36 @@ class Posiform(dict):
         else:
             return NotImplemented
 
+    def __pow__(self, other) -> Posiform:
+        posiform = self.copy()
+        posiform = posiform.__ipow__(other)
+        return posiform
+
+    def __ipow__(self, other) -> Posiform:
+        if isinstance(other, dict):
+            try:
+                other = self.__class__(other)
+            except TypeError as type_error:
+                raise TypeError("Unable to cast operand to 'Posiform' type") from type_error
+        if isinstance(other, type(self)) or isinstance(other, numbers.Real):
+            try:
+                other = float(other)
+            except TypeError as type_error:
+                raise TypeError("Unable to cast operand to 'float' type") from type_error
+
+            if not other.is_integer() or other < 0:
+                raise TypeError("Can't raise 'Posiform' to non-integer power")
+            else:
+                other = int(other)
+
+            posiform = Posiform(1.0)
+            while other > 0:
+                posiform *= self
+                other -= 1
+            return posiform
+        else:
+            return NotImplemented
+
     def __mul__(self, other) -> Posiform:
         posiform = self.copy()
         posiform = posiform.__imul__(other)
@@ -235,7 +274,7 @@ class Posiform(dict):
     def __imul__(self, other):
         if isinstance(other, dict):
             try:
-                other = self.cls(other)
+                other = self.__class__(other)
             except TypeError as type_error:
                 raise TypeError("Unable to cast operand to Posiform type") from type_error
         if isinstance(other, type(self)):
@@ -260,7 +299,7 @@ class Posiform(dict):
                     else:
                         posiform[k] = v
             return posiform
-        elif isinstance(other, numbers.Number) and not isinstance(other, complex):
+        elif isinstance(other, numbers.Real):
             w = float(other)
             if w == 0.0:
                 self.clear()
@@ -289,70 +328,85 @@ class Posiform(dict):
             posiform += self.__reduce_term(X, a)
         return posiform
 
-    def __reduce_term(self, X: frozenset, a: float) -> Posiform:
+    __RED_NO = 0 # No Reduction
+    __RED_MS = 1 # Minimum Selection
+    __RED_SU = 2 # Substitution
+
+    def __reduce_strategy(self, term: frozenset, __cons: float) -> int:
+        """"""
+        if term is None or len(term) <= 2:
+            return self.__RED_NO
+        else:
+            return self.__RED_MS
+
+    def __reduce_term(self, term: frozenset, cons: float) -> Posiform:
         """
         Parameters
         ----------
-        X : frozenset[str], tuple[str], list[str], set[str]
+        term : frozenset[str], tuple[str], list[str], set[str]
             Tuple with the string variable names (or None for constant term).
-        a : float
+        cons : float
             Multiplicative constant.
 
         Returns
         -------
         Posiform
         """
-        if X is None or len(X) <= 2:
-            return self.cls({X: a})
-        else:
-            ## Reduction by minimum selection
-            w = self.aux
-            x, y, *z = X
+        strategy = self.__reduce_strategy(term, cons) 
 
-            if self.__minimum_selection():  ## minimum selection
-                if a < 0:
-                    ## if a < 0: a (x y z) => a w (x + y + z - 2)
-                    return self.cls({(x, w): a, (y, w): a, (w,): -2.0 * a}) + self.__reduce_term((*z, w), a)
-                else:
-                    ## if a > 0: a (x y z) => a (x w + y w + z w + x y + x z + y z - x - y - z - w + 1)
-                    return (
-                        self.cls(
-                            {
-                                (x, w): a,
-                                (y, w): a,
-                                (x, y): a,
-                                (x,): -a,
-                                (y,): -a,
-                                (w,): -a,
-                                None: a,
-                            }
-                        )
-                        + (self.__reduce_term((x, *z), a) + self.__reduce_term((y, *z), a) + self.__reduce_term((*z, w), a) + self.__reduce_term((*z,), -a))
-                    )
-            elif self.__substitution():
-                alpha = 2.0  ## TODO: How can I compute alpha? (besides alpha > 1)
-                return self.__reduce_term((*z, w), 1.0) + alpha * self.__P(x, y, w)
-            else:
-                raise NotImplementedError("Not an option.")
+        if strategy == self.__RED_NO:
+            return self.__class__({term: cons})
+        elif strategy == self.__RED_MS:
+            return self.__minimum_selection(term, cons)
+        elif strategy == self.__RED_SU:
+            return self.__substitution(term, cons)
+        else:
+            raise NotImplementedError("No more strategies were implemented")
+
+    def __substitution(self, X: frozenset, a: float) -> Posiform:
+        """"""
+        w = self.aux
+        x, y, *z = X
+        # TODO: How can I compute alpha? (besides alpha > 1)
+        alpha = 2.0
+        return a * (self.__reduce_term((*z, w), 1.0) + alpha * self.__P(x, y, w))
+
+    def __minimum_selection(self, X: frozenset, a: float) -> Posiform:
+        """"""
+        w = self.aux
+        x, y, *z = X
+        if a < 0:
+            ## if a < 0: a (x y z) => a w (x + y + z - 2)
+            return self.__class__({(x, w): a, (y, w): a, (w,): -2.0 * a}) + self.__reduce_term((*z, w), a)
+        else:
+            ## if a > 0: a (x y z) => a (x w + y w + z w + x y + x z + y z - x - y - z - w + 1)
+            return (
+                self.__class__(
+                    {
+                        (x, w): a,
+                        (y, w): a,
+                        (x, y): a,
+                        (x,): -a,
+                        (y,): -a,
+                        (w,): -a,
+                        None: a,
+                    }
+                )
+                + (self.__reduce_term((x, *z), a) + self.__reduce_term((y, *z), a) + self.__reduce_term((*z, w), a) + self.__reduce_term((*z,), -a))
+            )
 
     @classmethod
     def __P(cls: type, x: str, y: str, w: str):
         """"""
         return cls({(x, y): 1.0, (x, w): -2.0, (y, w): -2.0, (w,): 3.0})
 
-    def __minimum_selection(self, *__args) -> bool:
-        return True
-
-    def __substitution(self, *__args) -> bool:
-        return True
-
     @property
-    def variables(self):
+    def variables(self) -> list:
         return sorted(set(x for k in self.keys() if k is not None for x in k))
 
     @property
-    def cls(self):
-        return self.__class__
+    def degree(self) -> int:
+        return max(map(lambda k: 0 if k is None else len(k), self))
 
     def toMiniJSON(self) -> str:
         return json.dumps({("" if k is None else " ".join(sorted(k))): v for k, v in self})
@@ -442,18 +496,49 @@ class Posiform(dict):
         for k, a in reduced:
             if k is None:
                 c = a
-            else:
+            else:   
                 I = tuple(map(x.get, k))
                 if len(I) == 1:
                     i = I[0]
                     Q[i, i] += a
                 elif len(I) == 2:
                     i, j = I
-                    Q[i, j] += a
-                    Q[j, i] += a
+                    Q[i, j] += a / 2.0
+                    Q[j, i] += a / 2.0
                 else:
                     raise RuntimeError("Degree reduction failed.")
         return x, Q, c
+
+    def ising(self) -> tuple[dict[str, int], np.ndarray, float]:
+        """
+        Returns
+        -------
+        dict[str, int]
+            Mapping between variables and respective indexes.
+        np.ndarray
+            Symmetric Matrix representing QUBO instance.
+        float
+            Ground state energy.
+        """
+        reduced = self.reduce_degree()
+        variables = reduced.variables
+
+        n = len(variables)
+
+        x = {v: i for i, v in enumerate(variables)}
+        J = np.zeros((n, n), dtype=float)
+        c = 0.0
+
+        for k, a in reduced:
+            if k is None:
+                c = a
+            else:   
+                I = tuple(map(x.get, k))
+                if len(I) <= 2:
+                    J[I] += a
+                else:
+                    raise RuntimeError("Degree reduction failed.")
+        return x, J, c
 
 
 __all__ = ["Posiform"]

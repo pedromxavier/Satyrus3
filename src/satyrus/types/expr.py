@@ -11,13 +11,14 @@ from functools import reduce
 # Local
 from .base import SatType, MetaSatType
 from .number import Number
-from ..satlib import Source, Posiform
+from ..satlib import Source
 from ..symbols import (
     T_IDX,
     T_AND,
     T_OR,
     T_ADD,
     T_MUL,
+    T_POW,
     T_IFF,
     T_IMP,
     T_RIMP,
@@ -190,6 +191,7 @@ class Expr(tuple, SatType, metaclass=MetaSatType):
         T_NEG: "{0}{1}",
         T_DIV: "{1} {0} {2}",
         T_MOD: "{1} {0} {2}",
+        T_POW: "{1} {0} {2}",
         ## Comparison
         T_EQ: "{1} {0} {2}",
         T_LE: "{1} {0} {2}",
@@ -245,6 +247,7 @@ class Expr(tuple, SatType, metaclass=MetaSatType):
         T_MUL: HASH_COM(T_MUL),
         T_DIV: HASH_NCM(T_DIV),
         T_MOD: HASH_NCM(T_MOD),
+        T_POW: HASH_NCM(T_POW),
         ## Comparisons
         T_EQ: HASH_COM(T_EQ),
         T_NE: HASH_COM(T_NE),

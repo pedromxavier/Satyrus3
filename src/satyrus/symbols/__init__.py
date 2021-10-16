@@ -48,8 +48,9 @@ T_SUB = intern("-")
 T_MUL = intern("*")
 T_DIV = intern("/")
 T_MOD = intern("%")
+T_POW = intern("**")
 
-T_ARITHMETIC = {T_ADD, T_NEG, T_MUL, T_DIV, T_MOD}
+T_ARITHMETIC = {T_ADD, T_NEG, T_MUL, T_DIV, T_MOD, T_POW}
 
 ## Indexing
 T_IDX = intern("[]")

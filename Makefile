@@ -4,7 +4,7 @@ else
 	fname="./Makefiles/linux.mk"
 endif
 
-all: clean build zip-clean zip
+all: clean build zip
 
 build:
 	@make build --makefile=$(fname)
@@ -18,14 +18,8 @@ test:
 deploy:
 	@make deploy --makefile=$(fname)
 
-zip: zip-clean
-	zip Satyrus3.zip ./*
-
-zip-clean:
-	@make zip-clean --makefile=$(fname)
+zip:
+	@make zip --makefile=$(fname)
 
 install:
-	@pip install .[all] -q --use-feature=in-tree-build
-
-install-dev:
 	@pip install .[dev] -q --use-feature=in-tree-build

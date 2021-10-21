@@ -8,8 +8,7 @@ from ..error import SatIndexError
 from ..symbols import T_IDX
 
 class Array(SatType):
-    """ :: Array ::
-        ===========
+    """
     """
     def __init__(self, var: Var, shape: tuple):
         SatType.__init__(self)

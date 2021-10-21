@@ -4,20 +4,19 @@
 
 # Third-Party
 from ply import lex, yacc
-from cstream import stderr
+from cstream import stderr, DEBUG
 
 # Local
-from ..satlib import Source, Stack, PythonShell, PythonError, Timing
+from ..satlib import Source, Stack, PythonShell, Timing
 from ..error import (
     EXIT_FAILURE,
     SatParserError,
     SatSyntaxError,
-    SatPythonError,
     SatExit,
 )
-from ..types import Expr, Var, Number, String, SatType, PythonObject
+from ..types import Expr, Var, Number, String, SatType
 from ..symbols import SYS_CONFIG, DEF_CONSTANT, DEF_ARRAY, DEF_CONSTRAINT
-from ..symbols import T_IDX, T_ADD, T_NEG
+from ..symbols import T_IDX, T_ADD, T_NEG, T_LOOP
 
 
 def regex(pattern: str):
@@ -90,8 +89,8 @@ class SatLexer(object):
         """"""
         while self.error_stack:
             error = self.error_stack.popleft()
-            stderr[0] << error
-        
+            stderr << error
+
         self.exit(EXIT_FAILURE)
 
     def checkpoint(self):
@@ -115,16 +114,16 @@ class SatLexer(object):
     }
 
     op_map = {
-        "FORALL": "@",
-        "EXISTS": "$",
-        "UNIQUE": "$!",
+        "FORALL": "FORALL",
+        "EXISTS": "EXISTS",
+        "UNIQUE": "UNIQUE",
         "OR": "|",
         "XOR": "^",
         "AND": "&",
         "IFF": "<->",
         "IMP": "->",
         "NOT": "~",
-        "POW": "**"
+        "POW": "**",
     }
 
     # Regular expression rules for tokens
@@ -138,10 +137,6 @@ class SatLexer(object):
 
     t_LCUR = r"\{"
     t_RCUR = r"\}"
-
-    t_FORALL = r"\@"
-    t_EXISTS = r"\$"
-    t_UNIQUE = r"\$\!"
 
     t_NOT = r"\~"
 
@@ -290,7 +285,7 @@ class SatParser(object):
     def interrupt(self):
         """"""
         while self.error_stack:
-            stderr[0] << self.error_stack.popleft()
+            stderr << self.error_stack.popleft()
 
         self.exit(EXIT_FAILURE)
 
@@ -299,7 +294,7 @@ class SatParser(object):
         if self.error_stack:
             self.interrupt()
 
-    @Timing.timer(level=2, section="Parser.parse")
+    @Timing.timer(level=DEBUG, section="Parser.parse")
     def parse(self, source: Source):
         ## Input
         self.source = source
@@ -325,58 +320,44 @@ class SatParser(object):
     def run(self, code: list):
         self.bytecode = [cmd for cmd in code if cmd is not None]
 
-    def cast_type(self, x: object, type_caster: type):
-        """Casts type according to `type_caster(x: object) -> y: object`
-        copying `lexinfo` data, if available.
-        """
-        if hasattr(x, "lexinfo"):
-            lexinfo = getattr(x, "lexinfo")
-            y = type_caster(x)
-            setattr(y, "lexinfo", lexinfo)
-            return y
-        else:
-            return type_caster(x)
-
     def p_start(self, p):
-        """start : code"""
+        """\
+        start : code
+        """
         self.run(p[1])
 
     def p_code(self, p):
-        """code : code stmt
-        | stmt
+        """\
+        code : code stmt
+             | stmt
         """
         if len(p) == 3:
-            p[0] = [*p[1], p[2]]
+            p[1].append(p[2])
+            p[0] = p[1]
         else:
-            p[0] = [
-                p[1],
-            ]
+            p[0] = [p[1]]
 
     def p_stmt(self, p):
-        """stmt : sys_config ENDL
-        | def_constant ENDL
-        | def_array ENDL
-        | def_constraint ENDL
-        | cmd_python ENDL
+        """\
+        stmt : sys_config ENDL
+             | def_constant ENDL
+             | def_array ENDL
+             | def_constraint ENDL
         """
         p[0] = p[1]
 
-    def p_cmd_python(self, p):
-        """cmd_python : PYTHON"""
-        ## Executes python command
-        self.python_shell(p[1], evaluate=False)
-
-        p[0] = None
-
     def p_sys_config(self, p):
-        """sys_config : CONFIG NAME DOTS sys_config_args"""
+        """\
+        sys_config : CONFIG NAME DOTS sys_config_args
+        """
         name = p[2]
         args = p[4]
         p[0] = (SYS_CONFIG, name, args)
 
     def p_sys_config_args(self, p):
-        """sys_config_args : sys_config_args COMMA sys_config_arg
-        | sys_config_arg
+        """\
+        sys_config_args : sys_config_args COMMA sys_config_arg
+                        | sys_config_arg
         """
         if len(p) == 4:
             p[0] = [*p[1], p[3]]
@@ -384,62 +365,62 @@ class SatParser(object):
             p[0] = [p[1]]
 
     def p_sys_config_arg(self, p):
-        """sys_config_arg : NUMBER
-        | STRING
+        """\
+        sys_config_arg : NUMBER
+                       | STRING
         """
         p[0] = p[1]
 
     def p_def_constant(self, p):
-        """def_constant : varname ASSIGN expr"""
+        """\
+        def_constant : varname ASSIGN expr
+        """
         p[0] = (DEF_CONSTANT, p[1], p[3])
 
     def p_literal(self, p):
-        """literal : constant
-        | python_literal
-        | varname
+        """\
+        literal : constant
+                | varname
         """
         p[0] = p[1]
 
     def p_constant(self, p):
-        """constant : NUMBER"""
+        """\
+        constant : NUMBER
+        """
         p[0] = p[1]
 
+    def p_name(self, p):
+        """\
+        name : NAME
+        """
+        p[0] = String(p[1], source=self.source, lexpos=p.lexpos(1))
+
     def p_varname(self, p):
-        """varname : NAME"""
+        """\
+        varname : NAME
+        """
         p[0] = Var(p[1], source=self.source, lexpos=p.lexpos(1))
 
-    def p_python_literal(self, p):
-        """python_literal : PYTHON"""
-        py_code = p[1]
-
-        try:
-            py_object = PythonObject(self.python_shell(str(py_code), evaluate=True))
-        except PythonError as error:
-            self << SatPythonError(*error.args)
-        finally:
-            self.checkpoint()
-
-        self.source.propagate(py_code, py_object)
-
-        p[0] = py_object
-
     def p_def_array(self, p):
-        """def_array : varname shape ASSIGN array_buffer
-        | varname shape
+        """\
+        def_array : varname shape ASSIGN array_buffer
+                  | varname shape
         """
         name = p[1]
         shape = p[2]
 
         if len(p) == 5:  # array declared
-            buffer = p[4]
+            buffer, dense = p[4]
         else:  # implicit array
-            buffer = None
+            buffer, dense = None, False
 
-        p[0] = (DEF_ARRAY, name, shape, buffer)
+        p[0] = (DEF_ARRAY, name, shape, buffer, dense)
 
     def p_shape(self, p):
-        """shape : shape index
-        | index
+        """\
+        shape : shape index
+              | index
         """
         if len(p) == 3:
             p[0] = (*p[1], p[2])
@@ -447,40 +428,67 @@ class SatParser(object):
             p[0] = (p[1],)
 
     def p_index(self, p):
-        """index : LBRA expr RBRA"""
+        """\
+        index : LBRA expr RBRA
+        """
         p[0] = p[2]
 
-    def p_array_buffer(self, p):
-        """array_buffer : LCUR array RCUR
-        | python_literal
+    def p_dense_array_buffer(self, p):
+        """\
+        array_buffer : LBRA dense_array RBRA
         """
-        if len(p) == 4:  ## default buffer
-            p[0] = p[2]
-        else:  ## python literal
-            p[1]
+        p[0] = (p[2], True)
 
-    def p_array(self, p):
-        """array : array COMMA array_item
-        | array_item
+    def p_sparse_array_buffer(self, p):
+        """\
+        array_buffer : LCUR sparse_array RCUR
+        """
+        p[0] = (p[2], False)
+
+    def p_dense_array(self, p):
+        """\
+        dense_array : dense_array COMMA dense_array_item
+                    | dense_array_item
         """
         if len(p) == 4:
-            p[0] = [*p[1], p[3]]
+            p[1].append(p[3])
+            p[0] = p[1]
         else:
-            p[0] = [
-                p[1],
-            ]
+            p[0] = [p[1]]
 
-    def p_array_item(self, p):
-        """array_item : array_index DOTS expr"""
+    def p_dense_array_item(self, p):
+        """\
+        dense_array_item : expr
+        """
+        p[0] = p[1]
+
+    def p_sparse_array(self, p):
+        """\
+        sparse_array : sparse_array COMMA sparse_array_item
+                     | sparse_array_item
+        """
+        if len(p) == 4:
+            p[1].append(p[3])
+            p[0] = p[1]
+        else:
+            p[0] = [p[1]]
+
+    def p_sparse_array_item(self, p):
+        """\
+        sparse_array_item : sparse_array_index DOTS expr
+        """
         p[0] = (p[1], p[3])
 
     def p_array_index(self, p):
-        """array_index : LPAR literal_seq RPAR"""
+        """\
+        sparse_array_index : LPAR expr_seq RPAR
+        """
         p[0] = p[2]
 
-    def p_literal_seq(self, p):
-        """literal_seq : literal_seq COMMA literal
-        | literal
+    def p_expr_seq(self, p):
+        """\
+        expr_seq : expr_seq COMMA expr
+                 | expr
         """
         if len(p) == 4:
             p[0] = (*p[1], p[3])
@@ -488,46 +496,26 @@ class SatParser(object):
             p[0] = (p[1],)
 
     def p_def_constraint(self, p):
-        """def_constraint : LPAR NAME RPAR varname LBRA literal RBRA DOTS loops expr
-        | LPAR NAME RPAR varname DOTS loops expr
+        """\
+        def_constraint : LPAR name RPAR varname LBRA expr RBRA DOTS expr
+                       | LPAR name RPAR varname DOTS expr
         """
-        type_ = String(p[2], source=self.source, lexpos=p.lexpos(2))
-        name = p[4]
+        cons_type = p[2]
+        cons_name = p[4]
 
-        if len(p) == 11:
+        if len(p) == 10:
             level = p[6]
-            loops = p[9]
-            expr = p[10]
+            expr = p[9]
         else:
             level = None
-            loops = p[6]
-            expr = p[7]
+            expr = p[6]
 
-        p[0] = (DEF_CONSTRAINT, type_, name, loops, expr, level)
-
-    def p_loops(self, p):
-        """loops : loop_stack
-        |
-        """
-        if len(p) == 2:
-            p[0] = p[1]
-        else:
-            p[0] = []
-
-    def p_loop_stack(self, p):
-        """loop_stack : loop_stack loop
-        | loop
-        """
-        if len(p) == 3:
-            p[0] = [*p[1], p[2]]
-        else:
-            p[0] = [
-                p[1],
-            ]
+        p[0] = (DEF_CONSTRAINT, cons_type, cons_name, expr, level)
 
     def p_loop(self, p):
-        """loop : quant LCUR varname ASSIGN domain COMMA conditions RCUR
-        | quant LCUR varname ASSIGN domain RCUR
+        """\
+        loop : quant LCUR varname ASSIGN domain COMMA conditions RCUR
+             | quant LCUR varname ASSIGN domain RCUR
         """
         if len(p) == 9:
             p[0] = (p[1], p[3], p[5], p[7])
@@ -535,15 +523,17 @@ class SatParser(object):
             p[0] = (p[1], p[3], p[5], None)
 
     def p_quant(self, p):
-        """quant : FORALL
-        | EXISTS
-        | UNIQUE
+        """\
+        quant : FORALL
+              | EXISTS
+              | UNIQUE
         """
         p[0] = p[1]
 
     def p_domain(self, p):
-        """domain : LBRA expr DOTS expr DOTS expr RBRA
-        | LBRA expr DOTS expr RBRA
+        """\
+        domain : LBRA expr DOTS expr DOTS expr RBRA
+               | LBRA expr DOTS expr RBRA
         """
         if len(p) == 8:
             p[0] = (p[2], p[4], p[6])
@@ -551,54 +541,61 @@ class SatParser(object):
             p[0] = (p[2], p[4], None)
 
     def p_conditions(self, p):
-        """conditions : conditions COMMA condition
-        | condition
+        """\
+        conditions : conditions COMMA condition
+                   | condition
         """
         if len(p) == 4:
-            p[0] = [*p[1], p[2]]
+            p[1].append(p[3])
+            p[0] = p[1]
         else:
-            p[0] = [
-                p[1],
-            ]
+            p[0] = [p[1]]
 
     def p_condition_expr(self, p):
-        """condition : expr"""
+        """\
+        condition : expr
+        """
         p[0] = p[1]
 
     def p_condition(self, p):
-        """expr : expr EQ expr
-        | expr GT expr
-        | expr LT expr
-        | expr GE expr
-        | expr LE expr
-        | expr NE expr
+        """\
+        expr : expr EQ expr
+             | expr GT expr
+             | expr LT expr
+             | expr GE expr
+             | expr LE expr
+             | expr NE expr
         """
         p[0] = Expr(p[2], p[1], p[3], source=self.source, lexpos=p.lexpos(2))
 
     def p_expr(self, p):
-        """expr : literal"""
+        """\
+        expr : literal
+        """
         p[0] = p[1]
 
     def p_expr1(self, p):
-        """expr : NOT expr
-        | ADD expr
-        | SUB expr
+        """\
+        expr : NOT expr
+             | ADD expr
+             | SUB expr
         """
         p[0] = Expr(p[1], p[2], source=self.source, lexpos=p.lexpos(1))
 
     def p_expr2(self, p):
-        """expr : expr AND expr
-        | expr OR expr
-        | expr XOR expr
-        | expr ADD expr
-        | expr SUB expr
-        | expr MUL expr
-        | expr POW expr
-        | expr DIV expr
-        | expr MOD expr
-        | expr IMP expr
-        | expr RIMP expr
-        | expr IFF expr
+        """\
+        expr : expr AND expr
+             | expr OR expr
+             | expr XOR expr
+             | expr ADD expr
+             | expr SUB expr
+             | expr MUL expr
+             | expr POW expr
+             | expr DIV expr
+             | expr MOD expr
+             | expr IMP expr
+             | expr RIMP expr
+             | expr IFF expr
         """
         if p[2] == T_NEG:
             p[0] = Expr(
@@ -612,12 +609,22 @@ class SatParser(object):
             p[0] = Expr(p[2], p[1], p[3], source=self.source, lexpos=p.lexpos(2))
 
     def p_expr_index(self, p):
-        """expr : expr LBRA expr RBRA"""
+        """\
+        expr : expr LBRA expr RBRA
+        """
         p[0] = Expr(T_IDX, p[1], p[3], source=self.source, lexpos=p.lexpos(2))
 
     def p_expr_par(self, p):
-        """expr : LPAR expr RPAR"""
+        """\
+        expr : LPAR expr RPAR
+        """
         p[0] = p[2]
+
+    def p_expr_loop(self, p):
+        """\
+        expr : loop expr
+        """
+        p[0] = Expr(T_LOOP, p[1], p[2])
 
     def p_error(self, t):
         target = SatType()

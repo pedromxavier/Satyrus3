@@ -3,7 +3,7 @@ Satyrus Compiler v{version}
 """
 from __future__ import annotations
 
-__version__ = "3.0.7"
+__version__ = "3.1.0"
 
 ## Standard Library
 import argparse
@@ -13,7 +13,7 @@ from functools import wraps
 from gettext import gettext
 
 ## Third-Party
-from cstream import Stream, stdlog, stdwar, stderr, stdout
+from cstream import CStream, stdlog, stdwar, stderr, stdout, DEBUG, WARNING, ERROR, INFO
 
 ## Local
 from .help import satyrus_help
@@ -55,8 +55,8 @@ class ArgParser(argparse.ArgumentParser):
 
     def print_help(self, from_help: bool = True):
         if from_help:
-            stdlog[0] << SAT_BANNER
-        argparse.ArgumentParser.print_help(self, stdlog[0])
+            stdlog << SAT_BANNER
+        argparse.ArgumentParser.print_help(self, stdlog)
 
     def error(self, message: str, code: int = 1):
         stderr << f"Error: {gettext(message)}"
@@ -90,15 +90,18 @@ class GetVersion(argparse._VersionAction):
     @wraps(argparse._VersionAction.__call__)
     def __call__(self, parser, namespace, values, option_string=None):
         from sys import version_info
-
-        (
-            stdout[0]
-            << f"satyrus {__version__} (python {version_info.major}.{version_info.minor})"
-        )
+        stdout << f"satyrus {__version__} (python {version_info.major}.{version_info.minor})"
         exit(EXIT_SUCCESS)
 
 
 class SetVerbosity(argparse._StoreAction):
+    LEVELS = [
+        ERROR,
+        WARNING,
+        DEBUG,
+        None
+    ]
+
     @wraps(argparse._StoreAction.__init__)
     def __init__(self, *args, **kwargs):
         argparse._StoreAction.__init__(self, *args, **kwargs)
@@ -107,7 +110,7 @@ class SetVerbosity(argparse._StoreAction):
     @wraps(argparse._StoreAction.__call__)
     def __call__(self, parser, namespace, values, option_string=None):
         argparse._StoreAction.__call__(self, parser, namespace, values, option_string)
-        Stream.set_lvl(getattr(namespace, self.dest))
+        CStream.config(level=self.LEVELS[getattr(namespace, self.dest)])
 
 
 class DebugMode(argparse._StoreTrueAction):
@@ -122,7 +125,7 @@ class DebugMode(argparse._StoreTrueAction):
             self, parser, namespace, values, option_string
         )
         setattr(namespace, "verbose", 3)
-        Stream.set_lvl(3)
+        CStream.config(level=DEBUG)
 
 
 class SetSolver(argparse._StoreAction):
@@ -153,7 +156,7 @@ class readParams(argparse._StoreAction):
         params = getattr(namespace, self.dest)
 
         if params is None:
-            stdwar[1] << "Warning: No solver parameters passed"
+            stdwar << "Warning: No solver parameters passed"
             setattr(namespace, self.dest, {})
 
         params_path = Path(params)
@@ -182,7 +185,7 @@ class readGuess(argparse._StoreAction):
         guess: dict = load_json(parser, guess_path)
 
         if guess is None:
-            stdwar[1] << "Warning: No solver guess given"
+            stdwar << "Warning: No solver guess given"
         elif not isinstance(guess, dict):
             parser.error(
                 f"In '{guess_path}':\nGuess object must be mapping, not '{type(guess)}'"
@@ -237,7 +240,7 @@ class SatCLI:
         """ """
 
         # -*- Set base output verbosity level -*-
-        Stream.set_lvl(1)
+        CStream.config(level=WARNING)
 
         # -*- Load Interfaces -*-
         SatAPI._load()
@@ -339,22 +342,20 @@ class SatCLI:
             args = parser.parse_args(argv)
 
         # Exhibits Compiler Command line arguments
-        stdlog[
-            3
-        ] << f'Command line args:\n{";".join(f"{k}={v!r}" for k, v in vars(args).items())}'
+        stdlog << f'Command line args:\n{";".join(f"{k}={v!r}" for k, v in vars(args).items())}'
 
         # Warning: Debug mode
         if args.debug:
-            stdwar[1] << "Warning: Debug mode enabled."
+            stdwar << "Warning: Debug mode enabled."
 
         # Warning: Legacy mode
         if args.legacy:
-            stdwar[1] << "Warning: Parser is running in legacy mode."
+            stdwar << "Warning: Parser is running in legacy mode."
 
         # Waning: Clear Cache
         if args.clear:
             Satyrus.clear_cache()
-            stdwar[1] << "Warning: Cache Cleared."
+            stdwar << "Warning: Cache Cleared."
 
         try:
             # Launch API
@@ -378,21 +379,21 @@ class SatCLI:
 
             # Report
             if args.report:
-                Timing.timer.show_report(level=0)
+                Timing.timer.show_report(level=INFO)
 
             exit(EXIT_SUCCESS)
         except MemoryError as exc:
-            stderr[0] << exc
+            stderr << exc
             exit(EXIT_FAILURE)
         except RuntimeError as exc:
-            stderr[0] << exc
+            stderr << exc
             exit(EXIT_FAILURE)
         except Exception:
             trace = log(target="satyrus.log")
             if args.debug:
-                stderr[0] << trace
+                stderr << trace
             else:
-                stderr[0] << SAT_CRITICAL
+                stderr << SAT_CRITICAL
             exit(EXIT_FAILURE)
 
 

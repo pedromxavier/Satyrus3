@@ -3,7 +3,7 @@ Satyrus API v{version}
 """
 from __future__ import annotations
 
-__version__ = "3.0.7"
+__version__ = "3.1.0"
 
 ## Standard Library
 import argparse
@@ -11,7 +11,7 @@ from functools import wraps
 from gettext import gettext
 
 ## Third-Party
-from cstream import Stream, stdlog, stderr, stdout
+from cstream import CStream, stdlog, stderr, stdout, DEBUG, WARNING, ERROR
 
 ## Local
 from .help import sat_api_help
@@ -37,8 +37,8 @@ class ArgParser(argparse.ArgumentParser):
 
     def print_help(self, *, from_help: bool = True):
         if from_help:
-            stdlog[0] << SAT_BANNER
-        argparse.ArgumentParser.print_help(self, stdlog[0])
+            stdlog << SAT_BANNER
+        argparse.ArgumentParser.print_help(self, stdlog)
 
     def error(self, message: str, code: int = 1):
         stderr << f"Error: {gettext(message)}"
@@ -72,10 +72,18 @@ class GetVersion(argparse._VersionAction):
     def __call__(self, parser, namespace, values, option_string=None):
         from sys import version_info
 
-        stdout[0] << f"satyrus {__version__} (python {version_info.major}.{version_info.minor})"
+        stdout << f"satyrus {__version__} (python {version_info.major}.{version_info.minor})"
         exit(EXIT_SUCCESS)
 
 class SetVerbosity(argparse._StoreAction):
+    
+    LEVELS = [
+        ERROR,
+        WARNING,
+        DEBUG,
+        None
+    ]
+
     @wraps(argparse._StoreAction.__init__)
     def __init__(self, *args, **kwargs):
         argparse._StoreAction.__init__(self, *args, **kwargs)
@@ -84,7 +92,7 @@ class SetVerbosity(argparse._StoreAction):
     @wraps(argparse._StoreAction.__call__)
     def __call__(self, parser, namespace, values, option_string=None):
         argparse._StoreAction.__call__(self, parser, namespace, values, option_string)
-        Stream.set_lvl(getattr(namespace, self.dest))
+        CStream.config(level=self.LEVELS[getattr(namespace, self.dest)])
 
 def addSatAPI(args: argparse.Namespace):
     SatAPI.add(*args.path)
@@ -175,7 +183,7 @@ class SatAPICLI:
         clear_parser.set_defaults(func=clearSatAPI)
 
         # -*- Set base output verbosity level -*-
-        Stream.set_lvl(1)
+        CStream.config(level=WARNING)
 
         if argv is None:
             args: argparse.Namespace = parser.parse_args()
@@ -186,12 +194,12 @@ class SatAPICLI:
         SatAPI._load()
 
         # Exhibits Compiler Command line arguments
-        stdlog[3] << f'Command line args:\n{";".join(f"{k}={v!r}" for k, v in vars(args).items())}'
+        stdlog << f'Command line args:\n{";".join(f"{k}={v!r}" for k, v in vars(args).items())}'
 
         if args.func is None:
-            stdout[1] << "Available Interfaces:"
+            stdout << "Available Interfaces:"
             for (i, option) in enumerate(SatAPI.options(), start=1):
-                stdout[1] << f"{i}. {option}"
+                stdout << f"{i}. {option}"
         else:
             args.func(args)
         

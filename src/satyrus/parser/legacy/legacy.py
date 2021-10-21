@@ -110,7 +110,7 @@ class SatLegacyLexer(object):
         """ """
         while self.error_stack:
             error = self.error_stack.popleft()
-            stderr[0] << error
+            stderr << error
         else:
             self.exit(1)
 
@@ -274,7 +274,7 @@ class SatLegacyParser(object):
         """ """
         while self.error_stack:
             error = self.error_stack.popleft()
-            stderr[0] << error
+            stderr << error
         else:
             self.exit(1)
 

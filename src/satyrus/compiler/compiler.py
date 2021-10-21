@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 # Third-Party
-from cstream import stderr, stdlog, stdwar
+from cstream import stderr, stdlog, stdwar, DEBUG
 
 # Local
 from .memory import Memory
@@ -105,7 +105,7 @@ class SatCompiler:
         ----------
         warning: SatWarning
         """
-        stdwar[1] << warning
+        stdwar << warning
 
     def __getitem__(self, opt_level: int) -> bool:
         """Optimization Level check.
@@ -141,7 +141,7 @@ class SatCompiler:
             self.__flags__[key] = value
             return value
 
-    @Timing.timer(level=2, section="Compiler.compile")
+    @Timing.timer(level=DEBUG, section="Compiler.compile")
     def compile(self, source: Source) -> int:
         """
         Parameters
@@ -168,7 +168,7 @@ class SatCompiler:
             self.energy = self.source = None
             return self.code
         except SatError as error:
-            stderr[0] << error
+            stderr << error
             self.energy = self.source = None
             self.code = error.code
             return self.code
@@ -205,10 +205,10 @@ class SatCompiler:
         """
 
         for stmt in bytecode:
-            stdlog[3] << "\n\t".join([f"CMD {stmt[0]}", *(f"{i} {x}" for i, x in enumerate(stmt[1:]))])
+            stdlog << "\n\t".join([f"CMD {stmt[0]}", *(f"{i} {x}" for i, x in enumerate(stmt[1:]))])
             self.exec(stmt)
         else:
-            stdlog[3] << ""
+            stdlog << ""
 
         self.checkpoint()
 
@@ -366,7 +366,7 @@ class SatCompiler:
         """Interrupts compilation after outputing error messages to stderr."""
         while self.error_stack:
             error = self.error_stack.popleft()
-            stderr[0] << error
+            stderr << error
         else:
             self.exit(1)
 

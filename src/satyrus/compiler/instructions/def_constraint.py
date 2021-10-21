@@ -164,8 +164,8 @@ def def_constraint(
         )
 
     # -*- Expression Analysis -*-
-    if stdlog[3]:
-        stdlog[3] << f"\n@{name}(raw):\n\t{expr}"
+    if stdlog:
+        stdlog << f"\n@{name}(raw):\n\t{expr}"
 
     if str(constype) == CONS_INT and expr.is_expr and not expr.logical:
         compiler << SatExprError(
@@ -191,8 +191,8 @@ def def_constraint(
         out=True,
     )
 
-    if stdlog[3]:
-        stdlog[3] << f"\n@{name}(verified):\n\t{expr}"
+    if stdlog:
+        stdlog << f"\n@{name}(verified):\n\t{expr}"
 
     # Simplifies expression
     expr: Expr = compiler.source.propagate(
@@ -201,8 +201,8 @@ def def_constraint(
         out=True,
     )
 
-    if stdlog[3]:
-        stdlog[3] << f"\n@{name}(simplified):\n\t{expr}"
+    if stdlog:
+        stdlog << f"\n@{name}(simplified):\n\t{expr}"
 
     build(compiler, constype, stack, Stack(), level, expr)
 
@@ -333,8 +333,8 @@ def build(
         if level is None:
             level = 0
 
-        if stdlog[3]:
-            stdlog[3] << energy
+        if stdlog:
+            stdlog << energy
 
         compiler.constraints[constype].append((int(level), energy))
 

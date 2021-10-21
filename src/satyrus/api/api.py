@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import final
 
 # Third-Party
-from cstream import stdwar, stderr, stdlog
+from cstream import stdwar, stderr, stdlog, DEBUG
 
 # Local
 from ..error import SatRuntimeError, EXIT_FAILURE, EXIT_SUCCESS
@@ -32,7 +32,7 @@ class SatFinder:
     @classmethod
     def find_spec(cls, name: str, *__args, **__kwargs):
         if cls.key is not None:
-            stdwar[1] << f"Warning: missing module {name!r} for {cls.key!r}"
+            stdwar << f"Warning: missing module {name!r} for {cls.key!r}"
             if cls.key in cls.require:
                 cls.require[cls.key].append(name)
             else:
@@ -81,7 +81,7 @@ class MetaSatAPI(ABCMeta):
         interface: MetaSatAPI = type.__new__(cls, name, bases, namespace)
 
         if name in cls.__satapi__:
-            stdwar[1] << f"API Interface '{name}' redefinition"
+            stdwar << f"API Interface '{name}' redefinition"
             cls.__stack__.append(name)
         elif name == "default":
             pass
@@ -119,7 +119,7 @@ class SatAPI(metaclass=MetaSatAPI):
             try:
                 energy: Posiform | None = Satyrus(legacy=legacy).compile(*paths)
             except SatRuntimeError as exc:
-                stderr[0] << exc
+                stderr << exc
                 energy: Posiform | None = None
         else:
             energy: Posiform | None = None
@@ -173,7 +173,7 @@ class SatAPI(metaclass=MetaSatAPI):
         else:
             return self.__satapi__[name]
 
-    @Timing.timer(level=2, section="Solver.solve")
+    @Timing.timer(level=DEBUG, section="Solver.solve")
     def __call__(self, **params) -> tuple[dict, float] | object:
         """"""
 
@@ -249,11 +249,11 @@ class SatAPI(metaclass=MetaSatAPI):
 
         for file_path in map(Path, paths):
             if not file_path.exists() or not file_path.is_file():
-                stderr[0] << f"Error: '{file_path}' does not exists"
+                stderr << f"Error: '{file_path}' does not exists"
                 continue
             elif file_path.suffix != ".py":
                 (
-                    stderr[0]
+                    stderr
                     << f"Error: '{file_path.absolute()}' is not a valid Python file"
                 )
                 continue
@@ -291,10 +291,10 @@ class SatAPI(metaclass=MetaSatAPI):
     def _build(cls, file_path: Path) -> tuple[str, str] | None:
         """ """
         if not file_path.exists() or not file_path.is_file():
-            stderr[0] << f"Error: '{file_path}' does not exists"
+            stderr << f"Error: '{file_path}' does not exists"
             return None
         elif file_path.suffix != ".py":
-            stderr[0] << f"Error: '{file_path.absolute()}' is not a valid Python file"
+            stderr << f"Error: '{file_path.absolute()}' is not a valid Python file"
             return None
 
         with file_path.open(mode="r") as file:
@@ -330,8 +330,8 @@ class SatAPI(metaclass=MetaSatAPI):
                 return None
 
         except Exception:
-            stderr[0] << f"There are errors in '{file_path.name}':"
-            stderr[0] << f"\n{traceback.format_exc(limit=-1)}\n"
+            stderr << f"There are errors in '{file_path.name}':"
+            stderr << f"\n{traceback.format_exc(limit=-1)}\n"
             return None
         else:
             code_path = file_path.with_suffix(".pyc")
@@ -421,8 +421,8 @@ class SatAPI(metaclass=MetaSatAPI):
 
     @staticmethod
     def error(message: str, code: int | None = EXIT_FAILURE):
-        if stderr[0]:
-            stderr[0] << f"API Error: {message}"
+        if stderr:
+            stderr << f"API Error: {message}"
         if code is not None:
             exit(code)
 

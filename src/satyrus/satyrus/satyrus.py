@@ -98,14 +98,14 @@ class Satyrus(object):
             for path in paths:
                 path = Path(path)
                 if not path.exists() or not path.is_file():
-                    stderr[0] << f"Error: File '{path}' does not exists"
+                    stderr << f"Error: File '{path}' does not exists"
                     code |= EXIT_FAILURE
                 elif path.suffix == ".sat":
                     source_list.append(path)
                 elif path.suffix == ".json":
                     energy_list.append(path)
                 else:
-                    stderr[0] << f"Error: Invalid file extension '{path.suffix}'"
+                    stderr << f"Error: Invalid file extension '{path.suffix}'"
                     code |= EXIT_FAILURE
 
             total_energy = Posiform(None)
@@ -116,7 +116,7 @@ class Satyrus(object):
                         try:
                             energy = Posiform.fromJSON(energy_file.read())
                         except json.decoder.JSONDecodeError:
-                            stderr[0] << f"Error: Inconsistent JSON data for energy equation in '{energy_path}'"
+                            stderr << f"Error: Inconsistent JSON data for energy equation in '{energy_path}'"
                             code |= EXIT_FAILURE
                         else:
                             total_energy += self.cache(energy_path, energy)

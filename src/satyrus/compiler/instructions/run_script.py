@@ -99,16 +99,16 @@ def run_script_penalties(compiler: SatCompiler):
             compiler.penalties[level_j] = compiler.penalties[level_k] * (n_k + 1)
 
     # -*- Penalty Table Exhibition -*-
-    if stdlog[2]:
-        stdlog[2] << "PENALTY TABLE"
-        stdlog[2] << tabulate(
+    if stdlog:
+        stdlog << "PENALTY TABLE"
+        stdlog << tabulate(
             [(f"{k}", f"{n}", compiler.penalties[k]) for k, n in levels],
             headers=["lvl", "n", "value"],
             tablefmt="pretty",
         )
-        stdlog[2] << ""
-        stdlog[2] << "CONSTANTS"
-        stdlog[2] << tabulate(
+        stdlog << ""
+        stdlog << "CONSTANTS"
+        stdlog << tabulate(
             [[compiler.env[EPSILON], compiler.env[ALPHA]]],
             headers=["ε", "α"],
             tablefmt="pretty",

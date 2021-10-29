@@ -433,15 +433,22 @@ class SatParser(object):
         """
         p[0] = p[2]
 
+    def p_array_buffer(self, p):
+        """\
+        array_buffer : dense_array_buffer
+                     | sparse_array_buffer
+        """
+        p[0] = p[1]
+
     def p_dense_array_buffer(self, p):
         """\
-        array_buffer : LBRA dense_array RBRA
+        dense_array_buffer : LBRA dense_array RBRA
         """
         p[0] = (p[2], True)
 
     def p_sparse_array_buffer(self, p):
         """\
-        array_buffer : LCUR sparse_array RCUR
+        sparse_array_buffer : LCUR sparse_array RCUR
         """
         p[0] = (p[2], False)
 
@@ -449,6 +456,7 @@ class SatParser(object):
         """\
         dense_array : dense_array COMMA dense_array_item
                     | dense_array_item
+                    | dense_array_buffer
         """
         if len(p) == 4:
             p[1].append(p[3])

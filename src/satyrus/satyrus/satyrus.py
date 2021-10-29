@@ -3,7 +3,6 @@ from __future__ import annotations
 
 # Standard Library
 import json
-import importlib.resources as resources
 from pathlib import Path
 
 # Third-Party

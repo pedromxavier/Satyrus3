@@ -12,7 +12,6 @@ import marshal
 import traceback
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import final
 
 # Third-Party
 from cstream import stdwar, stderr, stdlog, DEBUG

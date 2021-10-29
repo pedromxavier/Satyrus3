@@ -55,7 +55,7 @@ class ArgParser(argparse.ArgumentParser):
 
     def print_help(self, from_help: bool = True):
         if from_help:
-            stdlog << SAT_BANNER
+            stdout << SAT_BANNER
         argparse.ArgumentParser.print_help(self, stdlog)
 
     def error(self, message: str, code: int = 1):

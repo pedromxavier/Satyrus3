@@ -28,7 +28,12 @@ class dwave(SatAPI):
 
         sampleset = sampler.sample_qubo(Q, num_reads=num_reads, num_sweeps=num_sweeps)
 
-        y, e, *_ = sampleset.record[0]
+        e = float('inf')
+
+        for (z, ê, n) in sampleset.record:
+            if ê < e:
+                y = tuple(z)
+                e = ê
 
         s = {k: int(y[i]) for k, i in x.items()}
 

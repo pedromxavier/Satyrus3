@@ -210,7 +210,6 @@ class Source(str):
         if cls._trackable(o):
             return True
         elif strict:
-            print(o, o.lexinfo)
             raise TypeError(f"Object '{o}' of type '{type(o)}' is not trackable.")
         else:
             return False

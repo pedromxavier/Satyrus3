@@ -30,7 +30,7 @@ class Array(SatType):
             return self[i]._IDX_(idx)
 
     def __getitem__(self, i: Number):
-        if type(i) is Number and i.is_int:
+        if isinstance(i, Number) and i.is_int:
             j = int(i)
             if j in self.array:
                 return self.array[j]
@@ -44,13 +44,13 @@ class Array(SatType):
                         return self.var._IDX_((i,))
                 else:
                     raise SatIndexError(f"Index {i} is out of bounds [1, {n}].", target=i)
-        elif type(i) is Var:
+        elif isinstance(i, (Var, Expr)):
             return Expr(T_IDX, self, i)
         else:
             raise SatIndexError(f"Invalid index `{i}` of type `{type(i)}`.", target=i)
 
     def __setitem__(self, i: Number, value: SatType):
-        if type(i) is Number and i.is_int:
+        if isinstance(i, Number) and i.is_int:
             if self.dim > 1:
                 raise SatIndexError(f"Attempt to assign to {self.dim}-dimensional array.", target=i)
             else:

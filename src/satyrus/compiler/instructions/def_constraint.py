@@ -167,11 +167,11 @@ def def_constraint(
     if stdlog[3]:
         stdlog[3] << f"\n@{name}(raw):\n\t{expr}"
 
-    if str(constype) == CONS_INT and expr.is_expr and not expr.logical:
-        compiler << SatExprError(
-            "Integrity constraint expressions must be purely logical i.e. no arithmetic operations allowed.",
-            target=expr,
-        )
+    # if str(constype) == CONS_INT and expr.is_expr and not expr.logical:
+    #     compiler << SatExprError(
+    #         "Integrity constraint expressions must be purely logical i.e. no arithmetic operations allowed.",
+    #         target=expr,
+    #     )
 
     compiler.checkpoint()
 

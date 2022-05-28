@@ -26,7 +26,7 @@ class SatError(Exception):
             if self.target.source is None:
                 return f"{self.__class__.__doc__}: {self.msg}\n"
             else:
-                return self.target.source.error(self.msg, target=self.target, name=self.__doc__)
+                return self.target.source.error(self.msg, target=self.target, name=self.__class__.__doc__)
         else:
             return self.msg
 

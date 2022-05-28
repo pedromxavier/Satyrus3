@@ -685,6 +685,9 @@ class Expr(tuple, SatType, metaclass=MetaSatType):
     def __xor__(self, other):
         return self._XOR_(other)
 
+    def __iff__(self, other):
+        return self._IFF_(other)
+
     def __neg__(self):
         return self._NEG_()
 
@@ -699,7 +702,7 @@ class Expr(tuple, SatType, metaclass=MetaSatType):
         T_NOT: {
             T_AND: lambda *X: Expr(T_OR, *(~x for x in X)),
             T_OR: lambda *X: Expr(T_AND, *(~x for x in X)),
-            T_XOR: lambda A, B: A.__iff__(B),
+            T_XOR: lambda A, B: (~A & ~B) | (A & B),
             T_IMP: lambda A, B: A & ~B,
             T_RIMP: lambda A, B: ~A & B,
             T_IFF: lambda A, B: A ^ B,

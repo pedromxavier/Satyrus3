@@ -2,6 +2,7 @@
 """
 # Future Imports
 from __future__ import annotations
+from ast import Num
 
 ## Standard Library
 from functools import reduce
@@ -73,24 +74,15 @@ def def_constraint(
             target=constype,
         )
 
-    if str(constype) == CONS_OPT:
-        if level is None:
-            pass
-        elif level < 0 or not level.is_int:
-            compiler << SatValueError(
-                "Penalty level must be a positive integer", target=level
-            )
-
-    if str(constype) == CONS_INT:
-        if level is None:
-            compiler << SatValueError(
-                "A Penalty level must be given to every Integrity Constraint",
-                target=name,
-            )
-        elif level < 0 or not level.is_int:
-            compiler << SatValueError(
-                "Penalty level must be a positive integer", target=level
-            )
+    if level is None:
+        if str(constype) == CONS_INT:
+            level = Number('1')
+        elif str(constype) == CONS_OPT:
+            level = Number('0')
+    elif level < 0 or not level.is_int:
+        compiler << SatValueError(
+            "Penalty level must be a positive integer", target=level
+        )
 
     compiler.checkpoint()
 
@@ -329,12 +321,9 @@ def build(
                 energy = unstack(compiler, B, expr, {})
         else:
             raise ValueError(f"Invalid constraint type '{constype}'")
-
-        if level is None:
-            level = 0
-
-        if stdlog:
-            stdlog << energy
+        
+        if stdlog[3]:
+            stdlog[3] << energy
 
         compiler.constraints[constype].append((int(level), energy))
 

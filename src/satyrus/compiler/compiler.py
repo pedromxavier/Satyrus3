@@ -105,7 +105,7 @@ class SatCompiler:
         ----------
         warning: SatWarning
         """
-        stdwar << warning
+        stdwar[2] << warning
 
     def __getitem__(self, opt_level: int) -> bool:
         """Optimization Level check.

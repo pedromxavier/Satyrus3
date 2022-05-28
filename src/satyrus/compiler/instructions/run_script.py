@@ -68,7 +68,7 @@ def run_script_penalties(compiler: SatCompiler):
     # -*- Penalty Computation -*-
     compiler.penalties.update({0: float(compiler.env[ALPHA])})
 
-    levels: dict[int, float] = {}
+    levels: dict[int, float] = {0: 0.0}
 
     constraints = it.chain(compiler.constraints[CONS_OPT], compiler.constraints[CONS_INT])
 
@@ -82,8 +82,8 @@ def run_script_penalties(compiler: SatCompiler):
             else:
                 # Compute Energy Gap
                 levels[level] += abs(cons)
-    else:
-        levels: list = sorted(levels.items())
+    
+    levels: list = sorted(levels.items())
 
     epsilon = float(compiler.env[EPSILON])
 
@@ -117,10 +117,10 @@ def run_script_penalties(compiler: SatCompiler):
 
 def run_script_energy(compiler: SatCompiler):
     """"""
+    # Optimality
+    E0 = sum((compiler.penalties[level] * energy for level, energy in compiler.constraints[CONS_OPT]), 0.0)
+    
     # Integrity
     Ei = sum((compiler.penalties[level] * energy for level, energy in compiler.constraints[CONS_INT]), 0.0)
 
-    # Optimality
-    Eo = sum((compiler.penalties[level] * energy for level, energy in compiler.constraints[CONS_OPT]), 0.0)
-
-    compiler.energy = Ei + Eo
+    compiler.energy = E0 + Ei

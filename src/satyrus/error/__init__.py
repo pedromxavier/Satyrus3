@@ -1,9 +1,3 @@
-# Standard Library
-import os
-
-# Third-Party
-from cstream import stderr, stdout
-
 # Local
 from ..satlib import Source
 
@@ -12,7 +6,7 @@ EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 
 
-class SatError(Exception):
+class SATError(Exception):
     "Error"
 
     def __init__(self, msg=None, target=None, code=EXIT_FAILURE):
@@ -26,89 +20,93 @@ class SatError(Exception):
             if self.target.source is None:
                 return f"{self.__class__.__doc__}: {self.msg}\n"
             else:
-                return self.target.source.error(self.msg, target=self.target, name=self.__doc__)
+                return self.target.source.error(
+                    self.msg, target=self.target, name=self.__doc__
+                )
         else:
             return self.msg
 
 
-class SatCompilerError(SatError):
+class SATCompilerError(SATError):
     "Compiler Error"
 
 
-class SatExprError(SatError):
+class SATExprError(SATError):
     "Expression Error"
 
 
-class SatIndexError(SatError):
+class SATIndexError(SATError):
     "Index Error"
 
 
-class SatFileError(SatError):
+class SATFileError(SATError):
     "File Error"
 
 
-class SatLexerError(SatError):
+class SATLexerError(SATError):
     "Lexer Error"
 
 
-class SatParserError(SatError):
+class SATParserError(SATError):
     "Parser Error"
 
 
-class SatPythonError(SatError):
+class SATPythonError(SATError):
     "Python Error"
 
 
-class SatReferenceError(SatError):
+class SATReferenceError(SATError):
     "Reference Error"
 
-class SatRuntimeError(SatError):
+
+class SATRuntimeError(SATError):
     "Runtime Error"
 
-class SatSyntaxError(SatError):
+
+class SATSyntaxError(SATError):
     "Syntax Error"
 
 
-class SatTypeError(SatError):
+class SATTypeError(SATError):
     "Type Error"
 
 
-class SatValueError(SatError):
+class SATValueError(SATError):
     "Value Error"
 
 
-class SatWarning(SatError):
+class SATWarning(SATError):
     "Warning"
 
 
-class SatSolverError(SatError):
+class SATSolverError(SATError):
     "Solver Error"
 
 
-class SatExit(SatError):
+class SATExit(SATError):
     "Exit"
 
     def __init__(self, code: int):
-        SatError.__init__(self, f"exit code {code}")
+        SATError.__init__(self, f"exit code {code}")
 
 
 __all__ = [
     "EXIT_SUCCESS",
     "EXIT_FAILURE",
-    "SatError",
-    "SatCompilerError",
-    "SatExprError",
-    "SatIndexError",
-    "SatFileError",
-    "SatLexerError",
-    "SatParserError",
-    "SatPythonError",
-    "SatReferenceError",
-    "SatRuntimeError",
-    "SatSyntaxError",
-    "SatTypeError",
-    "SatValueError",
-    "SatWarning",
-    "SatSolverError",
-    "SatExit",
+    "SATError",
+    "SATCompilerError",
+    "SATExprError",
+    "SATIndexError",
+    "SATFileError",
+    "SATLexerError",
+    "SATParserError",
+    "SATPythonError",
+    "SATReferenceError",
+    "SATRuntimeError",
+    "SATSyntaxError",
+    "SATTypeError",
+    "SATValueError",
+    "SATWarning",
+    "SATSolverError",
+    "SATExit",
 ]

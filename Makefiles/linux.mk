@@ -8,5 +8,5 @@ deploy:
 	@python3 -m twine upload dist/*
 
 zip:
-	@rm -f Satyrus3.zip
-	@zip Satyrus3.zip /*
+	@rm -f SATyrus3.zip
+	@zip SATyrus3.zip /*

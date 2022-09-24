@@ -1,0 +1,48 @@
+<svg width="1000" height="500" viewBox="0 0 1000 500" xmlns="http://www.w3.org/2000/svg">
+	<style>
+	rect{
+		stroke: none;
+		stroke-linejoin: round;
+	}
+
+    .red{
+      	fill: #cb3c33;
+		stroke-width: 3px;
+    }
+
+    .green{
+      	fill: #389826;
+		stroke-width: 5px;
+    }
+
+    .blue{
+      	fill: #4063d8;
+		stroke-width: 3px;
+    }
+
+    .violet{
+      	fill: #9558b2;
+		stroke-width: 5px;
+    }
+
+    .white {
+        fill: #fff;
+        stroke-width: 5px;
+    }
+
+    .title {
+        font-size: 140pt;
+        font-family: Garamond, sans-serif;
+        font-weight: bold;
+        text-anchor: middle;
+        text-decoration: underline;
+    }
+
+    .shadow {
+        fill: #000;
+    }
+  	</style>
+
+    <text x="508" y="308" class="title shadow">⟹SATyrus</text>
+    <text x="500" y="300" class="title blue">⟹SATyrus</text>
+</svg>

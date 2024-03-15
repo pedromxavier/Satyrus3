@@ -2,7 +2,7 @@ from .base import SatType
 from .expr import Expr
 from ..error import SatValueError
 from ..satlib import Source
-from ..symbols import T_IDX
+from ..symbols import T_IDX, T_MOD
 
 # pylint:disable=no-self-argument
 class Var(str, SatType):
@@ -16,6 +16,9 @@ class Var(str, SatType):
 
     def __repr__(self):
         return f"{self.__class__.__name__}({str.__repr__(self)})"
+
+    def _MOD_(x, y):
+        return Expr(T_MOD, x, y)
 
     def _IDX_(s, i: tuple):
         r = str(s)
